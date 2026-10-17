@@ -59,9 +59,9 @@ class MainActivity : ComponentActivity() {
                 } else {
                     HomeScreen(
                         recents = recents,
-                        onOpenPicker = { picker.launch(arrayOf("image/*") + RawImage.MIME_TYPES) },
+                        onOpenPicker = { picker.launch(OPEN_TYPES) },
                         onOpen = editor::open,
-                        onBatch = { multiPicker.launch(arrayOf("image/*") + RawImage.MIME_TYPES) },
+                        onBatch = { multiPicker.launch(OPEN_TYPES) },
                     )
                 }
             }
@@ -88,3 +88,6 @@ class MainActivity : ComponentActivity() {
         uri?.let(editor::open)
     }
 }
+
+/** Everything the system picker should offer: all images, plus RAW and JPEG XL types it may not count as images. */
+private val OPEN_TYPES = arrayOf("image/*", "image/jxl") + RawImage.MIME_TYPES

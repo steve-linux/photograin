@@ -35,6 +35,7 @@ object ImageLoader {
         val name = queryName(context, uri)
         val mime = resolver.getType(uri)
         if (RawImage.isRaw(mime, name)) return loadRaw(context, uri, name, mime, maxLongEdge)
+        if (ImageCodecs.isJxl(mime, name)) return loadJxl(context, uri, name, maxLongEdge)
 
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         // With inJustDecodeBounds decodeStream always returns null, so check the stream, not the result.
@@ -81,6 +82,23 @@ object ImageLoader {
         )
     }
 
+    /** JPEG XL comes decoded upright, so no orientation is left to apply. */
+    private fun loadJxl(context: Context, uri: Uri, name: String?, maxLongEdge: Int): LoadedImage {
+        val (bitmap, profile) = ImageCodecs.decodeJxl(context, uri)
+        val w = bitmap.width
+        val h = bitmap.height
+        return LoadedImage(
+            uri = uri,
+            preview = scaleDown(bitmap, maxLongEdge),
+            sourceWidth = w,
+            sourceHeight = h,
+            base = BaseOrientation.fromExif(ExifInterface.ORIENTATION_NORMAL),
+            displayName = name,
+            mimeType = "image/jxl",
+            profile = profile,
+        )
+    }
+
     /** Small decode for thumbnails in the home screen; null if the file is gone. */
     fun thumbnail(context: Context, uri: Uri, size: Int): Bitmap? = runCatching {
         if (RawImage.isRaw(context.contentResolver.getType(uri), queryName(context, uri))) {
@@ -105,8 +123,13 @@ object ImageLoader {
 
     /** How the stored pixels must be turned to display upright, without decoding them. */
     fun baseOrientation(context: Context, uri: Uri): BaseOrientation {
-        val raw = RawImage.isRaw(context.contentResolver.getType(uri), queryName(context, uri))
-        val tag = if (raw) RawImage.probe(context, uri).exifOrientation else readOrientation(context, uri)
+        val mime = context.contentResolver.getType(uri)
+        val name = queryName(context, uri)
+        val tag = when {
+            RawImage.isRaw(mime, name) -> RawImage.probe(context, uri).exifOrientation
+            ImageCodecs.isJxl(mime, name) -> ExifInterface.ORIENTATION_NORMAL  // decoded upright
+            else -> readOrientation(context, uri)
+        }
         return BaseOrientation.fromExif(tag)
     }
 
