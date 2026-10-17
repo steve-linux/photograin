@@ -47,6 +47,10 @@ class CurvesTest {
         assertEquals(0.2f, c.points[1].y, 1e-6f)
         assertEquals(c, c.removePoint(0)) // endpoints stay
         assertEquals(2, c.removePoint(1).points.size)
+        // A stale index (from a curve with more points) is ignored instead of crashing.
+        val identity = ToneCurve()
+        assertEquals(identity, identity.movePoint(2, CurvePoint(0.5f, 0.5f)))
+        assertEquals(identity, identity.removePoint(5))
     }
 
     @Test
