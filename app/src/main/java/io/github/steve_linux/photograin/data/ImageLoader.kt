@@ -29,6 +29,10 @@ object ImageLoader {
 
     fun load(context: Context, uri: Uri, maxLongEdge: Int = PREVIEW_LONG_EDGE): LoadedImage {
         val resolver = context.contentResolver
+        val name = queryName(context, uri)
+        val mime = resolver.getType(uri)
+        if (RawImage.isRaw(mime, name)) return loadRaw(context, uri, name, mime, maxLongEdge)
+
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         // With inJustDecodeBounds decodeStream always returns null, so check the stream, not the result.
         val stream = resolver.openInputStream(uri) ?: throw IOException("Cannot open $uri")
@@ -50,20 +54,47 @@ object ImageLoader {
             sourceWidth = w,
             sourceHeight = h,
             base = BaseOrientation.fromExif(readOrientation(context, uri)),
-            displayName = queryName(context, uri),
-            mimeType = resolver.getType(uri) ?: bounds.outMimeType,
+            displayName = name,
+            mimeType = mime ?: bounds.outMimeType,
+        )
+    }
+
+    /** RAW previews skip demosaicing (half size), which is plenty for a screen and much faster. */
+    private fun loadRaw(context: Context, uri: Uri, name: String?, mime: String?, maxLongEdge: Int): LoadedImage {
+        val info = RawImage.probe(context, uri)
+        val developed = RawImage.develop(context, uri, halfSize = max(info.width, info.height) >= maxLongEdge)
+        return LoadedImage(
+            uri = uri,
+            preview = scaleDown(developed, maxLongEdge),
+            sourceWidth = info.width,
+            sourceHeight = info.height,
+            base = BaseOrientation.fromExif(info.exifOrientation),
+            displayName = name,
+            mimeType = mime,
         )
     }
 
     /** Small decode for thumbnails in the home screen; null if the file is gone. */
     fun thumbnail(context: Context, uri: Uri, size: Int): Bitmap? = runCatching {
-        val image = load(context, uri, size)
-        val m = android.graphics.Matrix().apply {
-            if (image.base.mirror) postScale(-1f, 1f)
-            postRotate(90f * image.base.quarterTurns)
+        if (RawImage.isRaw(context.contentResolver.getType(uri), queryName(context, uri))) {
+            // The camera's own JPEG preview is far quicker than developing the RAW data.
+            val preview = RawImage.embeddedPreview(context, uri, size)
+            if (preview != null) {
+                val base = BaseOrientation.fromExif(RawImage.probe(context, uri).exifOrientation)
+                return@runCatching oriented(scaleDown(preview, size), base)
+            }
         }
-        Bitmap.createBitmap(image.preview, 0, 0, image.preview.width, image.preview.height, m, true)
+        val image = load(context, uri, size)
+        oriented(image.preview, image.base)
     }.getOrNull()
+
+    private fun oriented(bitmap: Bitmap, base: BaseOrientation): Bitmap {
+        val m = android.graphics.Matrix().apply {
+            if (base.mirror) postScale(-1f, 1f)
+            postRotate(90f * base.quarterTurns)
+        }
+        return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, m, true)
+    }
 
     fun readOrientation(context: Context, uri: Uri): Int = runCatching {
         context.contentResolver.openInputStream(uri)?.use {
@@ -71,7 +102,7 @@ object ImageLoader {
         }
     }.getOrNull() ?: ExifInterface.ORIENTATION_NORMAL
 
-    private fun queryName(context: Context, uri: Uri): String? = runCatching {
+    internal fun queryName(context: Context, uri: Uri): String? = runCatching {
         context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use {
             if (it.moveToFirst()) it.getString(0) else null
         }

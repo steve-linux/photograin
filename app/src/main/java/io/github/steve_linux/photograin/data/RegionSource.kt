@@ -26,6 +26,9 @@ interface RegionSource : Closeable {
          */
         fun open(context: Context, uri: Uri): RegionSource {
             val resolver = context.contentResolver
+            if (RawImage.isRaw(resolver.getType(uri), ImageLoader.queryName(context, uri))) {
+                return BitmapRegionSource(RawImage.develop(context, uri, halfSize = false))
+            }
             val decoder = runCatching {
                 resolver.openInputStream(uri)?.use { stream ->
                     if (Build.VERSION.SDK_INT >= 31) {
