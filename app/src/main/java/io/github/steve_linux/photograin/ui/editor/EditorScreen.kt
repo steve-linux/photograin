@@ -186,7 +186,7 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit) {
             if (state.image != null) {
                 if (state.tool == ToolGroup.LOOK) {
                     LookPanel(
-                        look = state.edit.adjustments.look,
+                        adjustments = state.edit.adjustments,
                         lutLoaded = state.lut != null,
                         luts = state.luts,
                         userPresets = state.userPresets,
