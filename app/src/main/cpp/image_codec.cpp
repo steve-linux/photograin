@@ -189,7 +189,6 @@ bool encodeAvif(const Pixels& in, const EncodeOptions& options, std::vector<uint
     encoder->quality = std::clamp(options.quality, 0, 100);
     encoder->qualityAlpha = AVIF_QUALITY_LOSSLESS;
     encoder->speed = 6;  // 8 is about twice as fast, but files grow by a quarter or more
-    encoder->autoTiling = AVIF_TRUE;  // tiles let every thread work on a single still image
     encoder->maxThreads = threadCount(options.threads);
     avifRWData output = AVIF_DATA_EMPTY;
     r = avifEncoderWrite(encoder.get(), image.get(), &output);
