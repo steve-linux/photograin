@@ -37,9 +37,15 @@ class Preferences(private val context: Context) {
             }.apply()
         }
 
+    /** Whether the home screen tip about saving presets was closed. */
+    var presetTipDismissed: Boolean
+        get() = prefs.getBoolean(KEY_PRESET_TIP, false)
+        set(value) = prefs.edit().putBoolean(KEY_PRESET_TIP, value).apply()
+
     private companion object {
         const val KEY_RECENTS = "recents"
         const val KEY_COPIED = "copied_adjustments"
+        const val KEY_PRESET_TIP = "preset_tip_dismissed"
         const val MAX_RECENTS = 24
         val json = Json { ignoreUnknownKeys = true }
     }
