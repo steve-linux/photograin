@@ -68,7 +68,7 @@ fun AdjustmentPanel(
 }
 
 @Composable
-private fun ParamSlider(
+internal fun ParamSlider(
     label: String,
     value: Float,
     range: ClosedFloatingPointRange<Float>,
@@ -183,6 +183,8 @@ private fun paramLabel(id: String): Int = when (id) {
     "sharpness" -> R.string.param_sharpness
     "clarity" -> R.string.param_clarity
     "dehaze" -> R.string.param_dehaze
+    "noiseReduction" -> R.string.param_noise_reduction
+    "colorNoiseReduction" -> R.string.param_color_noise_reduction
     "vignette" -> R.string.param_vignette
     "grain" -> R.string.param_grain
     "grainSize" -> R.string.param_grain_size

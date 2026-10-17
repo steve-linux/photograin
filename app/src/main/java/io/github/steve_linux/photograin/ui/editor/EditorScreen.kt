@@ -39,6 +39,9 @@ import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -56,6 +59,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.steve_linux.photograin.R
 import io.github.steve_linux.photograin.data.ExportOptions
@@ -72,6 +76,8 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit) {
     var showExport by rememberSaveable { mutableStateOf(false) }
     var pendingExport by remember { mutableStateOf<ExportOptions?>(null) }
     var menuOpen by remember { mutableStateOf(false) }
+    var lightCurves by rememberSaveable { mutableStateOf(false) }
+    var colorHsl by rememberSaveable { mutableStateOf(false) }
 
     BackHandler(onBack = onClose)
 
@@ -179,13 +185,35 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit) {
                         onReset = viewModel::resetGeometry,
                     )
                 } else {
-                    AdjustmentPanel(
-                        group = state.tool,
-                        adjustments = state.edit.adjustments,
-                        onChange = viewModel::setParam,
-                        onChangeFinished = viewModel::commit,
-                        onReset = viewModel::resetParam,
-                    )
+                    val advanced = state.tool == ToolGroup.LIGHT || state.tool == ToolGroup.COLOR
+                    if (advanced) {
+                        PanelModeSelector(
+                            secondLabel = if (state.tool == ToolGroup.LIGHT) R.string.mode_curves else R.string.mode_hsl,
+                            showSecond = if (state.tool == ToolGroup.LIGHT) lightCurves else colorHsl,
+                            onSelect = { second ->
+                                if (state.tool == ToolGroup.LIGHT) lightCurves = second else colorHsl = second
+                            },
+                        )
+                    }
+                    when {
+                        state.tool == ToolGroup.LIGHT && lightCurves -> CurvesPanel(
+                            curves = state.edit.adjustments.curves,
+                            onChange = viewModel::setCurves,
+                            onChangeFinished = viewModel::commit,
+                        )
+                        state.tool == ToolGroup.COLOR && colorHsl -> HslPanel(
+                            hsl = state.edit.adjustments.hsl,
+                            onChange = viewModel::setHsl,
+                            onChangeFinished = viewModel::commit,
+                        )
+                        else -> AdjustmentPanel(
+                            group = state.tool,
+                            adjustments = state.edit.adjustments,
+                            onChange = viewModel::setParam,
+                            onChangeFinished = viewModel::commit,
+                            onReset = viewModel::resetParam,
+                        )
+                    }
                 }
             }
         }
@@ -203,6 +231,24 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit) {
         )
     }
     state.exportProgress?.let { ExportProgressDialog(it) }
+}
+
+/** "Basic | Curves" or "Basic | HSL" switch above the Light and Color panels. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PanelModeSelector(secondLabel: Int, showSecond: Boolean, onSelect: (Boolean) -> Unit) {
+    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
+        SegmentedButton(
+            selected = !showSecond,
+            onClick = { onSelect(false) },
+            shape = SegmentedButtonDefaults.itemShape(0, 2),
+        ) { Text(stringResource(R.string.mode_basic)) }
+        SegmentedButton(
+            selected = showSecond,
+            onClick = { onSelect(true) },
+            shape = SegmentedButtonDefaults.itemShape(1, 2),
+        ) { Text(stringResource(secondLabel)) }
+    }
 }
 
 private fun exportName(original: String?, options: ExportOptions): String {

@@ -16,10 +16,12 @@ import io.github.steve_linux.photograin.data.RegionSource
 import io.github.steve_linux.photograin.model.Adjustments
 import io.github.steve_linux.photograin.model.AspectRatio
 import io.github.steve_linux.photograin.model.CropRect
+import io.github.steve_linux.photograin.model.Curves
 import io.github.steve_linux.photograin.model.EditState
 import io.github.steve_linux.photograin.model.Geometry
 import io.github.steve_linux.photograin.model.GeometryMapper
 import io.github.steve_linux.photograin.model.History
+import io.github.steve_linux.photograin.model.Hsl
 import io.github.steve_linux.photograin.model.ParamSpec
 import io.github.steve_linux.photograin.model.PxSize
 import io.github.steve_linux.photograin.model.ToolGroup
@@ -101,6 +103,12 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
     fun setParam(spec: ParamSpec, value: Float) = updateLive { e ->
         e.copy(adjustments = spec.set(e.adjustments, value.coerceIn(spec.min, spec.max)))
     }
+
+    /** Live update of the tone curves; [commit] when the drag ends. */
+    fun setCurves(curves: Curves) = updateLive { it.copy(adjustments = it.adjustments.copy(curves = curves)) }
+
+    /** Live update of the HSL bands; [commit] when the slider is released. */
+    fun setHsl(hsl: Hsl) = updateLive { it.copy(adjustments = it.adjustments.copy(hsl = hsl)) }
 
     fun resetParam(spec: ParamSpec) {
         setParam(spec, spec.default)

@@ -60,4 +60,21 @@
     <string name="msg_copied">Regolazioni copiate</string>
     <string name="msg_pasted">Regolazioni incollate</string>
     <string name="msg_out_of_memory">Memoria insufficiente. Prova una dimensione di esportazione più piccola.</string>
+
+    <string name="param_noise_reduction">Riduzione rumore</string>
+    <string name="param_color_noise_reduction">Riduzione rumore colore</string>
+    <string name="mode_basic">Base</string>
+    <string name="mode_curves">Curve</string>
+    <string name="reset_curve">Ripristina curva</string>
+    <string name="hsl_hue">Tonalità</string>
+    <string name="hsl_saturation">Saturazione</string>
+    <string name="hsl_luminance">Luminanza</string>
+    <string name="band_red">Rosso</string>
+    <string name="band_orange">Arancione</string>
+    <string name="band_yellow">Giallo</string>
+    <string name="band_green">Verde</string>
+    <string name="band_aqua">Acqua</string>
+    <string name="band_blue">Blu</string>
+    <string name="band_purple">Viola</string>
+    <string name="band_magenta">Magenta</string>
 </resources>

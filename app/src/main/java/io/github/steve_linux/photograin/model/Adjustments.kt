@@ -25,10 +25,15 @@ data class Adjustments(
     val sharpness: Float = 0f,
     val clarity: Float = 0f,
     val dehaze: Float = 0f,
+    val noiseReduction: Float = 0f,
+    val colorNoiseReduction: Float = 0f,
     // Effects
     val vignette: Float = 0f,
     val grain: Float = 0f,
     val grainSize: Float = 0.35f,
+    // Advanced tone and color
+    val curves: Curves = Curves(),
+    val hsl: Hsl = Hsl(),
 )
 
 enum class ToolGroup { LIGHT, COLOR, DETAIL, EFFECTS, CROP }
@@ -63,6 +68,8 @@ object Params {
         ParamSpec("sharpness", ToolGroup.DETAIL, 0f, 1f, { it.sharpness }, { a, v -> a.copy(sharpness = v) }),
         ParamSpec("clarity", ToolGroup.DETAIL, -1f, 1f, { it.clarity }, { a, v -> a.copy(clarity = v) }),
         ParamSpec("dehaze", ToolGroup.DETAIL, -1f, 1f, { it.dehaze }, { a, v -> a.copy(dehaze = v) }),
+        ParamSpec("noiseReduction", ToolGroup.DETAIL, 0f, 1f, { it.noiseReduction }, { a, v -> a.copy(noiseReduction = v) }),
+        ParamSpec("colorNoiseReduction", ToolGroup.DETAIL, 0f, 1f, { it.colorNoiseReduction }, { a, v -> a.copy(colorNoiseReduction = v) }),
         ParamSpec("vignette", ToolGroup.EFFECTS, -1f, 1f, { it.vignette }, { a, v -> a.copy(vignette = v) }),
         ParamSpec("grain", ToolGroup.EFFECTS, 0f, 1f, { it.grain }, { a, v -> a.copy(grain = v) }),
         ParamSpec("grainSize", ToolGroup.EFFECTS, 0f, 1f, { it.grainSize }, { a, v -> a.copy(grainSize = v) }),

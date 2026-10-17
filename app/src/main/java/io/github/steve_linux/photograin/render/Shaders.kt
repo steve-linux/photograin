@@ -84,6 +84,14 @@ uniform float uDehaze;
 uniform float uVignette;
 uniform float uGrain;
 uniform float uGrainCell;
+uniform float uLumaNr;
+uniform float uChromaNr;
+// 256x1 lookup: channel c at input i = curve_c(master(i)).
+uniform sampler2D uCurve;
+uniform float uCurvesOn;
+// Per band: hue shift, saturation, luminance (-1..1).
+uniform vec3 uHsl[8];
+uniform float uHslOn;
 
 // Pixels left of this x (0..1 in the output) show the original. -1 disables comparison.
 uniform float uCompare;
@@ -129,7 +137,80 @@ float valueNoise(vec2 p) {
     return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
 }
 
+const float BAND_HUE[8] = float[8](0.0, 30.0, 60.0, 120.0, 180.0, 240.0, 270.0, 300.0);
+
+vec3 rgbToHsv(vec3 c) {
+    vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
+    vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));
+    vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));
+    float d = q.x - min(q.w, q.y);
+    float e = 1.0e-10;
+    return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);
+}
+
+vec3 hsvToRgb(vec3 c) {
+    vec3 p = abs(fract(c.xxx + vec3(1.0, 2.0 / 3.0, 1.0 / 3.0)) * 6.0 - 3.0);
+    return c.z * mix(vec3(1.0), clamp(p - 1.0, 0.0, 1.0), c.y);
+}
+
+vec3 applyHsl(vec3 v) {
+    vec3 hsv = rgbToHsv(v);
+    float h = hsv.x * 360.0;
+    vec3 acc = vec3(0.0);
+    float wsum = 0.0;
+    for (int i = 0; i < 8; i++) {
+        float d = abs(mod(h - BAND_HUE[i] + 180.0, 360.0) - 180.0);
+        float w = max(0.0, 1.0 - d / 45.0);
+        w *= w;
+        acc += w * uHsl[i];
+        wsum += w;
+    }
+    acc /= max(wsum, 1.0);
+    hsv.x = fract(hsv.x + acc.x * 30.0 / 360.0 + 1.0);
+    hsv.y = clamp(hsv.y * (1.0 + acc.y), 0.0, 1.0);
+    // Luminance only moves colored pixels; grays have no hue to belong to.
+    hsv.z = clamp(hsv.z * exp2(acc.z * 0.8 * hsv.y), 0.0, 1.0);
+    return hsvToRgb(hsv);
+}
+
+vec3 applyCurves(vec3 v) {
+    vec3 t = v * (255.0 / 256.0) + 0.5 / 256.0;
+    return vec3(
+        texture(uCurve, vec2(t.r, 0.5)).r,
+        texture(uCurve, vec2(t.g, 0.5)).g,
+        texture(uCurve, vec2(t.b, 0.5)).b);
+}
+
+// Edge-preserving luminance smoothing (5x5 bilateral) and chroma smoothing (5x5 Gaussian).
+vec3 denoise(vec3 s) {
+    float ls = dot(s, LUMA);
+    float sigmaR = 0.02 + 0.12 * uLumaNr;
+    vec3 accL = vec3(0.0);
+    float wL = 0.0;
+    vec3 accC = vec3(0.0);
+    float wC = 0.0;
+    for (int y = -2; y <= 2; y++) {
+        for (int x = -2; x <= 2; x++) {
+            vec3 n = texture(uGeo, vCoord + vec2(float(x), float(y)) * uGeoTexel).rgb;
+            float ln = dot(n, LUMA);
+            float ws = exp(-float(x * x + y * y) / 4.5);
+            float wr = exp(-(ln - ls) * (ln - ls) / (2.0 * sigmaR * sigmaR));
+            accL += ws * wr * n;
+            wL += ws * wr;
+            accC += ws * (n - ln);
+            wC += ws;
+        }
+    }
+    vec3 o = mix(s, accL / wL, uLumaNr);
+    float lo = dot(o, LUMA);
+    return clamp(lo + mix(o - lo, accC / wC, uChromaNr), 0.0, 1.0);
+}
+
 vec3 process(vec3 s, vec2 pos) {
+    if (uLumaNr > 0.0 || uChromaNr > 0.0) {
+        s = denoise(s);
+    }
+
     // Sharpening: unsharp mask with the 4 direct neighbours, on the encoded values.
     if (uSharpness > 0.0) {
         vec3 n = texture(uGeo, vCoord + vec2(uGeoTexel.x, 0.0)).rgb
@@ -175,10 +256,18 @@ vec3 process(vec3 s, vec2 pos) {
         v += uClarity * 1.5 * (lv - lb) * mid;
     }
 
+    if (uCurvesOn > 0.5) {
+        v = applyCurves(clamp(v, 0.0, 1.0));
+    }
+
     float y = dot(v, LUMA);
     float sat = max(v.r, max(v.g, v.b)) - min(v.r, min(v.g, v.b));
     v = mix(vec3(y), v, 1.0 + uVibrance * (1.0 - sat) * 1.2);
     v = mix(vec3(y), v, 1.0 + uSaturation);
+
+    if (uHslOn > 0.5) {
+        v = applyHsl(clamp(v, 0.0, 1.0));
+    }
 
     if (uVignette != 0.0) {
         vec2 d = (pos - 0.5) * uAspect;

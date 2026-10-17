@@ -67,4 +67,26 @@
     <string name="msg_copied">Adjustments copied</string>
     <string name="msg_pasted">Adjustments pasted</string>
     <string name="msg_out_of_memory">Not enough memory. Try a smaller export size.</string>
+
+    <string name="param_noise_reduction">Noise reduction</string>
+    <string name="param_color_noise_reduction">Color noise reduction</string>
+    <string name="mode_basic">Basic</string>
+    <string name="mode_curves">Curves</string>
+    <string name="mode_hsl" translatable="false">HSL</string>
+    <string name="channel_rgb" translatable="false">RGB</string>
+    <string name="channel_red" translatable="false">R</string>
+    <string name="channel_green" translatable="false">G</string>
+    <string name="channel_blue" translatable="false">B</string>
+    <string name="reset_curve">Reset curve</string>
+    <string name="hsl_hue">Hue</string>
+    <string name="hsl_saturation">Saturation</string>
+    <string name="hsl_luminance">Luminance</string>
+    <string name="band_red">Red</string>
+    <string name="band_orange">Orange</string>
+    <string name="band_yellow">Yellow</string>
+    <string name="band_green">Green</string>
+    <string name="band_aqua">Aqua</string>
+    <string name="band_blue">Blue</string>
+    <string name="band_purple">Purple</string>
+    <string name="band_magenta">Magenta</string>
 </resources>

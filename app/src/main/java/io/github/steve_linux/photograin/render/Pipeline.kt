@@ -4,6 +4,7 @@ package io.github.steve_linux.photograin.render
 import android.opengl.GLES30
 import io.github.steve_linux.photograin.math.Affine
 import io.github.steve_linux.photograin.model.Adjustments
+import io.github.steve_linux.photograin.model.Curves
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.ceil
@@ -35,6 +36,8 @@ internal class Pipeline {
         private set
     private var blurA: RenderTarget? = null
     private var blurB: RenderTarget? = null
+    private var curveTexture = 0
+    private var uploadedCurves: Curves? = null
 
     init {
         val vertices = floatArrayOf(0f, 0f, 1f, 0f, 0f, 1f, 1f, 1f)
@@ -151,10 +154,35 @@ internal class Pipeline {
         p.float("uVignette", adjustments.vignette)
         p.float("uGrain", adjustments.grain)
         p.float("uGrainCell", ShaderParams.grainCellFraction(adjustments))
+        p.float("uLumaNr", adjustments.noiseReduction)
+        p.float("uChromaNr", adjustments.colorNoiseReduction)
+        val curvesOn = !adjustments.curves.isIdentity
+        p.float("uCurvesOn", if (curvesOn) 1f else 0f)
+        p.texture("uCurve", 2, curveLut(adjustments.curves))
+        val hslOn = !adjustments.hsl.isIdentity
+        p.float("uHslOn", if (hslOn) 1f else 0f)
+        if (hslOn) p.vec3Array("uHsl", ShaderParams.hslUniform(adjustments))
         p.float("uCompare", compareSplit)
         p.float("uComposite", if (composite) 1f else 0f)
         p.vec3("uBg", background[0], background[1], background[2])
         drawQuad(p, clipRect, geoUvRect)
+    }
+
+    /** 256x1 lookup texture for [curves], re-uploaded only when the curves change. */
+    private fun curveLut(curves: Curves): Int {
+        if (curveTexture != 0 && curves == uploadedCurves) return curveTexture
+        if (curveTexture == 0) curveTexture = GlUtil.genTexture()
+        GLES30.glActiveTexture(GLES30.GL_TEXTURE2)
+        GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, curveTexture)
+        GlUtil.setSampling(mipmap = false)
+        val data = ByteBuffer.allocateDirect(256 * 4).order(ByteOrder.nativeOrder()).put(curves.toLut())
+        data.position(0)
+        GLES30.glPixelStorei(GLES30.GL_UNPACK_ALIGNMENT, 1)
+        GLES30.glTexImage2D(
+            GLES30.GL_TEXTURE_2D, 0, GLES30.GL_RGBA8, 256, 1, 0, GLES30.GL_RGBA, GLES30.GL_UNSIGNED_BYTE, data,
+        )
+        uploadedCurves = curves
+        return curveTexture
     }
 
     private fun drawQuad(program: GlProgram, clipRect: FloatArray, srcRect: FloatArray) {
@@ -172,6 +200,7 @@ internal class Pipeline {
         geo?.release(); geo = null
         blurA?.release(); blurA = null
         blurB?.release(); blurB = null
+        GlUtil.deleteTexture(curveTexture); curveTexture = 0
         geometryProgram.release()
         blurProgram.release()
         colorProgram.release()
@@ -198,6 +227,7 @@ internal class GlProgram(vertex: String, fragment: String) {
     fun vec2(name: String, x: Float, y: Float) = GLES30.glUniform2f(loc(name), x, y)
     fun vec3(name: String, x: Float, y: Float, z: Float) = GLES30.glUniform3f(loc(name), x, y, z)
     fun vec4(name: String, v: FloatArray) = GLES30.glUniform4f(loc(name), v[0], v[1], v[2], v[3])
+    fun vec3Array(name: String, v: FloatArray) = GLES30.glUniform3fv(loc(name), v.size / 3, v, 0)
     fun mat3(name: String, m: FloatArray) = GLES30.glUniformMatrix3fv(loc(name), 1, false, m, 0)
 
     fun texture(name: String, unit: Int, texture: Int) {
