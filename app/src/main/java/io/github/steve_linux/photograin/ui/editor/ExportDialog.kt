@@ -1,0 +1,115 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+package io.github.steve_linux.photograin.ui.editor
+
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import io.github.steve_linux.photograin.R
+import io.github.steve_linux.photograin.data.ExportFormat
+import io.github.steve_linux.photograin.data.ExportOptions
+import io.github.steve_linux.photograin.model.PxSize
+
+private val SIZE_PRESETS = listOf<Int?>(null, 4096, 2048, 1080)
+
+@Composable
+fun ExportDialog(
+    sizeFor: (ExportOptions) -> PxSize?,
+    onDismiss: () -> Unit,
+    onExport: (ExportOptions) -> Unit,
+) {
+    var format by rememberSaveable { mutableStateOf(ExportFormat.JPEG) }
+    var quality by rememberSaveable { mutableStateOf(92f) }
+    var maxEdge by rememberSaveable { mutableStateOf<Int?>(null) }
+    var keepLocation by rememberSaveable { mutableStateOf(false) }
+    val options = ExportOptions(format, quality.toInt(), maxEdge, keepLocation)
+    val size = sizeFor(options)
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.export_title)) },
+        text = {
+            Column {
+                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                    ExportFormat.entries.forEachIndexed { i, f ->
+                        SegmentedButton(
+                            selected = format == f,
+                            onClick = { format = f },
+                            shape = SegmentedButtonDefaults.itemShape(i, ExportFormat.entries.size),
+                        ) { Text(f.name) }
+                    }
+                }
+                if (format.lossy) {
+                    Spacer(Modifier.height(12.dp))
+                    Text(stringResource(R.string.export_quality, quality.toInt()), style = MaterialTheme.typography.labelLarge)
+                    Slider(value = quality, onValueChange = { quality = it }, valueRange = 50f..100f)
+                }
+                Spacer(Modifier.height(8.dp))
+                Text(stringResource(R.string.export_size), style = MaterialTheme.typography.labelLarge)
+                Row(
+                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    for (preset in SIZE_PRESETS) {
+                        FilterChip(
+                            selected = maxEdge == preset,
+                            onClick = { maxEdge = preset },
+                            label = { Text(preset?.let { "$it px" } ?: stringResource(R.string.export_size_full)) },
+                        )
+                    }
+                }
+                size?.let {
+                    Text(
+                        stringResource(R.string.export_dimensions, it.width, it.height),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(R.string.export_keep_location), Modifier.weight(1f))
+                    Switch(checked = keepLocation, onCheckedChange = { keepLocation = it })
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = { onExport(options) }) { Text(stringResource(R.string.export_action)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(android.R.string.cancel)) } },
+    )
+}
+
+@Composable
+fun ExportProgressDialog(progress: Float) {
+    AlertDialog(
+        onDismissRequest = {},
+        title = { Text(stringResource(R.string.exporting)) },
+        text = {
+            LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
+        },
+        confirmButton = {},
+    )
+}

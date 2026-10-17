@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name" translatable="false">Photograin</string>
+    <string name="edit_with">Edit with Photograin</string>
+    <string name="open_photo">Open photo</string>
+    <string name="home_empty_title">Your photos, developed with care</string>
+    <string name="home_empty_body">Open a photo to start. Your original is never changed: edits are kept separately and can be revised at any time.</string>
+    <string name="recent_edits">Recent edits</string>
+
+    <string name="back">Back</string>
+    <string name="undo">Undo</string>
+    <string name="redo">Redo</string>
+    <string name="compare">Compare before and after</string>
+    <string name="more">More options</string>
+    <string name="copy_adjustments">Copy adjustments</string>
+    <string name="paste_adjustments">Paste adjustments</string>
+    <string name="reset_all">Reset all</string>
+
+    <string name="tool_light">Light</string>
+    <string name="tool_color">Color</string>
+    <string name="tool_detail">Detail</string>
+    <string name="tool_effects">Effects</string>
+    <string name="tool_crop">Crop</string>
+
+    <string name="param_exposure">Exposure</string>
+    <string name="param_contrast">Contrast</string>
+    <string name="param_highlights">Highlights</string>
+    <string name="param_shadows">Shadows</string>
+    <string name="param_whites">Whites</string>
+    <string name="param_blacks">Blacks</string>
+    <string name="param_temperature">Temperature</string>
+    <string name="param_tint">Tint</string>
+    <string name="param_vibrance">Vibrance</string>
+    <string name="param_saturation">Saturation</string>
+    <string name="param_sharpness">Sharpening</string>
+    <string name="param_clarity">Clarity</string>
+    <string name="param_dehaze">Dehaze</string>
+    <string name="param_vignette">Vignette</string>
+    <string name="param_grain">Grain</string>
+    <string name="param_grain_size">Grain size</string>
+
+    <string name="straighten">Straighten</string>
+    <string name="rotate">Rotate 90°</string>
+    <string name="flip_horizontal">Flip horizontally</string>
+    <string name="flip_vertical">Flip vertically</string>
+    <string name="reset_crop">Reset crop and rotation</string>
+    <string name="aspect_free">Free</string>
+    <string name="aspect_original">Original</string>
+    <string name="aspect_square" translatable="false">1:1</string>
+    <string name="aspect_4_3" translatable="false">4:3</string>
+    <string name="aspect_3_2" translatable="false">3:2</string>
+    <string name="aspect_16_9" translatable="false">16:9</string>
+    <string name="aspect_5_4" translatable="false">5:4</string>
+
+    <string name="export_title">Export</string>
+    <string name="export_quality">Quality: %1$d</string>
+    <string name="export_size">Size (long edge)</string>
+    <string name="export_size_full">Original</string>
+    <string name="export_dimensions">%1$d × %2$d px</string>
+    <string name="export_keep_location">Keep location (GPS)</string>
+    <string name="export_action">Save</string>
+    <string name="exporting">Exporting…</string>
+
+    <string name="msg_exported">Photo saved</string>
+    <string name="msg_export_failed">Could not save the photo</string>
+    <string name="msg_load_failed">Could not open this photo</string>
+    <string name="msg_copied">Adjustments copied</string>
+    <string name="msg_pasted">Adjustments pasted</string>
+    <string name="msg_out_of_memory">Not enough memory. Try a smaller export size.</string>
+</resources>

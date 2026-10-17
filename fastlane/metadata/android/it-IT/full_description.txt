@@ -1,0 +1,20 @@
+Photograin è un editor fotografico libero pensato per chi fotografa: ogni regolazione si vede in tempo reale grazie alla GPU, e l'originale non viene mai toccato.
+
+<b>Non distruttivo</b>
+Le modifiche sono salvate come una "ricetta" a parte, non impresse nella foto. Puoi riaprire una foto quando vuoi e continuare a lavorarci, con annulla e ripeti illimitati.
+
+<b>Regolazioni</b>
+• Luce: esposizione, contrasto, luci, ombre, bianchi, neri
+• Colore: temperatura, tinta, vividezza, saturazione
+• Dettaglio: nitidezza, chiarezza, rimozione foschia
+• Effetti: vignettatura, grana pellicola realistica
+• Ritaglio con proporzioni predefinite, raddrizzamento, rotazione e specchio
+
+<b>Confronto</b>
+Tieni premuto sulla foto per vedere l'originale, oppure usa la vista divisa.
+
+<b>Esportazione a piena qualità</b>
+Le esportazioni sono elaborate a tasselli alla massima risoluzione, in JPEG, PNG o WebP. I dati di posizione vengono rimossi per impostazione predefinita.
+
+<b>Privacy prima di tutto</b>
+Nessun permesso, nessun accesso alla rete, nessuna pubblicità, nessun tracciamento. Le foto si aprono e si salvano tramite le finestre di sistema.

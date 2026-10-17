@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Recipes and preferences are small and worth keeping; caches are not. -->
+<full-backup-content>
+    <include domain="file" path="recipes/" />
+    <include domain="sharedpref" path="." />
+</full-backup-content>

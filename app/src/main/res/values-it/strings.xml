@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="edit_with">Modifica con Photograin</string>
+    <string name="open_photo">Apri foto</string>
+    <string name="home_empty_title">Le tue foto, sviluppate con cura</string>
+    <string name="home_empty_body">Apri una foto per iniziare. L\'originale non viene mai modificato: le modifiche sono salvate a parte e puoi rivederle quando vuoi.</string>
+    <string name="recent_edits">Modifiche recenti</string>
+
+    <string name="back">Indietro</string>
+    <string name="undo">Annulla</string>
+    <string name="redo">Ripeti</string>
+    <string name="compare">Confronta prima e dopo</string>
+    <string name="more">Altre opzioni</string>
+    <string name="copy_adjustments">Copia regolazioni</string>
+    <string name="paste_adjustments">Incolla regolazioni</string>
+    <string name="reset_all">Ripristina tutto</string>
+
+    <string name="tool_light">Luce</string>
+    <string name="tool_color">Colore</string>
+    <string name="tool_detail">Dettaglio</string>
+    <string name="tool_effects">Effetti</string>
+    <string name="tool_crop">Ritaglio</string>
+
+    <string name="param_exposure">Esposizione</string>
+    <string name="param_contrast">Contrasto</string>
+    <string name="param_highlights">Luci</string>
+    <string name="param_shadows">Ombre</string>
+    <string name="param_whites">Bianchi</string>
+    <string name="param_blacks">Neri</string>
+    <string name="param_temperature">Temperatura</string>
+    <string name="param_tint">Tinta</string>
+    <string name="param_vibrance">Vividezza</string>
+    <string name="param_saturation">Saturazione</string>
+    <string name="param_sharpness">Nitidezza</string>
+    <string name="param_clarity">Chiarezza</string>
+    <string name="param_dehaze">Rimozione foschia</string>
+    <string name="param_vignette">Vignettatura</string>
+    <string name="param_grain">Grana</string>
+    <string name="param_grain_size">Dimensione grana</string>
+
+    <string name="straighten">Raddrizza</string>
+    <string name="rotate">Ruota di 90°</string>
+    <string name="flip_horizontal">Specchia in orizzontale</string>
+    <string name="flip_vertical">Specchia in verticale</string>
+    <string name="reset_crop">Ripristina ritaglio e rotazione</string>
+    <string name="aspect_free">Libero</string>
+    <string name="aspect_original">Originale</string>
+
+    <string name="export_title">Esporta</string>
+    <string name="export_quality">Qualità: %1$d</string>
+    <string name="export_size">Dimensione (lato lungo)</string>
+    <string name="export_size_full">Originale</string>
+    <string name="export_keep_location">Mantieni posizione (GPS)</string>
+    <string name="export_action">Salva</string>
+    <string name="exporting">Esportazione…</string>
+
+    <string name="msg_exported">Foto salvata</string>
+    <string name="msg_export_failed">Impossibile salvare la foto</string>
+    <string name="msg_load_failed">Impossibile aprire questa foto</string>
+    <string name="msg_copied">Regolazioni copiate</string>
+    <string name="msg_pasted">Regolazioni incollate</string>
+    <string name="msg_out_of_memory">Memoria insufficiente. Prova una dimensione di esportazione più piccola.</string>
+</resources>

@@ -1,0 +1,1 @@
+Prima versione: regolazioni globali in tempo reale, ritaglio e raddrizzamento, cronologia non distruttiva, confronto prima/dopo, esportazione a piena risoluzione.

@@ -1,0 +1,20 @@
+Photograin is a free photo editor built for photographers: every adjustment is previewed in real time on the GPU, and your original is never touched.
+
+<b>Non-destructive</b>
+Edits are saved as a recipe next to the photo, not burned into it. Reopen a photo any time and keep refining, with unlimited undo and redo.
+
+<b>Adjustments</b>
+• Light: exposure, contrast, highlights, shadows, whites, blacks
+• Color: temperature, tint, vibrance, saturation
+• Detail: sharpening, clarity, dehaze
+• Effects: vignette, realistic film grain
+• Crop with aspect ratio presets, straighten, rotate and flip
+
+<b>Compare</b>
+Press and hold the photo to see the original, or use the split view.
+
+<b>Full-quality export</b>
+Exports are rendered tile by tile at full resolution, to JPEG, PNG or WebP. Location data is removed by default.
+
+<b>Private by design</b>
+No permissions, no network access, no ads, no tracking. Photos are opened and saved through the system dialogs.
