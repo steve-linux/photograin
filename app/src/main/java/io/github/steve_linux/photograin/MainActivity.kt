@@ -24,6 +24,7 @@ import io.github.steve_linux.photograin.ui.batch.BatchScreen
 import io.github.steve_linux.photograin.ui.batch.BatchViewModel
 import io.github.steve_linux.photograin.ui.editor.EditorScreen
 import io.github.steve_linux.photograin.ui.editor.EditorViewModel
+import io.github.steve_linux.photograin.ui.guide.GuideScreen
 import io.github.steve_linux.photograin.ui.home.HomeScreen
 import io.github.steve_linux.photograin.ui.settings.SettingsScreen
 import io.github.steve_linux.photograin.ui.theme.PhotograinTheme
@@ -48,13 +49,16 @@ class MainActivity : ComponentActivity() {
                 var recents by remember { mutableStateOf(prefs.recents()) }
                 var showTip by remember { mutableStateOf(!prefs.presetTipDismissed) }
                 var showSettings by rememberSaveable { mutableStateOf(false) }
+                var showGuide by rememberSaveable { mutableStateOf(false) }
                 val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
                     uri?.let(editor::open)
                 }
                 val multiPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
                     if (uris.isNotEmpty()) batch.start(uris)
                 }
-                if (showSettings) {
+                if (showGuide) {
+                    GuideScreen(onClose = { showGuide = false })
+                } else if (showSettings) {
                     SettingsScreen(
                         onClose = { showSettings = false },
                         onShowTips = {
@@ -84,6 +88,7 @@ class MainActivity : ComponentActivity() {
                             showTip = false
                         },
                         onSettings = { showSettings = true },
+                        onGuide = { showGuide = true },
                     )
                 }
             }

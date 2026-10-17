@@ -167,4 +167,27 @@
     <string name="export_upscale_bicubic">Bicubic</string>
     <string name="export_upscale_ai">AI (Real-ESRGAN)</string>
     <string name="export_upscale_ai_hint">A neural network trained on photos restores plausible detail and removes compression noise. Much slower; best for small or old photos.</string>
+    <string name="guide_entry_title">Get the most out of Photograin</string>
+    <string name="guide_entry_body">A short guide to every feature</string>
+    <string name="guide_title">Guide</string>
+    <string name="guide_open_title">Open a photo</string>
+    <string name="guide_open_body">Tap “Open photo”, or share a photo with Photograin from another app. It works with JPEG, PNG, WebP, HEIC, AVIF, JPEG XL and camera RAW files. The original is never changed: edits save themselves and come back when you reopen the photo from the recents.</string>
+    <string name="guide_compare_title">Compare with the original</string>
+    <string name="guide_compare_body">Press and hold the photo to see the original, or tap {icon} to split the photo in two and drag the line between before and after. The arrows at the top undo and redo.</string>
+    <string name="guide_look_title">Styles and presets</string>
+    <string name="guide_look_body">In the Styles tab, pick a ready-made look with one tap and set its strength. You can import .cube styles from other programs. When you like the photo, tap “Save preset” to reuse the same edits on other photos.</string>
+    <string name="guide_light_title">Light</string>
+    <string name="guide_light_body">Exposure, contrast, highlights, shadows, whites and blacks. Switch to “Curves” for finer control of the tones. Double-tap a slider\'s name to set it back to its starting value.</string>
+    <string name="guide_color_title">Color</string>
+    <string name="guide_color_body">Temperature, tint, vibrance and saturation. In “HSL” you change the hue, saturation and lightness of a single color, such as the blue of the sky.</string>
+    <string name="guide_detail_title">Detail and Effects</string>
+    <string name="guide_detail_body">In Detail you set sharpness, clarity and haze, and reduce the noise of shots taken in low light. Effects adds a vignette and film grain.</string>
+    <string name="guide_crop_title">Crop</string>
+    <string name="guide_crop_body">Choose a ratio (1:1, 4:3, 16:9…), drag the corners, straighten the horizon, rotate or flip the photo.</string>
+    <string name="guide_copy_title">Same edits on many photos</string>
+    <string name="guide_copy_body">From the editor menu, copy the adjustments and paste them onto another photo. For many photos at once, tap “Batch” on the home screen: apply the copied adjustments or a preset and, if you like, export them all in one go.</string>
+    <string name="guide_export_title">Save the photo</string>
+    <string name="guide_export_body">Tap {icon} to save a copy. Choose format, quality and size: you can also enlarge the photo 2× or 4×, with AI to restore detail. The sRGB color profile is right for sharing; Display P3 and Adobe RGB keep more color for printing.</string>
+    <string name="guide_settings_title">Settings</string>
+    <string name="guide_settings_body">With {icon} you choose where to save (Pictures/Photograin to begin with), how files are named, the default format, whether to remove the GPS location, and a light or dark theme.</string>
 </resources>
