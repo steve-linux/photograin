@@ -1,3 +1,12 @@
 [submodule "app/src/main/cpp/LibRaw"]
 	path = app/src/main/cpp/LibRaw
 	url = https://github.com/LibRaw/LibRaw.git
+[submodule "app/src/main/cpp/libjxl"]
+	path = app/src/main/cpp/libjxl
+	url = https://github.com/libjxl/libjxl.git
+[submodule "app/src/main/cpp/libavif"]
+	path = app/src/main/cpp/libavif
+	url = https://github.com/AOMediaCodec/libavif.git
+[submodule "app/src/main/cpp/aom"]
+	path = app/src/main/cpp/aom
+	url = https://aomedia.googlesource.com/aom

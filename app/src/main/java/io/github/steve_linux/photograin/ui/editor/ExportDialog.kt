@@ -14,9 +14,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -57,18 +54,23 @@ fun ExportDialog(
         title = { Text(stringResource(R.string.export_title)) },
         text = {
             Column {
-                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                    ExportFormat.entries.forEachIndexed { i, f ->
-                        SegmentedButton(
-                            selected = format == f,
-                            onClick = { format = f },
-                            shape = SegmentedButtonDefaults.itemShape(i, ExportFormat.entries.size),
-                        ) { Text(f.name) }
+                Text(stringResource(R.string.export_format), style = MaterialTheme.typography.labelLarge)
+                Row(
+                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    for (f in ExportFormat.entries) {
+                        FilterChip(selected = format == f, onClick = { format = f }, label = { Text(f.label) })
                     }
                 }
                 if (format.lossy) {
                     Spacer(Modifier.height(12.dp))
-                    Text(stringResource(R.string.export_quality, quality.toInt()), style = MaterialTheme.typography.labelLarge)
+                    val label = if (format == ExportFormat.JXL && quality.toInt() >= 100) {
+                        stringResource(R.string.export_quality_lossless)
+                    } else {
+                        stringResource(R.string.export_quality, quality.toInt())
+                    }
+                    Text(label, style = MaterialTheme.typography.labelLarge)
                     Slider(value = quality, onValueChange = { quality = it }, valueRange = 50f..100f)
                 }
                 Spacer(Modifier.height(8.dp))

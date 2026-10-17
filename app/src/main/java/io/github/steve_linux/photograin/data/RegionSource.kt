@@ -33,6 +33,10 @@ interface RegionSource : Closeable {
             if (RawImage.isRaw(resolver.getType(uri), ImageLoader.queryName(context, uri))) {
                 return BitmapRegionSource(RawImage.develop(context, uri, halfSize = false), ColorSpaces.RAW_WORKING_SPACE)
             }
+            if (ImageCodecs.isJxl(resolver.getType(uri), ImageLoader.queryName(context, uri))) {
+                val (bitmap, profile) = ImageCodecs.decodeJxl(context, uri)
+                return BitmapRegionSource(bitmap, profile)
+            }
             val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
             resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
             val profile = ColorSpaces.workingSpaceFor(bounds.outColorSpace)
