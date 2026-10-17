@@ -60,7 +60,7 @@ if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86|amd64|AMD64" AND ANDROID)
     set(AOM_TARGET_CPU generic CACHE STRING "" FORCE)
 endif()
 add_subdirectory(aom EXCLUDE_FROM_ALL)
-target_include_directories(aom INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/aom)
+target_include_directories(aom INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/aom>)
 
 set(AVIF_CODEC_AOM SYSTEM CACHE STRING "" FORCE)  # "system" here means the aom target above
 set(AVIF_CODEC_AOM_DECODE OFF CACHE BOOL "" FORCE)
