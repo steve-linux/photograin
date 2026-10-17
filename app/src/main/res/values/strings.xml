@@ -56,7 +56,7 @@
     <string name="export_quality">Quality: %1$d</string>
     <string name="export_size">Size (long edge)</string>
     <string name="export_size_full">Original</string>
-    <string name="export_dimensions">%1$d × %2$d px</string>
+    <string name="export_dimensions" translatable="false">%1$d × %2$d px</string>
     <string name="export_keep_location">Keep location (GPS)</string>
     <string name="export_action">Save</string>
     <string name="exporting">Exporting…</string>
