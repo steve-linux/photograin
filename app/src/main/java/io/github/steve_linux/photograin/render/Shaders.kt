@@ -92,6 +92,12 @@ uniform float uCurvesOn;
 // Per band: hue shift, saturation, luminance (-1..1).
 uniform vec3 uHsl[8];
 uniform float uHslOn;
+// Creative 3D LUT (.cube), sampled at texel centers: coord = v * uLutScale + uLutOffset.
+uniform highp sampler3D uLut;
+uniform float uLutOn;
+uniform float uLutAmount;
+uniform float uLutScale;
+uniform float uLutOffset;
 
 // Pixels left of this x (0..1 in the output) show the original. -1 disables comparison.
 uniform float uCompare;
@@ -267,6 +273,11 @@ vec3 process(vec3 s, vec2 pos) {
 
     if (uHslOn > 0.5) {
         v = applyHsl(clamp(v, 0.0, 1.0));
+    }
+
+    if (uLutOn > 0.5) {
+        vec3 l = texture(uLut, clamp(v, 0.0, 1.0) * uLutScale + uLutOffset).rgb;
+        v = mix(v, l, uLutAmount);
     }
 
     if (uVignette != 0.0) {

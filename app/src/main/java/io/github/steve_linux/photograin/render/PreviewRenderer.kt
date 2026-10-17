@@ -9,6 +9,7 @@ import android.util.Log
 import io.github.steve_linux.photograin.math.Affine
 import io.github.steve_linux.photograin.model.Adjustments
 import io.github.steve_linux.photograin.model.BaseOrientation
+import io.github.steve_linux.photograin.model.CubeLut
 import io.github.steve_linux.photograin.model.Geometry
 import io.github.steve_linux.photograin.model.GeometryMapper
 import javax.microedition.khronos.egl.EGLConfig
@@ -20,6 +21,8 @@ data class PreviewFrame(
     val base: BaseOrientation,
     val geometry: Geometry,
     val adjustments: Adjustments,
+    /** The table for [Adjustments.look], once loaded. */
+    val lut: CubeLut?,
     /** Where the image goes inside the surface, in surface pixels. */
     val imageRect: RectF,
     /** See [Pipeline.renderColor]; -1 disables, 2 shows the original everywhere. */
@@ -102,6 +105,7 @@ class PreviewRenderer : GLSurfaceView.Renderer {
         )
         p.renderColor(
             adjustments = frame.adjustments,
+            lut = frame.lut,
             clipRect = clip,
             geoUvRect = Pipeline.UNIT_RECT,
             imageMap = Pipeline.UNIT_RECT,

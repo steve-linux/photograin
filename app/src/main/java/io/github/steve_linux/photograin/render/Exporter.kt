@@ -9,6 +9,7 @@ import io.github.steve_linux.photograin.data.RegionSource
 import io.github.steve_linux.photograin.math.Affine
 import io.github.steve_linux.photograin.math.Vec2
 import io.github.steve_linux.photograin.model.BaseOrientation
+import io.github.steve_linux.photograin.model.CubeLut
 import io.github.steve_linux.photograin.model.EditState
 import io.github.steve_linux.photograin.model.GeometryMapper
 import io.github.steve_linux.photograin.model.PxSize
@@ -42,6 +43,7 @@ object Exporter {
         source: RegionSource,
         base: BaseOrientation,
         edit: EditState,
+        lut: CubeLut?,
         maxLongEdge: Int?,
         onProgress: (Float) -> Unit,
     ): Bitmap {
@@ -99,6 +101,7 @@ object Exporter {
                     target.bind(tw, th)
                     pipeline.renderColor(
                         adjustments = edit.adjustments,
+                        lut = lut,
                         clipRect = Pipeline.FULL_CLIP,
                         geoUvRect = floatArrayOf(
                             margin.toFloat() / gw, margin.toFloat() / gh, tw.toFloat() / gw, th.toFloat() / gh,

@@ -10,19 +10,24 @@ import io.github.steve_linux.photograin.data.ExportOptions
 import io.github.steve_linux.photograin.data.ExportWriter
 import io.github.steve_linux.photograin.data.ImageLoader
 import io.github.steve_linux.photograin.data.LoadedImage
+import io.github.steve_linux.photograin.data.LookLibrary
+import io.github.steve_linux.photograin.data.LutEntry
 import io.github.steve_linux.photograin.data.Preferences
 import io.github.steve_linux.photograin.data.RecipeStore
 import io.github.steve_linux.photograin.data.RegionSource
 import io.github.steve_linux.photograin.model.Adjustments
 import io.github.steve_linux.photograin.model.AspectRatio
 import io.github.steve_linux.photograin.model.CropRect
+import io.github.steve_linux.photograin.model.CubeLut
 import io.github.steve_linux.photograin.model.Curves
 import io.github.steve_linux.photograin.model.EditState
 import io.github.steve_linux.photograin.model.Geometry
 import io.github.steve_linux.photograin.model.GeometryMapper
 import io.github.steve_linux.photograin.model.History
 import io.github.steve_linux.photograin.model.Hsl
+import io.github.steve_linux.photograin.model.Look
 import io.github.steve_linux.photograin.model.ParamSpec
+import io.github.steve_linux.photograin.model.Preset
 import io.github.steve_linux.photograin.model.PxSize
 import io.github.steve_linux.photograin.model.ToolGroup
 import io.github.steve_linux.photograin.model.flippedHorizontally
@@ -34,11 +39,17 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-enum class Message { EXPORTED, EXPORT_FAILED, LOAD_FAILED, ADJUSTMENTS_COPIED, ADJUSTMENTS_PASTED, OUT_OF_MEMORY }
+enum class Message {
+    EXPORTED, EXPORT_FAILED, LOAD_FAILED, ADJUSTMENTS_COPIED, ADJUSTMENTS_PASTED, OUT_OF_MEMORY,
+    LUT_IMPORTED, LUT_INVALID, LUT_MISSING, PRESET_SAVED,
+}
 
 data class EditorUiState(
     val image: LoadedImage? = null,
@@ -55,11 +66,16 @@ data class EditorUiState(
     val exportProgress: Float? = null,
     val message: Message? = null,
     val hasCopiedAdjustments: Boolean = false,
+    /** The parsed table for the edit's look, or null when there is none or it is missing. */
+    val lut: CubeLut? = null,
+    val luts: List<LutEntry> = emptyList(),
+    val userPresets: List<Preset> = emptyList(),
 )
 
 class EditorViewModel(app: Application) : AndroidViewModel(app) {
     private val recipes = RecipeStore(app)
     private val prefs = Preferences(app)
+    private val library = LookLibrary(app)
     private var history = History(EditState())
     private var loadJob: Job? = null
 
@@ -69,10 +85,28 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
     private val _state = MutableStateFlow(EditorUiState(hasCopiedAdjustments = prefs.copiedAdjustments != null))
     val state: StateFlow<EditorUiState> = _state.asStateFlow()
 
+    init {
+        viewModelScope.launch {
+            val luts = withContext(Dispatchers.IO) { library.luts() }
+            val presets = withContext(Dispatchers.IO) { library.userPresets() }
+            _state.update { it.copy(luts = luts, userPresets = presets) }
+        }
+        // Load the LUT whenever the edit points at a different one (open, undo, paste, preset).
+        viewModelScope.launch {
+            _state.map { it.edit.adjustments.look.lutId }.distinctUntilChanged().collectLatest { id ->
+                val lut = id?.let { withContext(Dispatchers.IO) { library.loadLut(it) } }
+                _state.update { it.copy(lut = lut) }
+                if (id != null && lut == null) _state.update { it.copy(message = Message.LUT_MISSING) }
+            }
+        }
+    }
+
     fun open(uri: Uri) {
         if (_state.value.image?.uri == uri) return
         loadJob?.cancel()
-        _state.update { EditorUiState(loading = true, hasCopiedAdjustments = it.hasCopiedAdjustments) }
+        _state.update {
+            EditorUiState(loading = true, hasCopiedAdjustments = it.hasCopiedAdjustments, luts = it.luts, userPresets = it.userPresets)
+        }
         loadJob = viewModelScope.launch {
             try {
                 val image = withContext(Dispatchers.IO) { ImageLoader.load(getApplication(), uri) }
@@ -92,7 +126,9 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
 
     fun close() {
         loadJob?.cancel()
-        _state.update { EditorUiState(hasCopiedAdjustments = it.hasCopiedAdjustments) }
+        _state.update {
+            EditorUiState(hasCopiedAdjustments = it.hasCopiedAdjustments, luts = it.luts, userPresets = it.userPresets)
+        }
     }
 
     fun selectTool(tool: ToolGroup) = _state.update { it.copy(tool = tool) }
@@ -141,6 +177,73 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         updateLive { it.copy(adjustments = copied) }
         commit()
         _state.update { it.copy(message = Message.ADJUSTMENTS_PASTED) }
+    }
+
+    // --- Looks: presets and LUTs ---------------------------------------------------------------
+
+    fun applyPreset(preset: Preset) {
+        updateLive { it.copy(adjustments = preset.applyTo(it.adjustments)) }
+        commit()
+    }
+
+    /** Saves the current adjustments as a preset named [name]. */
+    fun savePreset(name: String) {
+        val adjustments = _state.value.edit.adjustments
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { library.savePreset(Preset(id = "", name = name.trim(), adjustments = adjustments)) }
+            val presets = withContext(Dispatchers.IO) { library.userPresets() }
+            _state.update { it.copy(userPresets = presets, message = Message.PRESET_SAVED) }
+        }
+    }
+
+    fun deletePreset(preset: Preset) {
+        viewModelScope.launch {
+            val presets = withContext(Dispatchers.IO) {
+                library.deletePreset(preset.id)
+                library.userPresets()
+            }
+            _state.update { it.copy(userPresets = presets) }
+        }
+    }
+
+    /** Imports the .cube file at [uri] and applies it to the photo. */
+    fun importLut(uri: Uri) {
+        viewModelScope.launch {
+            try {
+                val entry = withContext(Dispatchers.IO) { library.importLut(uri) }
+                val luts = withContext(Dispatchers.IO) { library.luts() }
+                _state.update { it.copy(luts = luts, message = Message.LUT_IMPORTED) }
+                selectLut(entry)
+            } catch (e: Exception) {
+                Log.w(TAG, "Cannot import LUT $uri", e)
+                _state.update { it.copy(message = Message.LUT_INVALID) }
+            }
+        }
+    }
+
+    /** Applies [entry] at full strength, or removes the LUT when null. */
+    fun selectLut(entry: LutEntry?) {
+        updateLive { e ->
+            val look = if (entry == null) Look() else Look(lutId = entry.id, name = entry.name, amount = 1f)
+            e.copy(adjustments = e.adjustments.copy(look = look))
+        }
+        commit()
+    }
+
+    /** Live update of the LUT strength; [commit] when the slider is released. */
+    fun setLookAmount(amount: Float) = updateLive { e ->
+        e.copy(adjustments = e.adjustments.copy(look = e.adjustments.look.copy(amount = amount.coerceIn(0f, 1f))))
+    }
+
+    fun deleteLut(entry: LutEntry) {
+        if (_state.value.edit.adjustments.look.lutId == entry.id) selectLut(null)
+        viewModelScope.launch {
+            val luts = withContext(Dispatchers.IO) {
+                library.deleteLut(entry.id)
+                library.luts()
+            }
+            _state.update { it.copy(luts = luts) }
+        }
     }
 
     // --- Before / after ----------------------------------------------------------------------
@@ -221,13 +324,14 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
     fun export(destination: Uri, options: ExportOptions) {
         val image = _state.value.image ?: return
         val edit = _state.value.edit
+        val lut = _state.value.lut
         _state.update { it.copy(exportProgress = 0f) }
         viewModelScope.launch {
             val ok = withContext(Dispatchers.Default) {
                 try {
                     val app = getApplication<Application>()
                     val bitmap = RegionSource.open(app, image.uri).use { source ->
-                        Exporter.render(source, image.base, edit, options.maxLongEdge) { p ->
+                        Exporter.render(source, image.base, edit, lut, options.maxLongEdge) { p ->
                             _state.update { it.copy(exportProgress = p) }
                         }
                     }

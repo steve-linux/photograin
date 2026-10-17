@@ -77,4 +77,26 @@
     <string name="band_blue">Blu</string>
     <string name="band_purple">Viola</string>
     <string name="band_magenta">Magenta</string>
+    <string name="tool_look">Stili</string>
+    <string name="look_presets">Preset</string>
+    <string name="look_save_preset">Salva preset</string>
+    <string name="look_preset_name">Nome del preset</string>
+    <string name="look_none">Nessuno</string>
+    <string name="look_import_lut">Importa .cube</string>
+    <string name="look_amount">Intensità</string>
+    <string name="look_delete">Elimina %1$s</string>
+    <string name="look_lut_missing">Questo LUT non è più nella libreria</string>
+    <string name="look_save">Salva</string>
+    <string name="look_cancel">Annulla</string>
+    <string name="preset_natural">Naturale</string>
+    <string name="preset_vivid">Vivace</string>
+    <string name="preset_warm">Caldo</string>
+    <string name="preset_cool">Freddo</string>
+    <string name="preset_soft">Morbido</string>
+    <string name="preset_film">Pellicola</string>
+    <string name="preset_bw">B/N</string>
+    <string name="preset_bw_contrast">B/N contrastato</string>
+    <string name="msg_lut_imported">LUT importato</string>
+    <string name="msg_lut_invalid">Questo file non è un LUT .cube valido</string>
+    <string name="msg_preset_saved">Preset salvato</string>
 </resources>
