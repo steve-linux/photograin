@@ -17,6 +17,8 @@ Editor fotografico non distruttivo per Android, libero (GPL-3.0-or-later) e pens
 - **Copia/incolla** delle regolazioni tra foto.
 - **Esportazione a piena risoluzione**, elaborata a tasselli per foto più grandi del limite della GPU;
   JPEG, PNG, WebP; i dati EXIF utili vengono mantenuti, il GPS rimosso per impostazione predefinita.
+- **File RAW** (DNG, CR2, CR3, NEF, ARW, RAF, ORF, RW2 e altri) sviluppati con LibRaw:
+  anteprima rapida a metà risoluzione, esportazione a piena risoluzione con demosaicizzazione AHD.
 - **Nessun permesso** richiesto: si apre e si salva tramite le finestre di sistema.
 
 ## Architettura
@@ -26,8 +28,12 @@ app/src/main/java/io/github/steve_linux/photograin/
 ├── math/      trasformazioni affini (pure Kotlin)
 ├── model/     ricetta, geometria, ritaglio, cronologia (pure Kotlin, testati sulla JVM)
 ├── render/    pipeline GPU: geometria → sfocatura separabile → colore; anteprima ed export a tasselli
-├── data/      decodifica (anche per regioni), salvataggio ricette, esportazione
+├── data/      decodifica (anche per regioni e RAW), salvataggio ricette, esportazione
 └── ui/        Jetpack Compose: home, editor, pannelli strumenti, overlay di ritaglio
+app/src/main/cpp/
+├── LibRaw/          sottomodulo git, versione 0.22.2
+├── raw_decoder.*    C++ portabile, senza dipendenze Android
+└── raw_jni.cpp      collegamento JNI con l'app
 ```
 
 La pipeline ha tre passaggi: **geometria** (orientamento EXIF, rotazione, raddrizzamento, ritaglio),
@@ -40,9 +46,11 @@ così il risultato esportato corrisponde a quello visto a schermo.
 
 ## Compilare
 
-Serve JDK 17 o successivo e l'Android SDK (API 36).
+Serve JDK 17 o successivo, l'Android SDK (API 36) e l'NDK 27.0.12077973 con CMake 3.22.1
+(Gradle li scarica da solo se mancano). LibRaw è un sottomodulo git:
 
 ```
+git submodule update --init    # dopo il clone, una volta
 ./gradlew assembleDebug        # APK di debug
 ./gradlew testDebugUnitTest    # test unitari
 ```
@@ -56,4 +64,6 @@ Photograin è software libero: puoi ridistribuirlo e/o modificarlo secondo i ter
 GNU General Public License, versione 3 o (a tua scelta) qualsiasi versione successiva. Vedi [LICENSE](LICENSE).
 
 Tutte le dipendenze (AndroidX, Jetpack Compose, Kotlin, kotlinx) sono Apache-2.0, compatibili con la GPL-3.0.
+LibRaw è distribuita con doppia licenza LGPL-2.1 o CDDL-1.0; Photograin la usa secondo la LGPL-2.1,
+compatibile con la GPL-3.0.
 Nessuna dipendenza da Google Play Services o servizi proprietari.

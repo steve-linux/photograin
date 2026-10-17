@@ -17,6 +17,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.steve_linux.photograin.data.Preferences
+import io.github.steve_linux.photograin.data.RawImage
 import io.github.steve_linux.photograin.ui.editor.EditorScreen
 import io.github.steve_linux.photograin.ui.editor.EditorViewModel
 import io.github.steve_linux.photograin.ui.home.HomeScreen
@@ -46,7 +47,7 @@ class MainActivity : ComponentActivity() {
                 } else {
                     HomeScreen(
                         recents = recents,
-                        onOpenPicker = { picker.launch(arrayOf("image/*")) },
+                        onOpenPicker = { picker.launch(arrayOf("image/*") + RawImage.MIME_TYPES) },
                         onOpen = editor::open,
                     )
                 }
