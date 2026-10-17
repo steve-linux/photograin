@@ -30,8 +30,9 @@ object ImageLoader {
     fun load(context: Context, uri: Uri, maxLongEdge: Int = PREVIEW_LONG_EDGE): LoadedImage {
         val resolver = context.contentResolver
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
-            ?: throw IOException("Cannot open $uri")
+        // With inJustDecodeBounds decodeStream always returns null, so check the stream, not the result.
+        val stream = resolver.openInputStream(uri) ?: throw IOException("Cannot open $uri")
+        stream.use { BitmapFactory.decodeStream(it, null, bounds) }
         val w = bounds.outWidth
         val h = bounds.outHeight
         if (w <= 0 || h <= 0) throw IOException("Unsupported image: $uri")
