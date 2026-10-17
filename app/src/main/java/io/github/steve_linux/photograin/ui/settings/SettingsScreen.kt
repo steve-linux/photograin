@@ -164,6 +164,7 @@ fun SettingsScreen(onClose: () -> Unit, onShowTips: () -> Unit) {
                 settings.export,
                 onChange = { options -> store.update { it.copy(export = options) } },
                 Modifier.padding(horizontal = 16.dp),
+                allowUpscale = false,
             )
 
             Section(R.string.settings_appearance)

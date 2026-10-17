@@ -160,4 +160,7 @@
     <string name="settings_libraries">Open source libraries</string>
     <string name="msg_exported_downloads">Saved to Download/Photograin: Android does not accept JPEG XL among pictures</string>
     <string name="settings_save_pictures_jxl">JPEG XL files go to Download/Photograin, because Android does not accept them among pictures</string>
+    <string name="export_upscale">Enlarge %1$d×</string>
+    <string name="export_upscale_hint">Enlarged with bicubic interpolation: sharper than simple stretching, but it cannot invent detail.</string>
+    <string name="export_upscale_limited">Limited to 48 megapixels so the photo fits in memory.</string>
 </resources>

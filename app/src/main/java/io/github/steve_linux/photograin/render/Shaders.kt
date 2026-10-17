@@ -25,12 +25,43 @@ void main() {
 precision highp float;
 uniform sampler2D uTex;
 uniform mat3 uM;
+uniform vec2 uTexSize;
+uniform bool uCubic;
 in vec2 vCoord;
 out vec4 oColor;
+
+// Catmull-Rom with 9 bilinear taps: sharper than bilinear when enlarging, without its blur.
+vec3 catmullRom(vec2 uv) {
+    vec2 pos = uv * uTexSize;
+    vec2 p1 = floor(pos - 0.5) + 0.5;
+    vec2 f = pos - p1;
+    vec2 w0 = f * (-0.5 + f * (1.0 - 0.5 * f));
+    vec2 w1 = 1.0 + f * f * (-2.5 + 1.5 * f);
+    vec2 w2 = f * (0.5 + f * (2.0 - 1.5 * f));
+    vec2 w3 = f * f * (-0.5 + 0.5 * f);
+    vec2 w12 = w1 + w2;
+    vec2 t0 = (p1 - 1.0) / uTexSize;
+    vec2 t3 = (p1 + 2.0) / uTexSize;
+    vec2 t12 = (p1 + w2 / w12) / uTexSize;
+    vec3 c = vec3(0.0);
+    c += textureLod(uTex, vec2(t0.x, t0.y), 0.0).rgb * w0.x * w0.y;
+    c += textureLod(uTex, vec2(t12.x, t0.y), 0.0).rgb * w12.x * w0.y;
+    c += textureLod(uTex, vec2(t3.x, t0.y), 0.0).rgb * w3.x * w0.y;
+    c += textureLod(uTex, vec2(t0.x, t12.y), 0.0).rgb * w0.x * w12.y;
+    c += textureLod(uTex, vec2(t12.x, t12.y), 0.0).rgb * w12.x * w12.y;
+    c += textureLod(uTex, vec2(t3.x, t12.y), 0.0).rgb * w3.x * w12.y;
+    c += textureLod(uTex, vec2(t0.x, t3.y), 0.0).rgb * w0.x * w3.y;
+    c += textureLod(uTex, vec2(t12.x, t3.y), 0.0).rgb * w12.x * w3.y;
+    c += textureLod(uTex, vec2(t3.x, t3.y), 0.0).rgb * w3.x * w3.y;
+    return clamp(c, 0.0, 1.0);
+}
+
 void main() {
     vec2 uv = (uM * vec3(vCoord, 1.0)).xy;
     vec2 inside = step(vec2(-0.0005), uv) * step(uv, vec2(1.0005));
-    oColor = vec4(texture(uTex, clamp(uv, 0.0, 1.0)).rgb, inside.x * inside.y);
+    vec2 st = clamp(uv, 0.0, 1.0);
+    vec3 c = uCubic ? catmullRom(st) : texture(uTex, st).rgb;
+    oColor = vec4(c, inside.x * inside.y);
 }
 """
 

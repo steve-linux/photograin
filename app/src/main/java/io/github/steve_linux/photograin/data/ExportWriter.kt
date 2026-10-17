@@ -27,6 +27,8 @@ data class ExportOptions(
     val quality: Int = 92,
     /** Null exports at full resolution. */
     val maxLongEdge: Int? = null,
+    /** 2 or 4 enlarges the photo that many times (then [maxLongEdge] is ignored); 1 keeps its size. */
+    val upscale: Int = 1,
     /** Location is dropped by default so shared photos do not reveal where they were taken. */
     val keepLocation: Boolean = false,
     /** sRGB suits the web and most viewers; wider spaces keep more color for printing or wide-gamut screens. */

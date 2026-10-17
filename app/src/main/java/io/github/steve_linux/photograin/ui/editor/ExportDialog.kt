@@ -36,6 +36,7 @@ import io.github.steve_linux.photograin.model.ColorProfile
 import io.github.steve_linux.photograin.model.PxSize
 
 private val SIZE_PRESETS = listOf<Int?>(null, 4096, 2048, 1080)
+private val UPSCALE_FACTORS = listOf(2, 4)
 
 @Composable
 fun ExportDialog(
@@ -46,12 +47,21 @@ fun ExportDialog(
 ) {
     var options by remember { mutableStateOf(initial) }
     val size = sizeFor(options)
+    // An enlargement smaller than asked for was capped to keep the photo in memory.
+    val limited = options.upscale > 1 && size != null &&
+        sizeFor(options.copy(upscale = 1, maxLongEdge = null))?.let { size.longEdge < it.longEdge * options.upscale - 1 } == true
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.export_title)) },
         text = {
-            ExportOptionsEditor(options, onChange = { options = it }, Modifier.verticalScroll(rememberScrollState()), size)
+            ExportOptionsEditor(
+                options,
+                onChange = { options = it },
+                Modifier.verticalScroll(rememberScrollState()),
+                size = size,
+                upscaleLimited = limited,
+            )
         },
         confirmButton = { TextButton(onClick = { onExport(options) }) { Text(stringResource(R.string.export_action)) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(android.R.string.cancel)) } },
@@ -66,6 +76,9 @@ fun ExportOptionsEditor(
     onChange: (ExportOptions) -> Unit,
     modifier: Modifier = Modifier,
     size: PxSize? = null,
+    /** Enlarging is offered per photo; the settings keep only a size limit as default. */
+    allowUpscale: Boolean = true,
+    upscaleLimited: Boolean = false,
 ) {
     val format = options.format
     val quality = options.quality.toFloat()
@@ -93,15 +106,31 @@ fun ExportOptionsEditor(
         FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             for (preset in SIZE_PRESETS) {
                 FilterChip(
-                    selected = maxEdge == preset,
-                    onClick = { onChange(options.copy(maxLongEdge = preset)) },
+                    selected = options.upscale == 1 && maxEdge == preset,
+                    onClick = { onChange(options.copy(maxLongEdge = preset, upscale = 1)) },
                     label = { Text(preset?.let { "$it px" } ?: stringResource(R.string.export_size_full)) },
                 )
+            }
+            if (allowUpscale) {
+                for (factor in UPSCALE_FACTORS) {
+                    FilterChip(
+                        selected = options.upscale == factor,
+                        onClick = { onChange(options.copy(maxLongEdge = null, upscale = factor)) },
+                        label = { Text(stringResource(R.string.export_upscale, factor)) },
+                    )
+                }
             }
         }
         size?.let {
             Text(
                 stringResource(R.string.export_dimensions, it.width, it.height),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (options.upscale > 1) {
+            Text(
+                stringResource(if (upscaleLimited) R.string.export_upscale_limited else R.string.export_upscale_hint),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

@@ -327,7 +327,7 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
     fun exportSize(options: ExportOptions): PxSize? {
         val image = _state.value.image ?: return null
         return Exporter.outputSize(
-            PxSize(image.sourceWidth, image.sourceHeight), image.base, _state.value.edit, options.maxLongEdge,
+            PxSize(image.sourceWidth, image.sourceHeight), image.base, _state.value.edit, options.maxLongEdge, options.upscale,
         )
     }
 
@@ -367,7 +367,7 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
                 val app = getApplication<Application>()
                 try {
                     val bitmap = RegionSource.open(app, image.uri).use { source ->
-                        Exporter.render(source, image.base, edit, lut, options.maxLongEdge, options.colorProfile) { p ->
+                        Exporter.render(source, image.base, edit, lut, options.maxLongEdge, options.colorProfile, options.upscale) { p ->
                             _state.update { it.copy(exportProgress = p) }
                         }
                     }
