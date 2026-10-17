@@ -1,7 +1,44 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "raw_decoder.h"
 
+#include <cstring>
+
 namespace photograin {
+
+namespace {
+
+/** Converts a float to binary16 with round-to-nearest; inputs here are always in 0..1. */
+uint16_t toHalf(float f) {
+    uint32_t x;
+    std::memcpy(&x, &f, sizeof x);
+    const uint32_t sign = (x >> 16) & 0x8000u;
+    const int exp = static_cast<int>((x >> 23) & 0xffu) - 127 + 15;
+    uint32_t mant = x & 0x7fffffu;
+    if (exp <= 0) {
+        if (exp < -10) return static_cast<uint16_t>(sign);
+        mant |= 0x800000u;
+        const int shift = 14 - exp;
+        uint32_t h = mant >> shift;
+        if ((mant >> (shift - 1)) & 1u) ++h;
+        return static_cast<uint16_t>(sign | h);
+    }
+    if (exp >= 31) return static_cast<uint16_t>(sign | 0x7c00u);
+    uint32_t h = sign | (static_cast<uint32_t>(exp) << 10) | (mant >> 13);
+    if (mant & 0x1000u) ++h;  // carries into the exponent correctly when the mantissa overflows
+    return static_cast<uint16_t>(h);
+}
+
+/** 16-bit sample -> half float of sample / 65535, built once. */
+const std::vector<uint16_t>& halfTable() {
+    static const std::vector<uint16_t> table = [] {
+        std::vector<uint16_t> t(65536);
+        for (size_t i = 0; i < t.size(); ++i) t[i] = toHalf(static_cast<float>(i) / 65535.0f);
+        return t;
+    }();
+    return table;
+}
+
+}  // namespace
 
 RawDecoder::RawDecoder() : raw_(new LibRaw(LIBRAW_OPTIONS_NONE)) {}
 
@@ -33,13 +70,16 @@ int RawDecoder::develop(bool halfSize) {
     releaseImage();
     libraw_output_params_t& p = raw_->imgdata.params;
     p.user_flip = 0;        // orientation is applied later, on the GPU
-    p.output_bps = 8;
+    p.output_bps = 16;
     p.output_color = 1;     // sRGB primaries
     p.gamm[0] = 1 / 2.4;    // sRGB transfer curve
     p.gamm[1] = 12.92;
     p.use_camera_wb = 1;
     p.half_size = halfSize ? 1 : 0;
     p.user_qual = 3;        // AHD demosaicing
+    p.highlight = 2;        // blend clipped channels instead of tinting them magenta
+    // Auto brightness clips the brightest 0.2% instead of 1%, keeping more highlight detail.
+    p.auto_bright_thr = 0.002f;
 
     int ret = raw_->unpack();
     if (ret != LIBRAW_SUCCESS) return ret;
@@ -49,7 +89,7 @@ int RawDecoder::develop(bool halfSize) {
     if (image_ == nullptr) return ret != LIBRAW_SUCCESS ? ret : LIBRAW_UNSPECIFIED_ERROR;
     // The intermediate buffers are no longer needed; free them before the caller allocates its copy.
     raw_->recycle();
-    if (image_->type != LIBRAW_IMAGE_BITMAP || image_->bits != 8 ||
+    if (image_->type != LIBRAW_IMAGE_BITMAP || image_->bits != 16 ||
         (image_->colors != 1 && image_->colors != 3)) {
         releaseImage();
         return LIBRAW_FILE_UNSUPPORTED;
@@ -61,19 +101,21 @@ int RawDecoder::developedWidth() const { return image_ != nullptr ? image_->widt
 
 int RawDecoder::developedHeight() const { return image_ != nullptr ? image_->height : 0; }
 
-void RawDecoder::copyRgba(uint8_t* dst, size_t stride) const {
+void RawDecoder::copyRgbaHalf(uint16_t* dst, size_t stride) const {
     if (image_ == nullptr) return;
+    const std::vector<uint16_t>& half = halfTable();
     const int w = image_->width;
     const int h = image_->height;
     const int colors = image_->colors;
-    const uint8_t* src = image_->data;
+    const uint16_t one = toHalf(1.0f);
+    const auto* src = reinterpret_cast<const uint16_t*>(image_->data);
     for (int y = 0; y < h; ++y) {
-        uint8_t* row = dst + stride * y;
+        auto* row = reinterpret_cast<uint16_t*>(reinterpret_cast<uint8_t*>(dst) + stride * y);
         for (int x = 0; x < w; ++x, src += colors, row += 4) {
-            row[0] = src[0];
-            row[1] = src[colors == 3 ? 1 : 0];
-            row[2] = src[colors == 3 ? 2 : 0];
-            row[3] = 0xff;
+            row[0] = half[src[0]];
+            row[1] = half[src[colors == 3 ? 1 : 0]];
+            row[2] = half[src[colors == 3 ? 2 : 0]];
+            row[3] = one;
         }
     }
 }
