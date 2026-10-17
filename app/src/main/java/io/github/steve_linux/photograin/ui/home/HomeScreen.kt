@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,9 +23,15 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.InlineTextContent
+import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AddPhotoAlternate
+import androidx.compose.material.icons.outlined.Compare
+import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material.icons.outlined.PhotoLibrary
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
@@ -43,8 +50,12 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.Placeholder
+import androidx.compose.ui.text.PlaceholderVerticalAlign
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import io.github.steve_linux.photograin.R
 import io.github.steve_linux.photograin.data.ImageLoader
 import kotlinx.coroutines.Dispatchers
@@ -52,7 +63,14 @@ import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(recents: List<Uri>, onOpenPicker: () -> Unit, onOpen: (Uri) -> Unit, onBatch: () -> Unit) {
+fun HomeScreen(
+    recents: List<Uri>,
+    onOpenPicker: () -> Unit,
+    onOpen: (Uri) -> Unit,
+    onBatch: () -> Unit,
+    showTip: Boolean,
+    onDismissTip: () -> Unit,
+) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -92,6 +110,10 @@ fun HomeScreen(recents: List<Uri>, onOpenPicker: () -> Unit, onOpen: (Uri) -> Un
                     textAlign = TextAlign.Center,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                if (showTip) {
+                    Spacer(Modifier.height(24.dp))
+                    PresetTip(onDismissTip)
+                }
             }
         } else {
             LazyVerticalGrid(
@@ -101,6 +123,9 @@ fun HomeScreen(recents: List<Uri>, onOpenPicker: () -> Unit, onOpen: (Uri) -> Un
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxSize().padding(padding),
             ) {
+                if (showTip) {
+                    item(span = { GridItemSpan(maxLineSpan) }) { PresetTip(onDismissTip) }
+                }
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     Text(
                         stringResource(R.string.recent_edits),
@@ -115,6 +140,50 @@ fun HomeScreen(recents: List<Uri>, onOpenPicker: () -> Unit, onOpen: (Uri) -> Un
         }
     }
 }
+
+/** Explains where presets are saved, which new users rarely find on their own. */
+@Composable
+private fun PresetTip(onDismiss: () -> Unit) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(Modifier.padding(start = 16.dp, top = 16.dp, end = 8.dp, bottom = 4.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Outlined.Lightbulb, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.home_tip_title), style = MaterialTheme.typography.titleSmall)
+            }
+            Spacer(Modifier.height(8.dp))
+            // {icon} in the text stands for the editor's compare button, drawn inline.
+            val body = stringResource(R.string.home_tip_body)
+            val text = buildAnnotatedString {
+                val parts = body.split("{icon}", limit = 2)
+                append(parts[0])
+                if (parts.size == 2) {
+                    appendInlineContent(COMPARE_ICON, "[compare]")
+                    append(parts[1])
+                }
+            }
+            val iconContent = mapOf(
+                COMPARE_ICON to InlineTextContent(
+                    Placeholder(1.3.em, 1.3.em, PlaceholderVerticalAlign.TextCenter),
+                ) { Icon(Icons.Outlined.Compare, contentDescription = stringResource(R.string.compare)) },
+            )
+            Text(
+                text,
+                inlineContent = iconContent,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(end = 8.dp),
+            )
+            TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) {
+                Text(stringResource(R.string.home_tip_dismiss))
+            }
+        }
+    }
+}
+
+private const val COMPARE_ICON = "compare"
 
 @Composable
 internal fun RecentThumbnail(uri: Uri, onClick: () -> Unit) {

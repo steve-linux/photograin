@@ -58,7 +58,8 @@ data class EditorUiState(
     val edit: EditState = EditState(),
     val canUndo: Boolean = false,
     val canRedo: Boolean = false,
-    val tool: ToolGroup = ToolGroup.LIGHT,
+    /** Styles first: the quickest way to a good result, and where presets are saved. */
+    val tool: ToolGroup = ToolGroup.LOOK,
     /** Press-and-hold on the photo shows the original. */
     val showOriginal: Boolean = false,
     /** Position of the before/after divider (0..1), or null when split view is off. */
