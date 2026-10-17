@@ -31,6 +31,8 @@ data class ExportOptions(
     val keepLocation: Boolean = false,
     /** sRGB suits the web and most viewers; wider spaces keep more color for printing or wide-gamut screens. */
     val colorProfile: ColorProfile = ColorProfile.SRGB,
+    /** Camera, lens, exposure and date tags; off strips everything but what viewers need to show the pixels. */
+    val keepMetadata: Boolean = true,
 )
 
 /** Encodes a rendered bitmap, carries over useful metadata and writes it to a user-chosen document. */
@@ -96,7 +98,11 @@ object ExportWriter {
     private fun copyMetadata(context: Context, original: Uri, file: File, options: ExportOptions) {
         val source = context.contentResolver.openInputStream(original)?.use { ExifInterface(it) } ?: return
         val target = ExifInterface(file)
-        val tags = if (options.keepLocation) COPIED_TAGS + LOCATION_TAGS else COPIED_TAGS
+        val tags = when {
+            !options.keepMetadata -> emptyList()
+            options.keepLocation -> COPIED_TAGS + LOCATION_TAGS
+            else -> COPIED_TAGS
+        }
         for (tag in tags) source.getAttribute(tag)?.let { target.setAttribute(tag, it) }
         target.setAttribute(ExifInterface.TAG_SOFTWARE, "Photograin")
         // EXIF can only name sRGB; anything else is "uncalibrated" and described by the embedded ICC profile.

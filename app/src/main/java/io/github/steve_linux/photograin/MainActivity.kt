@@ -14,15 +14,18 @@ import androidx.activity.viewModels
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.steve_linux.photograin.data.Preferences
 import io.github.steve_linux.photograin.data.RawImage
+import io.github.steve_linux.photograin.data.SettingsStore
 import io.github.steve_linux.photograin.ui.batch.BatchScreen
 import io.github.steve_linux.photograin.ui.batch.BatchViewModel
 import io.github.steve_linux.photograin.ui.editor.EditorScreen
 import io.github.steve_linux.photograin.ui.editor.EditorViewModel
 import io.github.steve_linux.photograin.ui.home.HomeScreen
+import io.github.steve_linux.photograin.ui.settings.SettingsScreen
 import io.github.steve_linux.photograin.ui.theme.PhotograinTheme
 
 class MainActivity : ComponentActivity() {
@@ -35,19 +38,31 @@ class MainActivity : ComponentActivity() {
         if (savedInstanceState == null) handleIntent(intent)
         val prefs = Preferences(applicationContext)
 
+        val settings = SettingsStore.get(applicationContext)
+
         setContent {
-            PhotograinTheme {
+            val appSettings by settings.state.collectAsStateWithLifecycle()
+            PhotograinTheme(appSettings.theme) {
                 val state by editor.state.collectAsStateWithLifecycle()
                 val batchState by batch.state.collectAsStateWithLifecycle()
                 var recents by remember { mutableStateOf(prefs.recents()) }
                 var showTip by remember { mutableStateOf(!prefs.presetTipDismissed) }
+                var showSettings by rememberSaveable { mutableStateOf(false) }
                 val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
                     uri?.let(editor::open)
                 }
                 val multiPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
                     if (uris.isNotEmpty()) batch.start(uris)
                 }
-                if (batchState.items.isNotEmpty()) {
+                if (showSettings) {
+                    SettingsScreen(
+                        onClose = { showSettings = false },
+                        onShowTips = {
+                            prefs.presetTipDismissed = false
+                            showTip = true
+                        },
+                    )
+                } else if (batchState.items.isNotEmpty()) {
                     BatchScreen(batch, onClose = {
                         batch.clear()
                         recents = prefs.recents()
@@ -68,6 +83,7 @@ class MainActivity : ComponentActivity() {
                             prefs.presetTipDismissed = true
                             showTip = false
                         },
+                        onSettings = { showSettings = true },
                     )
                 }
             }

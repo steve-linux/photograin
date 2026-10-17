@@ -46,12 +46,15 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.steve_linux.photograin.R
+import io.github.steve_linux.photograin.data.ExportDestination
 import io.github.steve_linux.photograin.data.ExportOptions
+import io.github.steve_linux.photograin.data.SettingsStore
 import io.github.steve_linux.photograin.model.Preset
 import io.github.steve_linux.photograin.ui.editor.ExportDialog
 import io.github.steve_linux.photograin.ui.editor.presetLabel
@@ -61,11 +64,12 @@ import io.github.steve_linux.photograin.ui.home.RecentThumbnail
 @Composable
 fun BatchScreen(viewModel: BatchViewModel, onClose: () -> Unit) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val settings by SettingsStore.get(LocalContext.current).state.collectAsStateWithLifecycle()
     var showExport by rememberSaveable { mutableStateOf(false) }
     var pendingOptions by remember { mutableStateOf<ExportOptions?>(null) }
     val folderPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { tree: Uri? ->
         val options = pendingOptions
-        if (tree != null && options != null) viewModel.run(tree, options)
+        if (tree != null && options != null) viewModel.run(options, tree)
         pendingOptions = null
     }
 
@@ -164,7 +168,7 @@ fun BatchScreen(viewModel: BatchViewModel, onClose: () -> Unit) {
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(
-                            onClick = { viewModel.run(null, null) },
+                            onClick = { viewModel.run(null) },
                             enabled = state.source != null,
                             modifier = Modifier.weight(1f),
                         ) { Text(stringResource(R.string.batch_save_only)) }
@@ -181,12 +185,17 @@ fun BatchScreen(viewModel: BatchViewModel, onClose: () -> Unit) {
 
     if (showExport) {
         ExportDialog(
+            initial = settings.export,
             sizeFor = { null },
             onDismiss = { showExport = false },
             onExport = { options ->
                 showExport = false
-                pendingOptions = options
-                folderPicker.launch(null)
+                if (ExportDestination.isAutomatic(settings)) {
+                    viewModel.run(options)
+                } else {
+                    pendingOptions = options
+                    folderPicker.launch(null)
+                }
             },
         )
     }

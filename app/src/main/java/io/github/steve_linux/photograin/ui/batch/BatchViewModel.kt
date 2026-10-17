@@ -3,10 +3,10 @@ package io.github.steve_linux.photograin.ui.batch
 
 import android.app.Application
 import android.net.Uri
-import android.provider.DocumentsContract
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import io.github.steve_linux.photograin.data.ExportDestination
 import io.github.steve_linux.photograin.data.ExportOptions
 import io.github.steve_linux.photograin.data.ExportWriter
 import io.github.steve_linux.photograin.data.ImageLoader
@@ -14,6 +14,7 @@ import io.github.steve_linux.photograin.data.LookLibrary
 import io.github.steve_linux.photograin.data.Preferences
 import io.github.steve_linux.photograin.data.RecipeStore
 import io.github.steve_linux.photograin.data.RegionSource
+import io.github.steve_linux.photograin.data.SettingsStore
 import io.github.steve_linux.photograin.model.Adjustments
 import io.github.steve_linux.photograin.model.EditState
 import io.github.steve_linux.photograin.model.Preset
@@ -69,6 +70,7 @@ class BatchViewModel(app: Application) : AndroidViewModel(app) {
     private val recipes = RecipeStore(app)
     private val prefs = Preferences(app)
     private val library = LookLibrary(app)
+    private val settings = SettingsStore.get(app)
     private var job: Job? = null
 
     private val _state = MutableStateFlow(BatchUiState())
@@ -95,8 +97,11 @@ class BatchViewModel(app: Application) : AndroidViewModel(app) {
 
     fun selectSource(source: BatchSource) = _state.update { it.copy(source = source) }
 
-    /** Saves the edit to every photo; with a [folder] (document tree) also exports each one there. */
-    fun run(folder: Uri?, options: ExportOptions?) {
+    /**
+     * Saves the edit to every photo; with [options] also exports each one, into [folder]
+     * (a document tree) or, without one, where the settings say.
+     */
+    fun run(options: ExportOptions?, folder: Uri? = null) {
         val source = _state.value.source ?: return
         if (_state.value.running) return
         _state.update { s -> s.copy(running = true, result = null, items = s.items.map { BatchItem(it.uri) }) }
@@ -107,7 +112,7 @@ class BatchViewModel(app: Application) : AndroidViewModel(app) {
                 for (item in _state.value.items) {
                     ensureActive()
                     setStatus(item.uri, ItemStatus.WORKING)
-                    val success = process(item.uri, source, folder, options)
+                    val success = process(item.uri, source, options, folder)
                     if (success) ok++ else failed++
                     setStatus(item.uri, if (success) ItemStatus.DONE else ItemStatus.FAILED)
                 }
@@ -125,13 +130,13 @@ class BatchViewModel(app: Application) : AndroidViewModel(app) {
         s.copy(items = s.items.map { if (it.uri == uri) it.copy(status = status) else it })
     }
 
-    private fun process(uri: Uri, source: BatchSource, folder: Uri?, options: ExportOptions?): Boolean {
+    private fun process(uri: Uri, source: BatchSource, options: ExportOptions?, folder: Uri?): Boolean {
         return try {
             val before = recipes.load(uri) ?: EditState()
             val edit = before.copy(adjustments = source.applyTo(before.adjustments))
             recipes.save(uri, edit)
             prefs.addRecent(uri)
-            if (folder != null && options != null) export(uri, edit, folder, options)
+            if (options != null) export(uri, edit, options, folder)
             true
         } catch (e: OutOfMemoryError) {
             Log.w(TAG, "Out of memory on $uri", e)
@@ -144,19 +149,27 @@ class BatchViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    private fun export(uri: Uri, edit: EditState, folder: Uri, options: ExportOptions) {
+    private fun export(uri: Uri, edit: EditState, options: ExportOptions, folder: Uri?) {
         val app = getApplication<Application>()
         val base = ImageLoader.baseOrientation(app, uri)
         val lut = edit.adjustments.look.lutId?.let { library.loadLut(it) }
         val bitmap = RegionSource.open(app, uri).use { Exporter.render(it, base, edit, lut, options.maxLongEdge, options.colorProfile) {} }
         try {
-            val dir = DocumentsContract.buildDocumentUriUsingTree(folder, DocumentsContract.getTreeDocumentId(folder))
-            val name = (ImageLoader.queryName(app, uri)?.substringBeforeLast('.')?.takeIf { it.isNotBlank() } ?: "photo") +
-                "_photograin.${options.format.extension}"
-            // The provider adds " (1)" and so on if the name is taken.
-            val target = DocumentsContract.createDocument(app.contentResolver, dir, options.format.mimeType, name)
-                ?: throw IOException("Cannot create $name")
-            ExportWriter.write(app, bitmap, uri, target, options)
+            val current = settings.value
+            val name = ExportDestination.fileName(ImageLoader.queryName(app, uri), current.naming, options.format)
+            // Taken names get " (1)" and so on from the provider.
+            val target = (if (folder != null) {
+                ExportDestination.createInTree(app, folder, name, options.format)
+            } else {
+                ExportDestination.create(app, current, name, options.format)
+            }) ?: throw IOException("Cannot create $name")
+            try {
+                ExportWriter.write(app, bitmap, uri, target, options)
+                ExportDestination.finish(app, target)
+            } catch (e: Exception) {
+                ExportDestination.discard(app, target)
+                throw e
+            }
         } finally {
             bitmap.recycle()
         }

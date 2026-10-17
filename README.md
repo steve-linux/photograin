@@ -29,7 +29,11 @@ Editor fotografico non distruttivo per Android, libero (GPL-3.0-or-later) e pens
 - **File RAW** (DNG, CR2, CR3, NEF, ARW, RAF, ORF, RW2 e altri) sviluppati con LibRaw:
   anteprima rapida a metà risoluzione, esportazione a piena risoluzione con demosaicizzazione AHD;
   i dati restano a 16 bit per canale fino alla GPU, così ombre e luci si recuperano senza scalini.
-- **Nessun permesso** richiesto: si apre e si salva tramite le finestre di sistema.
+- **Impostazioni**: le foto si salvano in `Immagini/Photograin` (o in una cartella a scelta, o chiedendo
+  ogni volta), con nome originale o data e ora; formato, qualità, dimensione, profilo colore e dati
+  EXIF/GPS predefiniti; tema chiaro, scuro o di sistema; lingua.
+- **Nessun permesso** richiesto: si apre tramite le finestre di sistema e si salva in `Immagini`
+  tramite MediaStore (da Android 10) o nella cartella scelta.
 
 ## Architettura
 

@@ -11,6 +11,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import io.github.steve_linux.photograin.data.ThemeMode
 
 private val Amber = Color(0xFFE0A84F)
 
@@ -33,8 +34,12 @@ val PhotoBackgroundDark = Color(0xFF101010)
 val PhotoBackgroundLight = Color(0xFFE6E6E6)
 
 @Composable
-fun PhotograinTheme(content: @Composable () -> Unit) {
-    val dark = isSystemInDarkTheme()
+fun PhotograinTheme(mode: ThemeMode = ThemeMode.SYSTEM, content: @Composable () -> Unit) {
+    val dark = when (mode) {
+        ThemeMode.SYSTEM -> isSystemInDarkTheme()
+        ThemeMode.LIGHT -> false
+        ThemeMode.DARK -> true
+    }
     val colors = when {
         Build.VERSION.SDK_INT >= 31 -> {
             val ctx = LocalContext.current

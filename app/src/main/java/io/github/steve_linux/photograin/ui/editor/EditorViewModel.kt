@@ -6,6 +6,7 @@ import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import io.github.steve_linux.photograin.data.ExportDestination
 import io.github.steve_linux.photograin.data.ExportOptions
 import io.github.steve_linux.photograin.data.ExportWriter
 import io.github.steve_linux.photograin.data.ImageLoader
@@ -15,6 +16,8 @@ import io.github.steve_linux.photograin.data.LutEntry
 import io.github.steve_linux.photograin.data.Preferences
 import io.github.steve_linux.photograin.data.RecipeStore
 import io.github.steve_linux.photograin.data.RegionSource
+import io.github.steve_linux.photograin.data.SaveLocation
+import io.github.steve_linux.photograin.data.SettingsStore
 import io.github.steve_linux.photograin.model.Adjustments
 import io.github.steve_linux.photograin.model.AspectRatio
 import io.github.steve_linux.photograin.model.CropRect
@@ -47,7 +50,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 enum class Message {
-    EXPORTED, EXPORT_FAILED, LOAD_FAILED, ADJUSTMENTS_COPIED, ADJUSTMENTS_PASTED, OUT_OF_MEMORY,
+    EXPORTED, EXPORTED_TO_PICTURES, EXPORT_FAILED, LOAD_FAILED, ADJUSTMENTS_COPIED, ADJUSTMENTS_PASTED, OUT_OF_MEMORY,
     LUT_IMPORTED, LUT_INVALID, LUT_MISSING, PRESET_SAVED,
 }
 
@@ -65,6 +68,8 @@ data class EditorUiState(
     /** Position of the before/after divider (0..1), or null when split view is off. */
     val split: Float? = null,
     val exportProgress: Float? = null,
+    /** Set when the settings name no place to save: the screen asks the user for one. */
+    val askDestination: SaveRequest? = null,
     val message: Message? = null,
     val hasCopiedAdjustments: Boolean = false,
     /** The parsed table for the edit's look, or null when there is none or it is missing. */
@@ -73,10 +78,14 @@ data class EditorUiState(
     val userPresets: List<Preset> = emptyList(),
 )
 
+/** An export waiting for the user to pick where it goes. */
+data class SaveRequest(val options: ExportOptions, val fileName: String)
+
 class EditorViewModel(app: Application) : AndroidViewModel(app) {
     private val recipes = RecipeStore(app)
     private val prefs = Preferences(app)
     private val library = LookLibrary(app)
+    private val settings = SettingsStore.get(app)
     private var history = History(EditState())
     private var loadJob: Job? = null
 
@@ -322,15 +331,37 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         )
     }
 
-    fun export(destination: Uri, options: ExportOptions) {
+    /** Saves where the settings say, or asks for a place through [EditorUiState.askDestination]. */
+    fun export(options: ExportOptions) {
+        val image = _state.value.image ?: return
+        val current = settings.value
+        val name = ExportDestination.fileName(image.displayName, current.naming, options.format)
+        viewModelScope.launch {
+            val uri = withContext(Dispatchers.IO) { ExportDestination.create(getApplication(), current, name, options.format) }
+            if (uri == null) {
+                _state.update { it.copy(askDestination = SaveRequest(options, name)) }
+            } else {
+                val toPictures = current.saveLocation == SaveLocation.PICTURES
+                export(uri, options, created = true, done = if (toPictures) Message.EXPORTED_TO_PICTURES else Message.EXPORTED)
+            }
+        }
+    }
+
+    fun destinationAsked() = _state.update { it.copy(askDestination = null) }
+
+    /**
+     * Renders and writes to [destination]. A file this app [created] is finished or removed
+     * here; one the user picked is left to its provider.
+     */
+    fun export(destination: Uri, options: ExportOptions, created: Boolean = false, done: Message = Message.EXPORTED) {
         val image = _state.value.image ?: return
         val edit = _state.value.edit
         val lut = _state.value.lut
         _state.update { it.copy(exportProgress = 0f) }
         viewModelScope.launch {
             val ok = withContext(Dispatchers.Default) {
+                val app = getApplication<Application>()
                 try {
-                    val app = getApplication<Application>()
                     val bitmap = RegionSource.open(app, image.uri).use { source ->
                         Exporter.render(source, image.base, edit, lut, options.maxLongEdge, options.colorProfile) { p ->
                             _state.update { it.copy(exportProgress = p) }
@@ -338,11 +369,14 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
                     }
                     ExportWriter.write(app, bitmap, image.uri, destination, options)
                     bitmap.recycle()
-                    Message.EXPORTED
+                    if (created) ExportDestination.finish(app, destination)
+                    done
                 } catch (e: OutOfMemoryError) {
+                    if (created) ExportDestination.discard(app, destination)
                     Message.OUT_OF_MEMORY
                 } catch (e: Exception) {
                     Log.e(TAG, "Export failed", e)
+                    if (created) ExportDestination.discard(app, destination)
                     Message.EXPORT_FAILED
                 }
             }
