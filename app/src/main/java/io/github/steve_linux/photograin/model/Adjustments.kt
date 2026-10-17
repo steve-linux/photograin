@@ -34,9 +34,23 @@ data class Adjustments(
     // Advanced tone and color
     val curves: Curves = Curves(),
     val hsl: Hsl = Hsl(),
+    // Creative look
+    val look: Look = Look(),
 )
 
-enum class ToolGroup { LIGHT, COLOR, DETAIL, EFFECTS, CROP }
+/** An imported .cube LUT applied after the other color adjustments, blended by [amount]. */
+@Serializable
+data class Look(
+    /** Id of the LUT in the app's LUT library, or null for none. */
+    val lutId: String? = null,
+    /** Name shown in the panel, kept so a recipe stays readable if the LUT is deleted. */
+    val name: String? = null,
+    val amount: Float = 1f,
+) {
+    val isActive get() = lutId != null && amount > 0f
+}
+
+enum class ToolGroup { LOOK, LIGHT, COLOR, DETAIL, EFFECTS, CROP }
 
 /** Describes one slider: its range, default and how it reads/writes [Adjustments]. */
 class ParamSpec(

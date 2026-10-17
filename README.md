@@ -12,6 +12,8 @@ Editor fotografico non distruttivo per Android, libero (GPL-3.0-or-later) e pens
 - **Colore**: temperatura, tinta, vividezza, saturazione.
 - **Dettaglio**: nitidezza, chiarezza, rimozione foschia.
 - **Effetti**: vignettatura, grana pellicola.
+- **Stili**: preset pronti (Vivace, Caldo, Freddo, Morbido, Pellicola, B/N…) e preset personali
+  salvabili; importazione di LUT `.cube` (3D e 1D) applicati sulla GPU con intensità regolabile.
 - **Ritaglio**: proporzioni predefinite, raddrizzamento ±45°, rotazione, specchio.
 - **Confronto prima/dopo**: tieni premuto sulla foto, oppure vista divisa con cursore.
 - **Copia/incolla** delle regolazioni tra foto.

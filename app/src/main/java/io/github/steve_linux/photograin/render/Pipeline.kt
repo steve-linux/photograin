@@ -4,6 +4,7 @@ package io.github.steve_linux.photograin.render
 import android.opengl.GLES30
 import io.github.steve_linux.photograin.math.Affine
 import io.github.steve_linux.photograin.model.Adjustments
+import io.github.steve_linux.photograin.model.CubeLut
 import io.github.steve_linux.photograin.model.Curves
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -38,6 +39,8 @@ internal class Pipeline {
     private var blurB: RenderTarget? = null
     private var curveTexture = 0
     private var uploadedCurves: Curves? = null
+    private var lutTexture = 0
+    private var uploadedLut: CubeLut? = null
 
     init {
         val vertices = floatArrayOf(0f, 0f, 1f, 0f, 0f, 1f, 1f, 1f)
@@ -114,9 +117,11 @@ internal class Pipeline {
      * @param clipRect where to draw, in clip space (x0, y0, x1, y1); y0 receives the image top.
      * @param geoUvRect which part of the geometry texture to draw (origin.xy, size.zw).
      * @param imageMap maps geometry UVs to positions in the whole output (origin.xy, size.zw).
+     * @param lut the table for [Adjustments.look], or null when it is off or not available.
      */
     fun renderColor(
         adjustments: Adjustments,
+        lut: CubeLut?,
         clipRect: FloatArray,
         geoUvRect: FloatArray,
         imageMap: FloatArray,
@@ -162,6 +167,19 @@ internal class Pipeline {
         val hslOn = !adjustments.hsl.isIdentity
         p.float("uHslOn", if (hslOn) 1f else 0f)
         if (hslOn) p.vec3Array("uHsl", ShaderParams.hslUniform(adjustments))
+        val lutOn = lut != null && adjustments.look.isActive
+        p.float("uLutOn", if (lutOn) 1f else 0f)
+        // The sampler must always point at a 3D texture, even when unused.
+        val lutTex = lutTexture(if (lutOn) lut else uploadedLut)
+        GLES30.glActiveTexture(GLES30.GL_TEXTURE3)
+        GLES30.glBindTexture(GLES30.GL_TEXTURE_3D, lutTex)
+        p.int("uLut", 3)
+        if (lutOn) {
+            val n = lut!!.size.toFloat()
+            p.float("uLutAmount", adjustments.look.amount.coerceIn(0f, 1f))
+            p.float("uLutScale", (n - 1f) / n)
+            p.float("uLutOffset", 0.5f / n)
+        }
         p.float("uCompare", compareSplit)
         p.float("uComposite", if (composite) 1f else 0f)
         p.vec3("uBg", background[0], background[1], background[2])
@@ -185,6 +203,33 @@ internal class Pipeline {
         return curveTexture
     }
 
+    /**
+     * 3D texture for [lut], re-uploaded only when it changes. Half-float storage keeps smooth
+     * gradients free of banding and is filterable on every GLES 3.0 device (and WebGL 2).
+     * With no LUT it holds a 2x2x2 identity so the sampler stays valid.
+     */
+    private fun lutTexture(lut: CubeLut?): Int {
+        if (lutTexture != 0 && (lut == null || lut === uploadedLut)) return lutTexture
+        if (lutTexture == 0) lutTexture = GlUtil.genTexture()
+        val table = lut ?: IDENTITY_LUT
+        GLES30.glActiveTexture(GLES30.GL_TEXTURE3)
+        GLES30.glBindTexture(GLES30.GL_TEXTURE_3D, lutTexture)
+        for (param in intArrayOf(GLES30.GL_TEXTURE_WRAP_S, GLES30.GL_TEXTURE_WRAP_T, GLES30.GL_TEXTURE_WRAP_R)) {
+            GLES30.glTexParameteri(GLES30.GL_TEXTURE_3D, param, GLES30.GL_CLAMP_TO_EDGE)
+        }
+        GLES30.glTexParameteri(GLES30.GL_TEXTURE_3D, GLES30.GL_TEXTURE_MIN_FILTER, GLES30.GL_LINEAR)
+        GLES30.glTexParameteri(GLES30.GL_TEXTURE_3D, GLES30.GL_TEXTURE_MAG_FILTER, GLES30.GL_LINEAR)
+        val data = ByteBuffer.allocateDirect(table.data.size * 4).order(ByteOrder.nativeOrder()).asFloatBuffer()
+        data.put(table.data).position(0)
+        GLES30.glPixelStorei(GLES30.GL_UNPACK_ALIGNMENT, 4)
+        GLES30.glTexImage3D(
+            GLES30.GL_TEXTURE_3D, 0, GLES30.GL_RGB16F, table.size, table.size, table.size, 0,
+            GLES30.GL_RGB, GLES30.GL_FLOAT, data,
+        )
+        uploadedLut = lut
+        return lutTexture
+    }
+
     private fun drawQuad(program: GlProgram, clipRect: FloatArray, srcRect: FloatArray) {
         program.vec4("uDst", clipRect)
         program.vec4("uSrc", srcRect)
@@ -201,6 +246,8 @@ internal class Pipeline {
         blurA?.release(); blurA = null
         blurB?.release(); blurB = null
         GlUtil.deleteTexture(curveTexture); curveTexture = 0
+        GlUtil.deleteTexture(lutTexture); lutTexture = 0
+        uploadedLut = null
         geometryProgram.release()
         blurProgram.release()
         colorProgram.release()
@@ -211,6 +258,7 @@ internal class Pipeline {
         /** Whole viewport; y0 = -1 so the image top lands in buffer row 0. */
         val FULL_CLIP = floatArrayOf(-1f, -1f, 1f, 1f)
         val UNIT_RECT = floatArrayOf(0f, 0f, 1f, 1f)
+        private val IDENTITY_LUT = CubeLut(null, 2, floatArrayOf(0f, 0f, 0f, 1f, 0f, 0f, 0f, 1f, 0f, 1f, 1f, 0f, 0f, 0f, 1f, 1f, 0f, 1f, 0f, 1f, 1f, 1f, 1f, 1f))
     }
 }
 
@@ -224,6 +272,7 @@ internal class GlProgram(vertex: String, fragment: String) {
     private fun loc(name: String) = locations.getOrPut(name) { GLES30.glGetUniformLocation(id, name) }
 
     fun float(name: String, v: Float) = GLES30.glUniform1f(loc(name), v)
+    fun int(name: String, v: Int) = GLES30.glUniform1i(loc(name), v)
     fun vec2(name: String, x: Float, y: Float) = GLES30.glUniform2f(loc(name), x, y)
     fun vec3(name: String, x: Float, y: Float, z: Float) = GLES30.glUniform3f(loc(name), x, y, z)
     fun vec4(name: String, v: FloatArray) = GLES30.glUniform4f(loc(name), v[0], v[1], v[2], v[3])

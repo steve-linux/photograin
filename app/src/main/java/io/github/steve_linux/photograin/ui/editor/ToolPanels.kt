@@ -204,6 +204,7 @@ private fun aspectLabel(a: AspectRatio): Int = when (a) {
 
 @StringRes
 fun toolLabel(t: ToolGroup): Int = when (t) {
+    ToolGroup.LOOK -> R.string.tool_look
     ToolGroup.LIGHT -> R.string.tool_light
     ToolGroup.COLOR -> R.string.tool_color
     ToolGroup.DETAIL -> R.string.tool_detail

@@ -90,6 +90,7 @@ fun PhotoView(
             base = image.base,
             geometry = displayGeometry,
             adjustments = state.edit.adjustments,
+            lut = state.lut,
             imageRect = rect,
             compareSplit = compare,
             background = floatArrayOf(background.red, background.green, background.blue),
