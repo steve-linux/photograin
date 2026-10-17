@@ -158,4 +158,6 @@
     <string name="settings_license_value">GNU GPL v3 or later</string>
     <string name="settings_source">Source code</string>
     <string name="settings_libraries">Open source libraries</string>
+    <string name="msg_exported_downloads">Saved to Download/Photograin: Android does not accept JPEG XL among pictures</string>
+    <string name="settings_save_pictures_jxl">JPEG XL files go to Download/Photograin, because Android does not accept them among pictures</string>
 </resources>

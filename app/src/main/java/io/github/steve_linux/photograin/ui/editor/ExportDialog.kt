@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package io.github.steve_linux.photograin.ui.editor
 
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -58,6 +59,7 @@ fun ExportDialog(
 }
 
 /** Format, quality, size, color profile and metadata choices; also the defaults in the settings. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ExportOptionsEditor(
     options: ExportOptions,
@@ -71,10 +73,7 @@ fun ExportOptionsEditor(
     val profile = options.colorProfile
     Column(modifier) {
         Text(stringResource(R.string.export_format), style = MaterialTheme.typography.labelLarge)
-        Row(
-            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
+        FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             for (f in ExportFormat.entries) {
                 FilterChip(selected = format == f, onClick = { onChange(options.copy(format = f)) }, label = { Text(f.label) })
             }
@@ -91,10 +90,7 @@ fun ExportOptionsEditor(
         }
         Spacer(Modifier.height(8.dp))
         Text(stringResource(R.string.export_size), style = MaterialTheme.typography.labelLarge)
-        Row(
-            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
+        FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             for (preset in SIZE_PRESETS) {
                 FilterChip(
                     selected = maxEdge == preset,
@@ -112,10 +108,7 @@ fun ExportOptionsEditor(
         }
         Spacer(Modifier.height(8.dp))
         Text(stringResource(R.string.export_color_profile), style = MaterialTheme.typography.labelLarge)
-        Row(
-            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
+        FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             for (p in ColorProfile.entries) {
                 FilterChip(selected = profile == p, onClick = { onChange(options.copy(colorProfile = p)) }, label = { Text(profileLabel(p)) })
             }

@@ -50,7 +50,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 enum class Message {
-    EXPORTED, EXPORTED_TO_PICTURES, EXPORT_FAILED, LOAD_FAILED, ADJUSTMENTS_COPIED, ADJUSTMENTS_PASTED, OUT_OF_MEMORY,
+    EXPORTED, EXPORTED_TO_PICTURES, EXPORTED_TO_DOWNLOADS, EXPORT_FAILED, LOAD_FAILED, ADJUSTMENTS_COPIED, ADJUSTMENTS_PASTED, OUT_OF_MEMORY,
     LUT_IMPORTED, LUT_INVALID, LUT_MISSING, PRESET_SAVED,
 }
 
@@ -341,8 +341,12 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
             if (uri == null) {
                 _state.update { it.copy(askDestination = SaveRequest(options, name)) }
             } else {
-                val toPictures = current.saveLocation == SaveLocation.PICTURES
-                export(uri, options, created = true, done = if (toPictures) Message.EXPORTED_TO_PICTURES else Message.EXPORTED)
+                val done = when {
+                    ExportDestination.isInDownloads(uri) -> Message.EXPORTED_TO_DOWNLOADS
+                    current.saveLocation == SaveLocation.PICTURES -> Message.EXPORTED_TO_PICTURES
+                    else -> Message.EXPORTED
+                }
+                export(uri, options, created = true, done = done)
             }
         }
     }

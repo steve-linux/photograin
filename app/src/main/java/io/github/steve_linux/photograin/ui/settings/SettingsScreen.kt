@@ -113,7 +113,7 @@ fun SettingsScreen(onClose: () -> Unit, onShowTips: () -> Unit) {
             val picturesAvailable = Build.VERSION.SDK_INT >= 29
             Choice(
                 title = stringResource(R.string.settings_save_pictures, ExportDestination.FOLDER_NAME),
-                subtitle = if (picturesAvailable) null else stringResource(R.string.settings_save_pictures_old),
+                subtitle = stringResource(if (picturesAvailable) R.string.settings_save_pictures_jxl else R.string.settings_save_pictures_old),
                 selected = settings.saveLocation == SaveLocation.PICTURES,
                 enabled = picturesAvailable,
                 onClick = { store.update { it.copy(saveLocation = SaveLocation.PICTURES) } },

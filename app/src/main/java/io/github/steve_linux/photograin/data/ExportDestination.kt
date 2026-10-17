@@ -69,24 +69,28 @@ object ExportDestination {
         }
     }
 
+    /** Whether [uri] is a photo saved to Download/Photograin because Pictures refused its type. */
+    fun isInDownloads(uri: Uri): Boolean =
+        uri.authority == MediaStore.AUTHORITY && uri.pathSegments.contains("downloads")
+
     /**
      * Pictures/Photograin through MediaStore, which needs no permission from Android 10 on.
-     * Older systems do not know every type in the images table (JPEG XL), so the generic
-     * files table is tried next.
+     * The images table only takes types the system can decode, so JPEG XL is refused on most
+     * phones; such files go to Download/Photograin, the one shared folder that takes any type.
      */
     @RequiresApi(29)
     private fun inPictures(context: Context, name: String, format: ExportFormat): Uri? {
-        val values = ContentValues().apply {
-            put(MediaStore.MediaColumns.DISPLAY_NAME, name)
-            put(MediaStore.MediaColumns.MIME_TYPE, format.mimeType)
-            put(MediaStore.MediaColumns.RELATIVE_PATH, "Pictures/$FOLDER_NAME")
-            put(MediaStore.MediaColumns.IS_PENDING, 1)
-        }
-        val tables = listOf(
-            MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY),
-            MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY),
+        val targets = listOf(
+            MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY) to "Pictures/$FOLDER_NAME",
+            MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY) to "Download/$FOLDER_NAME",
         )
-        for (table in tables) {
+        for ((table, path) in targets) {
+            val values = ContentValues().apply {
+                put(MediaStore.MediaColumns.DISPLAY_NAME, name)
+                put(MediaStore.MediaColumns.MIME_TYPE, format.mimeType)
+                put(MediaStore.MediaColumns.RELATIVE_PATH, path)
+                put(MediaStore.MediaColumns.IS_PENDING, 1)
+            }
             runCatching { context.contentResolver.insert(table, values) }
                 .onFailure { Log.w(TAG, "Cannot add $name to $table", it) }
                 .getOrNull()

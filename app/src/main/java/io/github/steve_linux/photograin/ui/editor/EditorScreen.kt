@@ -299,6 +299,7 @@ private fun toolIcon(tool: ToolGroup): ImageVector = when (tool) {
 private fun messageText(m: Message): Int = when (m) {
     Message.EXPORTED -> R.string.msg_exported
     Message.EXPORTED_TO_PICTURES -> R.string.msg_exported_pictures
+    Message.EXPORTED_TO_DOWNLOADS -> R.string.msg_exported_downloads
     Message.EXPORT_FAILED -> R.string.msg_export_failed
     Message.LOAD_FAILED -> R.string.msg_load_failed
     Message.ADJUSTMENTS_COPIED -> R.string.msg_copied
