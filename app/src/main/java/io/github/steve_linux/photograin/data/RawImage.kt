@@ -22,7 +22,7 @@ object RawImage {
         "rw2", "rwl", "sr2", "srf", "srw", "x3f",
     )
 
-    /** MIME types offered to the system picker next to image/*, for providers that report them. */
+    /** MIME types offered to the system picker alongside all images, for providers that report them. */
     val MIME_TYPES = arrayOf(
         "image/x-adobe-dng", "image/x-canon-cr2", "image/x-canon-cr3", "image/x-nikon-nef",
         "image/x-sony-arw", "image/x-fuji-raf", "image/x-olympus-orf", "image/x-panasonic-rw2",
