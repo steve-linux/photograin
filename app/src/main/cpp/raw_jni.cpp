@@ -84,7 +84,7 @@ Java_io_github_steve_1linux_photograin_data_RawImage_nativeCopyTo(
     AndroidBitmapInfo info;
     void* pixels = nullptr;
     if (AndroidBitmap_getInfo(env, bitmap, &info) != ANDROID_BITMAP_RESULT_SUCCESS ||
-        info.format != ANDROID_BITMAP_FORMAT_RGBA_8888 ||
+        info.format != ANDROID_BITMAP_FORMAT_RGBA_F16 ||
         static_cast<int>(info.width) != decoder->developedWidth() ||
         static_cast<int>(info.height) != decoder->developedHeight()) {
         throwIo(env, "Bitmap does not match the developed image");
@@ -94,7 +94,7 @@ Java_io_github_steve_1linux_photograin_data_RawImage_nativeCopyTo(
         throwIo(env, "Cannot lock bitmap pixels");
         return;
     }
-    decoder->copyRgba(static_cast<uint8_t*>(pixels), info.stride);
+    decoder->copyRgbaHalf(static_cast<uint16_t*>(pixels), info.stride);
     AndroidBitmap_unlockPixels(env, bitmap);
 }
 
