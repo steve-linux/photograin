@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package io.github.steve_linux.photograin.render
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Rect
 import android.opengl.GLES30
+import io.github.steve_linux.photograin.data.AiUpscaleSource
 import io.github.steve_linux.photograin.data.ColorSpaces
+import io.github.steve_linux.photograin.data.ExportOptions
 import io.github.steve_linux.photograin.data.RegionSource
 import io.github.steve_linux.photograin.math.Affine
 import io.github.steve_linux.photograin.math.Vec2
@@ -52,6 +55,24 @@ object Exporter {
     fun upscaleLimited(source: PxSize, base: BaseOrientation, edit: EditState, upscale: Int): Boolean {
         val full = GeometryMapper(source.width, source.height, base, edit.geometry).outputSize
         return upscale > 1 && scaleFor(full, null, upscale) < upscale
+    }
+
+    /**
+     * The source to render and the options to render it with: for an AI enlargement, [source]
+     * already enlarged by Real-ESRGAN, rendered at its own size.
+     */
+    fun prepare(
+        context: Context,
+        source: RegionSource,
+        base: BaseOrientation,
+        edit: EditState,
+        options: ExportOptions,
+    ): Pair<RegionSource, ExportOptions> {
+        if (!options.aiUpscale || options.upscale <= 1) return source to options
+        val full = GeometryMapper(source.width, source.height, base, edit.geometry).outputSize
+        val factor = scaleFor(full, null, options.upscale)
+        if (factor <= 1.0) return source to options
+        return AiUpscaleSource(context, source, factor) to options.copy(upscale = 1, maxLongEdge = null)
     }
 
     private fun scaleFor(full: PxSize, maxLongEdge: Int?, upscale: Int): Double {

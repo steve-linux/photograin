@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.steve_linux.photograin.R
+import io.github.steve_linux.photograin.data.AiUpscaler
 import io.github.steve_linux.photograin.data.ExportFormat
 import io.github.steve_linux.photograin.data.ExportOptions
 import io.github.steve_linux.photograin.model.ColorProfile
@@ -129,11 +130,35 @@ fun ExportOptionsEditor(
             )
         }
         if (options.upscale > 1) {
+            if (AiUpscaler.available) {
+                Spacer(Modifier.height(8.dp))
+                Text(stringResource(R.string.export_upscale_method), style = MaterialTheme.typography.labelLarge)
+                FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = !options.aiUpscale,
+                        onClick = { onChange(options.copy(aiUpscale = false)) },
+                        label = { Text(stringResource(R.string.export_upscale_bicubic)) },
+                    )
+                    FilterChip(
+                        selected = options.aiUpscale,
+                        onClick = { onChange(options.copy(aiUpscale = true)) },
+                        label = { Text(stringResource(R.string.export_upscale_ai)) },
+                    )
+                }
+            }
+            val ai = options.aiUpscale && AiUpscaler.available
             Text(
-                stringResource(if (upscaleLimited) R.string.export_upscale_limited else R.string.export_upscale_hint),
+                stringResource(if (ai) R.string.export_upscale_ai_hint else R.string.export_upscale_hint),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            if (upscaleLimited) {
+                Text(
+                    stringResource(R.string.export_upscale_limited),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
         Spacer(Modifier.height(8.dp))
         Text(stringResource(R.string.export_color_profile), style = MaterialTheme.typography.labelLarge)

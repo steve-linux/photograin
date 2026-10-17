@@ -150,4 +150,8 @@
     <string name="export_upscale">Ingrandisci %1$d×</string>
     <string name="export_upscale_hint">Ingrandita con interpolazione bicubica: più nitida di un semplice allargamento, ma non può inventare dettagli.</string>
     <string name="export_upscale_limited">Limitata a 48 megapixel perché la foto stia in memoria.</string>
+    <string name="export_upscale_method">Metodo</string>
+    <string name="export_upscale_bicubic">Bicubico</string>
+    <string name="export_upscale_ai">IA (Real-ESRGAN)</string>
+    <string name="export_upscale_ai_hint">Una rete neurale addestrata sulle foto ricostruisce dettagli plausibili e toglie il rumore di compressione. Molto più lenta; ideale per foto piccole o vecchie.</string>
 </resources>

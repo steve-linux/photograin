@@ -163,4 +163,8 @@
     <string name="export_upscale">Enlarge %1$d×</string>
     <string name="export_upscale_hint">Enlarged with bicubic interpolation: sharper than simple stretching, but it cannot invent detail.</string>
     <string name="export_upscale_limited">Limited to 48 megapixels so the photo fits in memory.</string>
+    <string name="export_upscale_method">Method</string>
+    <string name="export_upscale_bicubic">Bicubic</string>
+    <string name="export_upscale_ai">AI (Real-ESRGAN)</string>
+    <string name="export_upscale_ai_hint">A neural network trained on photos restores plausible detail and removes compression noise. Much slower; best for small or old photos.</string>
 </resources>

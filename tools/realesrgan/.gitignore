@@ -1,0 +1,7 @@
+*.pth
+*.pt
+*.pnnx.*
+*_pnnx.py
+*_ncnn.py
+*.ncnn.*
+__pycache__/

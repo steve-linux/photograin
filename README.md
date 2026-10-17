@@ -29,6 +29,9 @@ Editor fotografico non distruttivo per Android, libero (GPL-3.0-or-later) e pens
 - **File RAW** (DNG, CR2, CR3, NEF, ARW, RAF, ORF, RW2 e altri) sviluppati con LibRaw:
   anteprima rapida a metà risoluzione, esportazione a piena risoluzione con demosaicizzazione AHD;
   i dati restano a 16 bit per canale fino alla GPU, così ombre e luci si recuperano senza scalini.
+- **Ingrandimento** 2× o 4× all'esportazione, con interpolazione bicubica oppure con l'IA
+  ([Real-ESRGAN](https://github.com/xinntao/Real-ESRGAN) eseguito da ncnn, sulla GPU con Vulkan
+  quando c'è): il modello è incluso nell'app, nessuna connessione. Provenienza in [docs/MODELS.md](docs/MODELS.md).
 - **Impostazioni**: le foto si salvano in `Immagini/Photograin` (o in una cartella a scelta, o chiedendo
   ogni volta), con nome originale o data e ora; formato, qualità, dimensione, profilo colore e dati
   EXIF/GPS predefiniti; tema chiaro, scuro o di sistema; lingua.
@@ -85,4 +88,6 @@ Tutte le dipendenze (AndroidX, Jetpack Compose, Kotlin, kotlinx) sono Apache-2.0
 LibRaw è distribuita con doppia licenza LGPL-2.1 o CDDL-1.0; Photograin la usa secondo la LGPL-2.1,
 compatibile con la GPL-3.0.
 libjxl (con highway, brotli e skcms), libavif e libaom sono BSD, compatibili con la GPL-3.0.
+ncnn (BSD-3-Clause) con glslang (licenze BSD/MIT/Apache-2.0) e il modello Real-ESRGAN (BSD-3-Clause)
+sono compatibili con la GPL-3.0.
 Nessuna dipendenza da Google Play Services o servizi proprietari.

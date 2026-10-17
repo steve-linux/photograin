@@ -10,3 +10,6 @@
 [submodule "app/src/main/cpp/aom"]
 	path = app/src/main/cpp/aom
 	url = https://aomedia.googlesource.com/aom
+[submodule "app/src/main/cpp/ncnn"]
+	path = app/src/main/cpp/ncnn
+	url = https://github.com/Tencent/ncnn.git
