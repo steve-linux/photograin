@@ -88,3 +88,47 @@ if(ANDROID)
     target_compile_options(photograin_codec PRIVATE -Wall)
     target_link_options(photograin_codec PRIVATE "-Wl,-z,max-page-size=16384")
 endif()
+
+# --- AI upscaling ----------------------------------------------------------------------------
+# ncnn (BSD-3-Clause), pinned as a git submodule, runs Real-ESRGAN on the GPU through Vulkan
+# (its glslang submodule compiles the shaders on the device) or on the CPU. Only the layers
+# the bundled model and ncnn's own convolution paths use are built.
+set(NCNN_LAYERS Input Convolution PReLU PixelShuffle Interp BinaryOp Split
+                Packing Cast Padding Crop Flatten Reshape Gemm InnerProduct ReLU Clip Sigmoid Swish HardSwish
+                HardSigmoid Mish ELU Eltwise Concat)
+file(STRINGS ncnn/src/CMakeLists.txt NCNN_LAYER_LINES REGEX "^ncnn_add_layer\\(")
+foreach(line ${NCNN_LAYER_LINES})
+    string(REGEX REPLACE "^ncnn_add_layer\\(([A-Za-z0-9_]+).*" "\\1" layer "${line}")
+    string(TOLOWER ${layer} name)
+    if(layer IN_LIST NCNN_LAYERS)
+        set(WITH_LAYER_${name} ON CACHE BOOL "" FORCE)
+    else()
+        set(WITH_LAYER_${name} OFF CACHE BOOL "" FORCE)
+    endif()
+endforeach()
+foreach(opt BUILD_TOOLS BUILD_EXAMPLES BUILD_BENCHMARK BUILD_TESTS INSTALL_SDK C_API INT8 BF16
+            PIXEL_ROTATE PIXEL_AFFINE PIXEL_DRAWING PYTHON SHARED_LIB)
+    set(NCNN_${opt} OFF CACHE BOOL "" FORCE)
+endforeach()
+set(NCNN_SIMPLEOMP ON CACHE BOOL "" FORCE)  # ncnn's own OpenMP runtime: no libomp to ship
+set(NCNN_VERSION 20260526 CACHE STRING "" FORCE)  # the pinned tag; the default is the build date
+if(ANDROID)
+    set(NCNN_VULKAN ON CACHE BOOL "" FORCE)
+endif()
+if(ANDROID AND NOT TARGET pthread)
+    # ncnn links "pthread", which Android has inside libc: an empty target stands in for it.
+    add_library(pthread INTERFACE)
+endif()
+add_subdirectory(ncnn EXCLUDE_FROM_ALL)
+
+# Portable core, like raw_core.
+add_library(upscale_core STATIC upscaler.cpp)
+target_link_libraries(upscale_core PUBLIC ncnn)
+target_compile_options(upscale_core PRIVATE -Wall -O2)
+
+if(ANDROID)
+    add_library(photograin_upscale SHARED upscale_jni.cpp)
+    target_link_libraries(photograin_upscale PRIVATE upscale_core android jnigraphics log)
+    target_compile_options(photograin_upscale PRIVATE -Wall)
+    target_link_options(photograin_upscale PRIVATE "-Wl,-z,max-page-size=16384")
+endif()

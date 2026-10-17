@@ -153,8 +153,9 @@ class BatchViewModel(app: Application) : AndroidViewModel(app) {
         val app = getApplication<Application>()
         val base = ImageLoader.baseOrientation(app, uri)
         val lut = edit.adjustments.look.lutId?.let { library.loadLut(it) }
-        val bitmap = RegionSource.open(app, uri).use {
-            Exporter.render(it, base, edit, lut, options.maxLongEdge, options.colorProfile, options.upscale) {}
+        val (source, render) = Exporter.prepare(app, RegionSource.open(app, uri), base, edit, options)
+        val bitmap = source.use {
+            Exporter.render(it, base, edit, lut, render.maxLongEdge, render.colorProfile, render.upscale) {}
         }
         try {
             val current = settings.value

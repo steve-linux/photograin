@@ -68,6 +68,9 @@ private val LIBRARIES = listOf(
     "skcms" to "BSD-3-Clause",
     "libavif" to "BSD-2-Clause",
     "libaom" to "BSD-2-Clause + AOM Patent License 1.0",
+    "ncnn" to "BSD-3-Clause",
+    "glslang" to "BSD-3-Clause / BSD-2-Clause / MIT / Apache-2.0",
+    "Real-ESRGAN (realesr-general-x4v3)" to "BSD-3-Clause",
     "AndroidX, Jetpack Compose, Material" to "Apache-2.0",
     "Kotlin, kotlinx.coroutines, kotlinx.serialization" to "Apache-2.0",
 )
