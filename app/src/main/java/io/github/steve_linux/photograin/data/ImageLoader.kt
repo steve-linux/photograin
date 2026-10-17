@@ -8,6 +8,7 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.exifinterface.media.ExifInterface
 import io.github.steve_linux.photograin.model.BaseOrientation
+import io.github.steve_linux.photograin.model.ColorProfile
 import java.io.IOException
 import kotlin.math.max
 import kotlin.math.roundToInt
@@ -21,6 +22,8 @@ class LoadedImage(
     val base: BaseOrientation,
     val displayName: String?,
     val mimeType: String?,
+    /** Color space of [preview] and of the regions decoded for export. */
+    val profile: ColorProfile,
 )
 
 object ImageLoader {
@@ -40,11 +43,13 @@ object ImageLoader {
         val w = bounds.outWidth
         val h = bounds.outHeight
         if (w <= 0 || h <= 0) throw IOException("Unsupported image: $uri")
+        val profile = ColorSpaces.workingSpaceFor(bounds.outColorSpace)
 
         val decoded = resolver.openInputStream(uri)?.use {
             BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply {
                 inSampleSize = sampleSizeFor(max(w, h), maxLongEdge)
                 inPreferredConfig = Bitmap.Config.ARGB_8888
+                inPreferredColorSpace = ColorSpaces.of(profile)
             })
         } ?: throw IOException("Cannot decode $uri")
 
@@ -56,6 +61,7 @@ object ImageLoader {
             base = BaseOrientation.fromExif(readOrientation(context, uri)),
             displayName = name,
             mimeType = mime ?: bounds.outMimeType,
+            profile = profile,
         )
     }
 
@@ -71,6 +77,7 @@ object ImageLoader {
             base = BaseOrientation.fromExif(info.exifOrientation),
             displayName = name,
             mimeType = mime,
+            profile = ColorSpaces.RAW_WORKING_SPACE,
         )
     }
 

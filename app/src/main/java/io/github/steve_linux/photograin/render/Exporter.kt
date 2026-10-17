@@ -5,10 +5,12 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Rect
 import android.opengl.GLES30
+import io.github.steve_linux.photograin.data.ColorSpaces
 import io.github.steve_linux.photograin.data.RegionSource
 import io.github.steve_linux.photograin.math.Affine
 import io.github.steve_linux.photograin.math.Vec2
 import io.github.steve_linux.photograin.model.BaseOrientation
+import io.github.steve_linux.photograin.model.ColorProfile
 import io.github.steve_linux.photograin.model.CubeLut
 import io.github.steve_linux.photograin.model.EditState
 import io.github.steve_linux.photograin.model.GeometryMapper
@@ -45,6 +47,7 @@ object Exporter {
         edit: EditState,
         lut: CubeLut?,
         maxLongEdge: Int?,
+        output: ColorProfile,
         onProgress: (Float) -> Unit,
     ): Bitmap {
         val mapper = GeometryMapper(source.width, source.height, base, edit.geometry)
@@ -55,7 +58,10 @@ object Exporter {
         val outToSource = Affine.scale(full.width.toDouble() / out.width, full.height.toDouble() / out.height)
             .then(mapper.outputToSource())
 
-        val result = Bitmap.createBitmap(out.width, out.height, Bitmap.Config.ARGB_8888)
+        // The bitmaps are tagged with the output space so the encoder embeds its ICC profile. Tiles and
+        // result share it, so drawing one onto the other copies the pixels without converting them.
+        val colorSpace = ColorSpaces.of(output)
+        val result = Bitmap.createBitmap(out.width, out.height, Bitmap.Config.ARGB_8888, false, colorSpace)
         val canvas = Canvas(result)
 
         OffscreenGl().use {
@@ -71,7 +77,7 @@ object Exporter {
 
                 val cols = ceil(out.width / tile.toDouble()).toInt()
                 val rows = ceil(out.height / tile.toDouble()).toInt()
-                val tileBitmap = Bitmap.createBitmap(tile, tile, Bitmap.Config.ARGB_8888)
+                val tileBitmaps = HashMap<Long, Bitmap>()
                 val pixels = ByteBuffer.allocateDirect(tile * tile * 4).order(ByteOrder.nativeOrder())
                 var sourceTexture = 0
                 val target = RenderTargetHolder()
@@ -114,37 +120,30 @@ object Exporter {
                         outputHeight = out.height,
                         compareSplit = -1f,
                         composite = false,
+                        working = source.profile,
+                        output = output,
                     )
 
                     pixels.clear()
                     GLES30.glPixelStorei(GLES30.GL_PACK_ALIGNMENT, 1)
                     GLES30.glReadPixels(0, 0, tw, th, GLES30.GL_RGBA, GLES30.GL_UNSIGNED_BYTE, pixels)
-                    copyTile(pixels, tw, th, tileBitmap)
-                    canvas.drawBitmap(tileBitmap, Rect(0, 0, tw, th), Rect(tx, ty, tx + tw, ty + th), null)
+                    val tileBitmap = tileBitmaps.getOrPut((tw.toLong() shl 32) or th.toLong()) {
+                        Bitmap.createBitmap(tw, th, Bitmap.Config.ARGB_8888, false, colorSpace)
+                    }
+                    // A raw copy: setPixels() would treat the values as sRGB and convert them.
+                    pixels.position(0)
+                    tileBitmap.copyPixelsFromBuffer(pixels)
+                    canvas.drawBitmap(tileBitmap, tx.toFloat(), ty.toFloat(), null)
                     onProgress((row * cols + col + 1f) / (rows * cols))
                 }
                 GlUtil.deleteTexture(sourceTexture)
                 target.release()
-                tileBitmap.recycle()
+                tileBitmaps.values.forEach(Bitmap::recycle)
             } finally {
                 pipeline.release()
             }
         }
         return result
-    }
-
-    /** Copies the top-left [w] x [h] of tightly packed RGBA [pixels] into [dst]. */
-    private fun copyTile(pixels: ByteBuffer, w: Int, h: Int, dst: Bitmap) {
-        val ints = IntArray(w * h)
-        pixels.position(0)
-        for (i in 0 until w * h) {
-            val r = pixels.get().toInt() and 0xff
-            val g = pixels.get().toInt() and 0xff
-            val b = pixels.get().toInt() and 0xff
-            pixels.get()
-            ints[i] = (0xff shl 24) or (r shl 16) or (g shl 8) or b
-        }
-        dst.setPixels(ints, 0, w, 0, 0, w, h)
     }
 
     /** Pixel span of the decoded region for a tile, in the worst (45 degree) case. */

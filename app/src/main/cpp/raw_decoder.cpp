@@ -71,7 +71,7 @@ int RawDecoder::develop(bool halfSize) {
     libraw_output_params_t& p = raw_->imgdata.params;
     p.user_flip = 0;        // orientation is applied later, on the GPU
     p.output_bps = 16;
-    p.output_color = 1;     // sRGB primaries
+    p.output_color = 7;     // DCI-P3 primaries, D65 white: with the sRGB curve below this is Display P3
     p.gamm[0] = 1 / 2.4;    // sRGB transfer curve
     p.gamm[1] = 12.92;
     p.use_camera_wb = 1;

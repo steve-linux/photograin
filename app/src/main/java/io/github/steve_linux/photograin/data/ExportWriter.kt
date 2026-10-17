@@ -6,6 +6,7 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
 import androidx.exifinterface.media.ExifInterface
+import io.github.steve_linux.photograin.model.ColorProfile
 import java.io.File
 import java.io.IOException
 
@@ -22,6 +23,8 @@ data class ExportOptions(
     val maxLongEdge: Int? = null,
     /** Location is dropped by default so shared photos do not reveal where they were taken. */
     val keepLocation: Boolean = false,
+    /** sRGB suits the web and most viewers; wider spaces keep more color for printing or wide-gamut screens. */
+    val colorProfile: ColorProfile = ColorProfile.SRGB,
 )
 
 /** Encodes a rendered bitmap, carries over useful metadata and writes it to a user-chosen document. */
@@ -76,6 +79,12 @@ object ExportWriter {
         val tags = if (options.keepLocation) COPIED_TAGS + LOCATION_TAGS else COPIED_TAGS
         for (tag in tags) source.getAttribute(tag)?.let { target.setAttribute(tag, it) }
         target.setAttribute(ExifInterface.TAG_SOFTWARE, "Photograin")
+        // EXIF can only name sRGB; anything else is "uncalibrated" and described by the embedded ICC profile.
+        target.setAttribute(
+            ExifInterface.TAG_COLOR_SPACE,
+            if (options.colorProfile == ColorProfile.SRGB) ExifInterface.COLOR_SPACE_S_RGB.toString()
+            else ExifInterface.COLOR_SPACE_UNCALIBRATED.toString(),
+        )
         // Pixels are already rotated, so viewers must not rotate them again.
         target.setAttribute(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL.toString())
         target.saveAttributes()

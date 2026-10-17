@@ -148,7 +148,7 @@ class BatchViewModel(app: Application) : AndroidViewModel(app) {
         val app = getApplication<Application>()
         val base = ImageLoader.baseOrientation(app, uri)
         val lut = edit.adjustments.look.lutId?.let { library.loadLut(it) }
-        val bitmap = RegionSource.open(app, uri).use { Exporter.render(it, base, edit, lut, options.maxLongEdge) {} }
+        val bitmap = RegionSource.open(app, uri).use { Exporter.render(it, base, edit, lut, options.maxLongEdge, options.colorProfile) {} }
         try {
             val dir = DocumentsContract.buildDocumentUriUsingTree(folder, DocumentsContract.getTreeDocumentId(folder))
             val name = (ImageLoader.queryName(app, uri)?.substringBeforeLast('.')?.takeIf { it.isNotBlank() } ?: "photo") +

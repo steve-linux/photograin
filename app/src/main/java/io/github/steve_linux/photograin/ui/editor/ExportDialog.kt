@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import io.github.steve_linux.photograin.R
 import io.github.steve_linux.photograin.data.ExportFormat
 import io.github.steve_linux.photograin.data.ExportOptions
+import io.github.steve_linux.photograin.model.ColorProfile
 import io.github.steve_linux.photograin.model.PxSize
 
 private val SIZE_PRESETS = listOf<Int?>(null, 4096, 2048, 1080)
@@ -47,7 +48,8 @@ fun ExportDialog(
     var quality by rememberSaveable { mutableStateOf(92f) }
     var maxEdge by rememberSaveable { mutableStateOf<Int?>(null) }
     var keepLocation by rememberSaveable { mutableStateOf(false) }
-    val options = ExportOptions(format, quality.toInt(), maxEdge, keepLocation)
+    var profile by rememberSaveable { mutableStateOf(ColorProfile.SRGB) }
+    val options = ExportOptions(format, quality.toInt(), maxEdge, keepLocation, profile)
     val size = sizeFor(options)
 
     AlertDialog(
@@ -91,6 +93,23 @@ fun ExportDialog(
                     )
                 }
                 Spacer(Modifier.height(8.dp))
+                Text(stringResource(R.string.export_color_profile), style = MaterialTheme.typography.labelLarge)
+                Row(
+                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    for (p in ColorProfile.entries) {
+                        FilterChip(selected = profile == p, onClick = { profile = p }, label = { Text(profileLabel(p)) })
+                    }
+                }
+                if (profile != ColorProfile.SRGB) {
+                    Text(
+                        stringResource(R.string.export_color_profile_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(stringResource(R.string.export_keep_location), Modifier.weight(1f))
                     Switch(checked = keepLocation, onCheckedChange = { keepLocation = it })
@@ -112,4 +131,10 @@ fun ExportProgressDialog(progress: Float) {
         },
         confirmButton = {},
     )
+}
+
+private fun profileLabel(profile: ColorProfile) = when (profile) {
+    ColorProfile.SRGB -> "sRGB"
+    ColorProfile.DISPLAY_P3 -> "Display P3"
+    ColorProfile.ADOBE_RGB -> "Adobe RGB"
 }
