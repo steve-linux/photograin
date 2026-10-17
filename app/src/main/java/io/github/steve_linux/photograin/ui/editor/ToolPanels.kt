@@ -3,9 +3,10 @@ package io.github.steve_linux.photograin.ui.editor
 
 import androidx.annotation.StringRes
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -97,6 +98,7 @@ internal fun ParamSlider(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun CropPanel(
     geometry: Geometry,
@@ -109,10 +111,8 @@ fun CropPanel(
     onReset: () -> Unit,
 ) {
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
-        Row(
-            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
+        // Wrapped rather than scrolled, so every ratio is in sight.
+        FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             for (aspect in AspectRatio.entries) {
                 FilterChip(
                     selected = geometry.aspect == aspect,

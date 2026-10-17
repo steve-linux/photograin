@@ -154,4 +154,27 @@
     <string name="export_upscale_bicubic">Bicubico</string>
     <string name="export_upscale_ai">IA (Real-ESRGAN)</string>
     <string name="export_upscale_ai_hint">Una rete neurale addestrata sulle foto ricostruisce dettagli plausibili e toglie il rumore di compressione. Molto più lenta; ideale per foto piccole o vecchie.</string>
+    <string name="guide_entry_title">Sfrutta al massimo Photograin</string>
+    <string name="guide_entry_body">Una guida breve a tutte le funzioni</string>
+    <string name="guide_title">Guida</string>
+    <string name="guide_open_title">Apri una foto</string>
+    <string name="guide_open_body">Tocca «Apri foto» oppure condividi una foto con Photograin da un\'altra app. Funziona con JPEG, PNG, WebP, HEIC, AVIF, JPEG XL e con i file RAW delle fotocamere. L\'originale non viene mai modificato: le modifiche si salvano da sole e le ritrovi riaprendo la foto dalle recenti.</string>
+    <string name="guide_compare_title">Confronta con l\'originale</string>
+    <string name="guide_compare_body">Tieni premuto sulla foto per vedere l\'originale, oppure tocca {icon} per dividere la foto in due e trascinare la linea tra prima e dopo. Con le frecce in alto annulli e ripeti.</string>
+    <string name="guide_look_title">Stili e preset</string>
+    <string name="guide_look_body">Nella scheda Stili scegli un aspetto pronto con un tocco e regolane l\'intensità. Puoi importare stili .cube da altri programmi. Quando la foto ti piace, tocca «Salva preset» per riusare le stesse modifiche su altre foto.</string>
+    <string name="guide_light_title">Luce</string>
+    <string name="guide_light_body">Esposizione, contrasto, luci, ombre, bianchi e neri. Passa a «Curve» per un controllo più fine dei toni. Tocca due volte il nome di un cursore per riportarlo al valore iniziale.</string>
+    <string name="guide_color_title">Colore</string>
+    <string name="guide_color_body">Temperatura, tinta, vividezza e saturazione. In «HSL» cambi tonalità, saturazione e luminosità di un solo colore, per esempio il blu del cielo.</string>
+    <string name="guide_detail_title">Dettaglio ed Effetti</string>
+    <string name="guide_detail_body">In Dettaglio regoli nitidezza, chiarezza e foschia, e riduci il rumore delle foto scattate con poca luce. In Effetti aggiungi vignettatura e grana da pellicola.</string>
+    <string name="guide_crop_title">Ritaglio</string>
+    <string name="guide_crop_body">Scegli un formato (1:1, 4:3, 16:9…), trascina gli angoli, raddrizza l\'orizzonte, ruota o capovolgi la foto.</string>
+    <string name="guide_copy_title">Stesse modifiche su più foto</string>
+    <string name="guide_copy_body">Dal menu dell\'editor copia le regolazioni e incollale su un\'altra foto. Per molte foto insieme tocca «In serie» nella schermata iniziale: applichi le regolazioni copiate o un preset e, se vuoi, le esporti tutte in una volta.</string>
+    <string name="guide_export_title">Salva la foto</string>
+    <string name="guide_export_body">Tocca {icon} per salvare una copia. Scegli formato, qualità e dimensione: puoi anche ingrandire la foto 2× o 4×, con l\'IA per recuperare i dettagli. Il profilo colore sRGB va bene per condividere; Display P3 e Adobe RGB conservano più colori per la stampa.</string>
+    <string name="guide_settings_title">Impostazioni</string>
+    <string name="guide_settings_body">Con {icon} scegli dove salvare (per iniziare in Immagini/Photograin), come chiamare i file, il formato predefinito, se togliere la posizione GPS e il tema chiaro o scuro.</string>
 </resources>
