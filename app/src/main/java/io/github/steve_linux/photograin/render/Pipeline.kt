@@ -8,6 +8,7 @@ import io.github.steve_linux.photograin.model.ColorProfile
 import io.github.steve_linux.photograin.model.CubeLut
 import io.github.steve_linux.photograin.model.Curves
 import io.github.steve_linux.photograin.model.Mat3
+import io.github.steve_linux.photograin.model.PxSize
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.ceil
@@ -59,7 +60,8 @@ internal class Pipeline {
     /**
      * Renders steps 1 and 2 for a [width] x [height] block of output pixels starting at
      * ([originX], [originY]). [outputToUv] maps output pixels to UVs of [sourceTexture].
-     * [longEdgePx] is the long edge of the whole output at this resolution.
+     * [longEdgePx] is the long edge of the whole output at this resolution. With
+     * [cubicSize] (the texture's size) the source is sampled with Catmull-Rom, for enlarging.
      */
     fun renderIntermediate(
         sourceTexture: Int,
@@ -69,6 +71,7 @@ internal class Pipeline {
         width: Int,
         height: Int,
         longEdgePx: Int,
+        cubicSize: PxSize? = null,
     ) {
         val geoTarget = geo?.takeIf { it.matches(width, height) } ?: run {
             geo?.release()
@@ -80,6 +83,8 @@ internal class Pipeline {
         geometryProgram.use()
         geometryProgram.texture("uTex", 0, sourceTexture)
         geometryProgram.mat3("uM", outputToUv.toGlMat3())
+        geometryProgram.int("uCubic", if (cubicSize != null) 1 else 0)
+        geometryProgram.vec2("uTexSize", (cubicSize?.width ?: 1).toFloat(), (cubicSize?.height ?: 1).toFloat())
         drawQuad(geometryProgram, FULL_CLIP, floatArrayOf(originX, originY, width.toFloat(), height.toFloat()))
         GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, geoTarget.texture)
         GLES30.glGenerateMipmap(GLES30.GL_TEXTURE_2D)

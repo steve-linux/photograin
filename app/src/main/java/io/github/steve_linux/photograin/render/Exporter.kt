@@ -22,6 +22,7 @@ import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
+import kotlin.math.sqrt
 
 /**
  * Renders an edit at full (or reduced) resolution, tile by tile, so images far larger than
@@ -31,15 +32,35 @@ import kotlin.math.roundToInt
 object Exporter {
     private const val TILE = 1024
 
-    /** Output size for [edit] when the long edge is limited to [maxLongEdge] (null = full size). */
-    fun outputSize(source: PxSize, base: BaseOrientation, edit: EditState, maxLongEdge: Int?): PxSize {
+    /**
+     * Largest enlarged output, in pixels: the whole photo is held in memory as one bitmap
+     * before encoding (4 bytes a pixel, so about 190 MB).
+     */
+    const val MAX_UPSCALED_PIXELS = 48_000_000L
+
+    /**
+     * Output size for [edit] when the long edge is limited to [maxLongEdge] (null = full size)
+     * or the photo is enlarged [upscale] times, up to [MAX_UPSCALED_PIXELS].
+     */
+    fun outputSize(source: PxSize, base: BaseOrientation, edit: EditState, maxLongEdge: Int?, upscale: Int = 1): PxSize {
         val full = GeometryMapper(source.width, source.height, base, edit.geometry).outputSize
-        val scale = scaleFor(full, maxLongEdge)
+        val scale = scaleFor(full, maxLongEdge, upscale)
         return PxSize(max(1, (full.width * scale).roundToInt()), max(1, (full.height * scale).roundToInt()))
     }
 
-    private fun scaleFor(full: PxSize, maxLongEdge: Int?): Double =
-        if (maxLongEdge == null || full.longEdge <= maxLongEdge) 1.0 else maxLongEdge.toDouble() / full.longEdge
+    /** Whether [upscale] had to be reduced to stay within [MAX_UPSCALED_PIXELS]. */
+    fun upscaleLimited(source: PxSize, base: BaseOrientation, edit: EditState, upscale: Int): Boolean {
+        val full = GeometryMapper(source.width, source.height, base, edit.geometry).outputSize
+        return upscale > 1 && scaleFor(full, null, upscale) < upscale
+    }
+
+    private fun scaleFor(full: PxSize, maxLongEdge: Int?, upscale: Int): Double {
+        if (upscale > 1) {
+            val pixels = full.width.toDouble() * full.height
+            return max(1.0, min(upscale.toDouble(), sqrt(MAX_UPSCALED_PIXELS / pixels)))
+        }
+        return if (maxLongEdge == null || full.longEdge <= maxLongEdge) 1.0 else maxLongEdge.toDouble() / full.longEdge
+    }
 
     fun render(
         source: RegionSource,
@@ -48,12 +69,15 @@ object Exporter {
         lut: CubeLut?,
         maxLongEdge: Int?,
         output: ColorProfile,
+        upscale: Int = 1,
         onProgress: (Float) -> Unit,
     ): Bitmap {
         val mapper = GeometryMapper(source.width, source.height, base, edit.geometry)
         val full = mapper.outputSize
-        val scale = scaleFor(full, maxLongEdge)
-        val out = outputSize(PxSize(source.width, source.height), base, edit, maxLongEdge)
+        val scale = scaleFor(full, maxLongEdge, upscale)
+        val out = outputSize(PxSize(source.width, source.height), base, edit, maxLongEdge, upscale)
+        // Enlarging needs a sharper filter than bilinear; a 1:1 export takes pixels as they are.
+        val cubic = scale > 1.01
         // Output pixel -> source pixel, including the export scale.
         val outToSource = Affine.scale(full.width.toDouble() / out.width, full.height.toDouble() / out.height)
             .then(mapper.outputToSource())
@@ -97,12 +121,16 @@ object Exporter {
                     sourceTexture = GlUtil.uploadBitmap(bitmap, sourceTexture)
                     val coveredW = bitmap.width * sample.toDouble()
                     val coveredH = bitmap.height * sample.toDouble()
+                    val textureSize = PxSize(bitmap.width, bitmap.height)
                     bitmap.recycle()
 
                     val toUv = outToSource
                         .then(Affine.translate(-region.left.toDouble(), -region.top.toDouble()))
                         .then(Affine.scale(1.0 / coveredW, 1.0 / coveredH))
-                    pipeline.renderIntermediate(sourceTexture, toUv, gx.toFloat(), gy.toFloat(), gw, gh, out.longEdge)
+                    pipeline.renderIntermediate(
+                        sourceTexture, toUv, gx.toFloat(), gy.toFloat(), gw, gh, out.longEdge,
+                        cubicSize = textureSize.takeIf { cubic },
+                    )
 
                     target.bind(tw, th)
                     pipeline.renderColor(
@@ -150,7 +178,7 @@ object Exporter {
     private fun regionSpan(tile: Int, margin: Int, scale: Double, sample: Int): Double =
         (tile + 2.0 * margin) / scale / sample * 1.4143 + 4
 
-    /** Source rectangle covering the output block, padded for bilinear filtering and clamped. */
+    /** Source rectangle covering the output block, padded for the filter's reach and clamped. */
     private fun sourceBounds(m: Affine, x: Int, y: Int, w: Int, h: Int, srcW: Int, srcH: Int): Rect {
         val corners = listOf(
             m.apply(Vec2(x.toDouble(), y.toDouble())),
@@ -158,10 +186,10 @@ object Exporter {
             m.apply(Vec2(x.toDouble(), (y + h).toDouble())),
             m.apply(Vec2((x + w).toDouble(), (y + h).toDouble())),
         )
-        val l = floor(corners.minOf { it.x }).toInt() - 2
-        val t = floor(corners.minOf { it.y }).toInt() - 2
-        val r = ceil(corners.maxOf { it.x }).toInt() + 2
-        val b = ceil(corners.maxOf { it.y }).toInt() + 2
+        val l = floor(corners.minOf { it.x }).toInt() - 3
+        val t = floor(corners.minOf { it.y }).toInt() - 3
+        val r = ceil(corners.maxOf { it.x }).toInt() + 3
+        val b = ceil(corners.maxOf { it.y }).toInt() + 3
         val left = l.coerceIn(0, srcW - 1)
         val top = t.coerceIn(0, srcH - 1)
         return Rect(left, top, r.coerceIn(left + 1, srcW), b.coerceIn(top + 1, srcH))
