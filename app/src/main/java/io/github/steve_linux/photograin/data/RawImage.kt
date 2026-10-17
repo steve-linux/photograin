@@ -42,11 +42,14 @@ object RawImage {
         Info(v[0], v[1], flipToExif(v[2]))
     }
 
-    /** Develops the whole file; [halfSize] halves each side and is several times faster. */
+    /**
+     * Develops the whole file into a half-float bitmap, so pushing exposure or shadows does not
+     * band like 8-bit data would. [halfSize] halves each side and is several times faster.
+     */
     fun develop(context: Context, uri: Uri, halfSize: Boolean): Bitmap = withPath(context, uri) { path ->
         val handle = nativeDevelop(path, halfSize)
         try {
-            val bitmap = Bitmap.createBitmap(nativeWidth(handle), nativeHeight(handle), Bitmap.Config.ARGB_8888)
+            val bitmap = Bitmap.createBitmap(nativeWidth(handle), nativeHeight(handle), Bitmap.Config.RGBA_F16)
             nativeCopyTo(handle, bitmap)
             bitmap
         } finally {

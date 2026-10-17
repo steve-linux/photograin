@@ -19,7 +19,7 @@ struct RawInfo {
 };
 
 /**
- * One camera RAW file. Pixels are developed to 8-bit sRGB with the camera white balance and are
+ * One camera RAW file. Pixels are developed to 16-bit sRGB with the camera white balance and are
  * left unrotated: callers apply [RawInfo::flip] themselves, like an EXIF orientation.
  * Each call opens the file afresh, so probe(), develop() and thumbnail() are independent.
  */
@@ -41,8 +41,11 @@ public:
     int develop(bool halfSize);
     int developedWidth() const;
     int developedHeight() const;
-    /** Writes the developed image as RGBA, rows [stride] bytes apart. */
-    void copyRgba(uint8_t* dst, size_t stride) const;
+    /**
+     * Writes the developed image as RGBA half floats (IEEE 754 binary16, 0..1), rows [stride]
+     * bytes apart. 16 bits per channel keep smooth gradients when shadows are pushed hard.
+     */
+    void copyRgbaHalf(uint16_t* dst, size_t stride) const;
 
     /** Extracts the embedded JPEG preview, if the file has one. */
     int thumbnail(std::vector<uint8_t>* jpeg);
