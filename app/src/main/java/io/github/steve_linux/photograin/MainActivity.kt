@@ -18,6 +18,8 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.steve_linux.photograin.data.Preferences
 import io.github.steve_linux.photograin.data.RawImage
+import io.github.steve_linux.photograin.ui.batch.BatchScreen
+import io.github.steve_linux.photograin.ui.batch.BatchViewModel
 import io.github.steve_linux.photograin.ui.editor.EditorScreen
 import io.github.steve_linux.photograin.ui.editor.EditorViewModel
 import io.github.steve_linux.photograin.ui.home.HomeScreen
@@ -25,6 +27,7 @@ import io.github.steve_linux.photograin.ui.theme.PhotograinTheme
 
 class MainActivity : ComponentActivity() {
     private val editor: EditorViewModel by viewModels()
+    private val batch: BatchViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -35,11 +38,20 @@ class MainActivity : ComponentActivity() {
         setContent {
             PhotograinTheme {
                 val state by editor.state.collectAsStateWithLifecycle()
+                val batchState by batch.state.collectAsStateWithLifecycle()
                 var recents by remember { mutableStateOf(prefs.recents()) }
                 val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
                     uri?.let(editor::open)
                 }
-                if (state.image != null || state.loading) {
+                val multiPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+                    if (uris.isNotEmpty()) batch.start(uris)
+                }
+                if (batchState.items.isNotEmpty()) {
+                    BatchScreen(batch, onClose = {
+                        batch.clear()
+                        recents = prefs.recents()
+                    })
+                } else if (state.image != null || state.loading) {
                     EditorScreen(editor, onClose = {
                         editor.close()
                         recents = prefs.recents()
@@ -49,6 +61,7 @@ class MainActivity : ComponentActivity() {
                         recents = recents,
                         onOpenPicker = { picker.launch(arrayOf("image/*") + RawImage.MIME_TYPES) },
                         onOpen = editor::open,
+                        onBatch = { multiPicker.launch(arrayOf("image/*") + RawImage.MIME_TYPES) },
                     )
                 }
             }

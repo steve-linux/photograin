@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -23,12 +24,14 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AddPhotoAlternate
+import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -49,9 +52,20 @@ import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(recents: List<Uri>, onOpenPicker: () -> Unit, onOpen: (Uri) -> Unit) {
+fun HomeScreen(recents: List<Uri>, onOpenPicker: () -> Unit, onOpen: (Uri) -> Unit, onBatch: () -> Unit) {
     Scaffold(
-        topBar = { TopAppBar(title = { Text(stringResource(R.string.app_name)) }) },
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.app_name)) },
+                actions = {
+                    TextButton(onClick = onBatch) {
+                        Icon(Icons.Outlined.PhotoLibrary, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.home_batch))
+                    }
+                },
+            )
+        },
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = onOpenPicker,
@@ -103,7 +117,7 @@ fun HomeScreen(recents: List<Uri>, onOpenPicker: () -> Unit, onOpen: (Uri) -> Un
 }
 
 @Composable
-private fun RecentThumbnail(uri: Uri, onClick: () -> Unit) {
+internal fun RecentThumbnail(uri: Uri, onClick: () -> Unit) {
     val context = LocalContext.current
     val thumb: Bitmap? by produceState<Bitmap?>(null, uri) {
         value = withContext(Dispatchers.IO) { ImageLoader.thumbnail(context, uri, 384) }

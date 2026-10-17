@@ -195,7 +195,7 @@ private fun ChipRow(content: @Composable () -> Unit) {
 private fun Modifier.clickableIcon(onClick: () -> Unit) = clickable(onClick = onClick)
 
 @StringRes
-private fun presetLabel(key: String?): Int = when (key) {
+internal fun presetLabel(key: String?): Int = when (key) {
     "vivid" -> R.string.preset_vivid
     "warm" -> R.string.preset_warm
     "cool" -> R.string.preset_cool

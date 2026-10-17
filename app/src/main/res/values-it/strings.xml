@@ -99,4 +99,14 @@
     <string name="msg_lut_imported">LUT importato</string>
     <string name="msg_lut_invalid">Questo file non è un LUT .cube valido</string>
     <string name="msg_preset_saved">Preset salvato</string>
+    <string name="home_batch">In serie</string>
+    <string name="batch_title">Modifica in serie (%1$d)</string>
+    <string name="batch_apply_what">Da applicare a tutte le foto</string>
+    <string name="batch_copied">Regolazioni copiate</string>
+    <string name="batch_hint">Ogni foto mantiene il suo ritaglio. Con i preset restano anche nitidezza e riduzione rumore di ogni foto.</string>
+    <string name="batch_save_only">Salva solo le modifiche</string>
+    <string name="batch_export">Esporta…</string>
+    <string name="batch_progress">%1$d di %2$d</string>
+    <string name="batch_stop">Interrompi</string>
+    <string name="batch_done">Fatto: %1$d riuscite, %2$d non riuscite</string>
 </resources>
