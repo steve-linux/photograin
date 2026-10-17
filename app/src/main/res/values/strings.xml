@@ -6,7 +6,7 @@
     <string name="home_empty_title">Your photos, developed with care</string>
     <string name="home_empty_body">Open a photo to start. Your original is never changed: edits are kept separately and can be revised at any time.</string>
     <string name="home_tip_title">Save your own presets</string>
-    <string name="home_tip_body">Pick a style, fine-tune the photo in the other tabs, then go back to Looks and tap “Save preset” to reuse it on other photos. The button next to Save compares the photo with the original at any time.</string>
+    <string name="home_tip_body">Pick a style, fine-tune the photo in the other tabs, then go back to Looks and tap “Save preset” to reuse it on other photos. Tap {icon} to compare with the original at any time.</string>
     <string name="home_tip_dismiss">Got it</string>
     <string name="recent_edits">Recent edits</string>
 

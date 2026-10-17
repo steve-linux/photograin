@@ -23,8 +23,11 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.InlineTextContent
+import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AddPhotoAlternate
+import androidx.compose.material.icons.outlined.Compare
 import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material3.Card
@@ -47,8 +50,12 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.Placeholder
+import androidx.compose.ui.text.PlaceholderVerticalAlign
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import io.github.steve_linux.photograin.R
 import io.github.steve_linux.photograin.data.ImageLoader
 import kotlinx.coroutines.Dispatchers
@@ -148,8 +155,24 @@ private fun PresetTip(onDismiss: () -> Unit) {
                 Text(stringResource(R.string.home_tip_title), style = MaterialTheme.typography.titleSmall)
             }
             Spacer(Modifier.height(8.dp))
+            // {icon} in the text stands for the editor's compare button, drawn inline.
+            val body = stringResource(R.string.home_tip_body)
+            val text = buildAnnotatedString {
+                val parts = body.split("{icon}", limit = 2)
+                append(parts[0])
+                if (parts.size == 2) {
+                    appendInlineContent(COMPARE_ICON, "[compare]")
+                    append(parts[1])
+                }
+            }
+            val iconContent = mapOf(
+                COMPARE_ICON to InlineTextContent(
+                    Placeholder(1.3.em, 1.3.em, PlaceholderVerticalAlign.TextCenter),
+                ) { Icon(Icons.Outlined.Compare, contentDescription = stringResource(R.string.compare)) },
+            )
             Text(
-                stringResource(R.string.home_tip_body),
+                text,
+                inlineContent = iconContent,
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(end = 8.dp),
             )
@@ -159,6 +182,8 @@ private fun PresetTip(onDismiss: () -> Unit) {
         }
     }
 }
+
+private const val COMPARE_ICON = "compare"
 
 @Composable
 internal fun RecentThumbnail(uri: Uri, onClick: () -> Unit) {
