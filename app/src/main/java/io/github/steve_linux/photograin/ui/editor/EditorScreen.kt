@@ -79,6 +79,8 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit) {
     val settings by remember { SettingsStore.get(context) }.state.collectAsStateWithLifecycle()
     var showExport by rememberSaveable { mutableStateOf(false) }
     var pendingExport by remember { mutableStateOf<ExportOptions?>(null) }
+    // The dialog reopens with the last choices for this photo session, else the settings' defaults.
+    var lastExport by remember { mutableStateOf<ExportOptions?>(null) }
     var menuOpen by remember { mutableStateOf(false) }
     var lightCurves by rememberSaveable { mutableStateOf(false) }
     var colorHsl by rememberSaveable { mutableStateOf(false) }
@@ -257,11 +259,12 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit) {
 
     if (showExport) {
         ExportDialog(
-            initial = settings.export,
+            initial = lastExport ?: settings.export,
             sizeFor = viewModel::exportSize,
             onDismiss = { showExport = false },
             onExport = { options ->
                 showExport = false
+                lastExport = options
                 viewModel.export(options)
             },
         )

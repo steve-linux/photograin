@@ -11,7 +11,7 @@
 namespace photograin {
 
 namespace {
-constexpr int kTile = 200;  // input pixels per tile side, before padding
+constexpr int kTile = 400;  // input pixels per tile side, before padding
 constexpr int kPad = 10;    // context around each tile, cut away from the result
 
 /** Multiplies every value of [m] by [factor]. Done by hand: ncnn's helper needs its Scale layer. */
@@ -42,7 +42,8 @@ bool Upscaler::load(const std::string& param, std::vector<unsigned char> model, 
     net_->opt.use_vulkan_compute = gpu_;
     net_->opt.use_fp16_packed = true;
     net_->opt.use_fp16_storage = true;
-    net_->opt.use_fp16_arithmetic = false;  // keeps PReLU and the residual add accurate
+    // Half-precision math roughly doubles GPU speed; the result stays within a level or two of fp32.
+    net_->opt.use_fp16_arithmetic = gpu_;
     if (net_->load_param_mem(param.c_str()) != 0) {
         *error = "Cannot read the model description";
         return false;
