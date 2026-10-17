@@ -61,6 +61,8 @@
     <string name="export_size_full">Original</string>
     <string name="export_dimensions" translatable="false">%1$d × %2$d px</string>
     <string name="export_keep_location">Keep location (GPS)</string>
+    <string name="export_format">Format</string>
+    <string name="export_quality_lossless">Quality: 100 (lossless)</string>
     <string name="export_color_profile">Color profile</string>
     <string name="export_color_profile_hint">Keeps more saturated colors for wide-gamut screens and printing. For sharing online, sRGB is safer.</string>
     <string name="export_action">Save</string>
@@ -127,4 +129,35 @@
     <string name="batch_progress">%1$d of %2$d</string>
     <string name="batch_stop">Stop</string>
     <string name="batch_done">Done: %1$d saved, %2$d failed</string>
+    <string name="msg_exported_pictures">Photo saved to Pictures/Photograin</string>
+    <string name="export_keep_metadata">Keep shooting data (EXIF)</string>
+    <string name="settings_title">Settings</string>
+    <string name="settings_save">Save location</string>
+    <string name="settings_save_pictures">Pictures/%1$s</string>
+    <string name="settings_save_pictures_old">Needs Android 10 or later</string>
+    <string name="settings_save_folder">A folder of your choice</string>
+    <string name="settings_save_folder_none">Not chosen yet</string>
+    <string name="settings_save_folder_change">Change folder</string>
+    <string name="settings_save_ask">Ask every time</string>
+    <string name="settings_naming">File name</string>
+    <string name="settings_naming_original">Original name</string>
+    <string name="settings_naming_date">Date and time</string>
+    <string name="settings_export">Default export</string>
+    <string name="settings_export_hint">What the save dialog starts with. You can still change it for each photo.</string>
+    <string name="settings_appearance">Appearance</string>
+    <string name="settings_theme_system">Follow the system</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
+    <string name="settings_language">Language</string>
+    <string name="settings_language_hint">Opens the system language settings for Photograin</string>
+    <string name="settings_show_tips">Show tips again</string>
+    <string name="settings_show_tips_done">They will appear on the home screen</string>
+    <string name="settings_about">About</string>
+    <string name="settings_version">Version %1$s</string>
+    <string name="settings_license">License</string>
+    <string name="settings_license_value">GNU GPL v3 or later</string>
+    <string name="settings_source">Source code</string>
+    <string name="settings_libraries">Open source libraries</string>
+    <string name="msg_exported_downloads">Saved to Download/Photograin: Android does not accept JPEG XL among pictures</string>
+    <string name="settings_save_pictures_jxl">JPEG XL files go to Download/Photograin, because Android does not accept them among pictures</string>
 </resources>

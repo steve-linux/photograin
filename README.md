@@ -20,14 +20,20 @@ Editor fotografico non distruttivo per Android, libero (GPL-3.0-or-later) e pens
 - **Confronto prima/dopo**: tieni premuto sulla foto, oppure vista divisa con cursore.
 - **Copia/incolla** delle regolazioni tra foto.
 - **Esportazione a piena risoluzione**, elaborata a tasselli per foto più grandi del limite della GPU;
-  JPEG, PNG, WebP; i dati EXIF utili vengono mantenuti, il GPS rimosso per impostazione predefinita.
+  JPEG, PNG, WebP, AVIF, JPEG XL; i dati EXIF utili vengono mantenuti, il GPS rimosso per impostazione predefinita.
+- **AVIF e JPEG XL**: esportazione in entrambi i formati (JPEG XL anche senza perdita, a qualità 100),
+  con EXIF e profilo colore; i file `.jxl` si possono anche aprire e modificare.
 - **Profili colore**: le foto con profilo ICC ad ampia gamma (Display P3, Adobe RGB…) e i RAW si
   modificano in Display P3 senza perdere i colori più saturi; si esporta in sRGB, Display P3 o
   Adobe RGB con il profilo ICC incorporato.
 - **File RAW** (DNG, CR2, CR3, NEF, ARW, RAF, ORF, RW2 e altri) sviluppati con LibRaw:
   anteprima rapida a metà risoluzione, esportazione a piena risoluzione con demosaicizzazione AHD;
   i dati restano a 16 bit per canale fino alla GPU, così ombre e luci si recuperano senza scalini.
-- **Nessun permesso** richiesto: si apre e si salva tramite le finestre di sistema.
+- **Impostazioni**: le foto si salvano in `Immagini/Photograin` (o in una cartella a scelta, o chiedendo
+  ogni volta), con nome originale o data e ora; formato, qualità, dimensione, profilo colore e dati
+  EXIF/GPS predefiniti; tema chiaro, scuro o di sistema; lingua.
+- **Nessun permesso** richiesto: si apre tramite le finestre di sistema e si salva in `Immagini`
+  tramite MediaStore (da Android 10) o nella cartella scelta.
 
 ## Architettura
 
@@ -40,8 +46,11 @@ app/src/main/java/io/github/steve_linux/photograin/
 └── ui/        Jetpack Compose: home, editor, pannelli strumenti, overlay di ritaglio
 app/src/main/cpp/
 ├── LibRaw/          sottomodulo git, versione 0.22.2
+├── libjxl/          sottomodulo git, JPEG XL 0.12.0
+├── libavif/, aom/   sottomoduli git, AVIF 1.4.2 con l'encoder AV1 libaom 3.15.2
 ├── raw_decoder.*    C++ portabile, senza dipendenze Android
-└── raw_jni.cpp      collegamento JNI con l'app
+├── image_codec.*    C++ portabile: codifica JPEG XL/AVIF, decodifica JPEG XL
+└── *_jni.cpp        collegamento JNI con l'app
 ```
 
 La pipeline ha tre passaggi: **geometria** (orientamento EXIF, rotazione, raddrizzamento, ritaglio),
@@ -55,10 +64,11 @@ così il risultato esportato corrisponde a quello visto a schermo.
 ## Compilare
 
 Serve JDK 17 o successivo, l'Android SDK (API 36) e l'NDK 27.0.12077973 con CMake 3.22.1
-(Gradle li scarica da solo se mancano). LibRaw è un sottomodulo git:
+(Gradle li scarica da solo se mancano). LibRaw, libjxl, libavif e libaom sono sottomoduli git:
 
 ```
 git submodule update --init    # dopo il clone, una volta
+git -C app/src/main/cpp/libjxl submodule update --init third_party/highway third_party/brotli third_party/skcms
 ./gradlew assembleDebug        # APK di debug
 ./gradlew testDebugUnitTest    # test unitari
 ```
@@ -74,4 +84,5 @@ GNU General Public License, versione 3 o (a tua scelta) qualsiasi versione succe
 Tutte le dipendenze (AndroidX, Jetpack Compose, Kotlin, kotlinx) sono Apache-2.0, compatibili con la GPL-3.0.
 LibRaw è distribuita con doppia licenza LGPL-2.1 o CDDL-1.0; Photograin la usa secondo la LGPL-2.1,
 compatibile con la GPL-3.0.
+libjxl (con highway, brotli e skcms), libavif e libaom sono BSD, compatibili con la GPL-3.0.
 Nessuna dipendenza da Google Play Services o servizi proprietari.

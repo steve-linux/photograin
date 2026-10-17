@@ -8,7 +8,6 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContract
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -57,6 +56,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -65,6 +65,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.steve_linux.photograin.R
 import io.github.steve_linux.photograin.data.ExportOptions
+import io.github.steve_linux.photograin.data.SettingsStore
 import io.github.steve_linux.photograin.model.ToolGroup
 import io.github.steve_linux.photograin.ui.theme.PhotoBackgroundDark
 import io.github.steve_linux.photograin.ui.theme.PhotoBackgroundLight
@@ -75,6 +76,7 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val snackbar = remember { SnackbarHostState() }
+    val settings by remember { SettingsStore.get(context) }.state.collectAsStateWithLifecycle()
     var showExport by rememberSaveable { mutableStateOf(false) }
     var pendingExport by remember { mutableStateOf<ExportOptions?>(null) }
     var menuOpen by remember { mutableStateOf(false) }
@@ -87,6 +89,14 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit) {
         val options = pendingExport
         if (uri != null && options != null) viewModel.export(uri, options)
         pendingExport = null
+    }
+
+    // The settings name no place to save, or it could not be used: ask with the system dialog.
+    LaunchedEffect(state.askDestination) {
+        val request = state.askDestination ?: return@LaunchedEffect
+        viewModel.destinationAsked()
+        pendingExport = request.options
+        createDocument.launch(request.options.format.mimeType to request.fileName)
     }
 
     LaunchedEffect(state.message) {
@@ -179,7 +189,7 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit) {
                 if (state.image == null) {
                     CircularProgressIndicator()
                 } else {
-                    val bg = if (isSystemInDarkTheme()) PhotoBackgroundDark else PhotoBackgroundLight
+                    val bg = if (MaterialTheme.colorScheme.background.luminance() < 0.5f) PhotoBackgroundDark else PhotoBackgroundLight
                     PhotoView(state, viewModel, bg)
                 }
             }
@@ -247,12 +257,12 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit) {
 
     if (showExport) {
         ExportDialog(
+            initial = settings.export,
             sizeFor = viewModel::exportSize,
             onDismiss = { showExport = false },
             onExport = { options ->
                 showExport = false
-                pendingExport = options
-                createDocument.launch(options.format.mimeType to exportName(state.image?.displayName, options))
+                viewModel.export(options)
             },
         )
     }
@@ -277,11 +287,6 @@ private fun PanelModeSelector(secondLabel: Int, showSecond: Boolean, onSelect: (
     }
 }
 
-private fun exportName(original: String?, options: ExportOptions): String {
-    val base = original?.substringBeforeLast('.')?.takeIf { it.isNotBlank() } ?: "photo"
-    return "${base}_photograin.${options.format.extension}"
-}
-
 private fun toolIcon(tool: ToolGroup): ImageVector = when (tool) {
     ToolGroup.LOOK -> Icons.Outlined.Style
     ToolGroup.LIGHT -> Icons.Outlined.WbSunny
@@ -293,6 +298,8 @@ private fun toolIcon(tool: ToolGroup): ImageVector = when (tool) {
 
 private fun messageText(m: Message): Int = when (m) {
     Message.EXPORTED -> R.string.msg_exported
+    Message.EXPORTED_TO_PICTURES -> R.string.msg_exported_pictures
+    Message.EXPORTED_TO_DOWNLOADS -> R.string.msg_exported_downloads
     Message.EXPORT_FAILED -> R.string.msg_export_failed
     Message.LOAD_FAILED -> R.string.msg_load_failed
     Message.ADJUSTMENTS_COPIED -> R.string.msg_copied

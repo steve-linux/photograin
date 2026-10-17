@@ -12,6 +12,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: true
+      # libjxl needs only these of its own submodules (not its test data or tool dependencies).
+      - name: libjxl dependencies
+        run: git -C app/src/main/cpp/libjxl submodule update --init --depth 1 third_party/highway third_party/brotli third_party/skcms
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
