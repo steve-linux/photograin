@@ -37,6 +37,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconToggleButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -158,7 +159,16 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit) {
                         selected = state.tool == tool,
                         onClick = { viewModel.selectTool(tool) },
                         icon = { Icon(toolIcon(tool), contentDescription = null) },
-                        label = { Text(stringResource(toolLabel(tool))) },
+                        // Six tabs share the width: keep each label on one line, even with large fonts.
+                        label = {
+                            Text(
+                                stringResource(toolLabel(tool)),
+                                style = MaterialTheme.typography.labelSmall,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        },
                     )
                 }
             }
