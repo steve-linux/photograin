@@ -5,7 +5,7 @@
     <string name="home_empty_title">Le tue foto, sviluppate con cura</string>
     <string name="home_empty_body">Apri una foto per iniziare. L\'originale non viene mai modificato: le modifiche sono salvate a parte e puoi rivederle quando vuoi.</string>
     <string name="home_tip_title">Crea i tuoi preset</string>
-    <string name="home_tip_body">Scegli uno stile nella scheda Stili, poi perfeziona la foto nelle altre schede. Quando il risultato ti piace, torna su Stili e tocca «Salva preset»: potrai applicare le stesse modifiche ad altre foto con un tocco.</string>
+    <string name="home_tip_body">Scegli uno stile, ritocca la foto nelle altre schede, poi torna su Stili e tocca «Salva preset» per riusarlo su altre foto.</string>
     <string name="home_tip_dismiss">Ho capito</string>
     <string name="recent_edits">Modifiche recenti</string>
 
