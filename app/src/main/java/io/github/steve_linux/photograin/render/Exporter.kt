@@ -36,6 +36,12 @@ object Exporter {
     private const val TILE = 1024
 
     /**
+     * Larger tiles for AI enlargement: every tile also runs the model on its margin, which at
+     * 1024 px roughly doubles the work.
+     */
+    private const val AI_TILE = 2048
+
+    /**
      * Largest enlarged output, in pixels: the whole photo is held in memory as one bitmap
      * before encoding (4 bytes a pixel, so about 190 MB).
      */
@@ -117,7 +123,7 @@ object Exporter {
                 // Decoding at a lower sample size is enough when the export itself is downscaled.
                 var sample = 1
                 while (sample * 2 <= 1.0 / scale) sample *= 2
-                var tile = TILE
+                var tile = if (source is AiUpscaleSource) AI_TILE else TILE
                 while (tile > 256 && regionSpan(tile, margin, scale, sample) > maxTex) tile /= 2
 
                 val cols = ceil(out.width / tile.toDouble()).toInt()
