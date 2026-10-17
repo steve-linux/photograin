@@ -96,6 +96,13 @@ object ImageLoader {
         return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, m, true)
     }
 
+    /** How the stored pixels must be turned to display upright, without decoding them. */
+    fun baseOrientation(context: Context, uri: Uri): BaseOrientation {
+        val raw = RawImage.isRaw(context.contentResolver.getType(uri), queryName(context, uri))
+        val tag = if (raw) RawImage.probe(context, uri).exifOrientation else readOrientation(context, uri)
+        return BaseOrientation.fromExif(tag)
+    }
+
     fun readOrientation(context: Context, uri: Uri): Int = runCatching {
         context.contentResolver.openInputStream(uri)?.use {
             ExifInterface(it).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)

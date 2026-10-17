@@ -39,13 +39,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.steve_linux.photograin.R
 import io.github.steve_linux.photograin.data.LutEntry
-import io.github.steve_linux.photograin.model.Look
+import io.github.steve_linux.photograin.model.Adjustments
 import io.github.steve_linux.photograin.model.Preset
 
 /** Presets (built-in and saved) and creative LUTs with their strength. */
 @Composable
 fun LookPanel(
-    look: Look,
+    adjustments: Adjustments,
     lutLoaded: Boolean,
     luts: List<LutEntry>,
     userPresets: List<Preset>,
@@ -58,6 +58,9 @@ fun LookPanel(
     onAmount: (Float) -> Unit,
     onAmountFinished: () -> Unit,
 ) {
+    val look = adjustments.look
+    // A preset is shown as active while the photo's adjustments are exactly what it would produce.
+    fun isActive(preset: Preset) = preset.applyTo(adjustments) == adjustments
     var naming by rememberSaveable { mutableStateOf(false) }
     // .cube files have no registered MIME type, so the picker has to offer every file.
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -74,14 +77,15 @@ fun LookPanel(
         SectionTitle(R.string.look_presets)
         ChipRow {
             for (preset in Preset.BUILT_IN) {
-                AssistChip(
+                FilterChip(
+                    selected = isActive(preset),
                     onClick = { onApplyPreset(preset) },
                     label = { Text(stringResource(presetLabel(preset.builtIn))) },
                 )
             }
             for (preset in userPresets) {
                 InputChip(
-                    selected = false,
+                    selected = isActive(preset),
                     onClick = { onApplyPreset(preset) },
                     label = { Text(preset.name) },
                     trailingIcon = {
@@ -195,7 +199,7 @@ private fun ChipRow(content: @Composable () -> Unit) {
 private fun Modifier.clickableIcon(onClick: () -> Unit) = clickable(onClick = onClick)
 
 @StringRes
-private fun presetLabel(key: String?): Int = when (key) {
+internal fun presetLabel(key: String?): Int = when (key) {
     "vivid" -> R.string.preset_vivid
     "warm" -> R.string.preset_warm
     "cool" -> R.string.preset_cool
