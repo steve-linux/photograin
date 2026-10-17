@@ -49,6 +49,7 @@ data class ToneCurve(val points: List<CurvePoint> = IDENTITY_POINTS) {
 
     /** Moves the point at [index], keeping it strictly between its neighbours. */
     fun movePoint(index: Int, p: CurvePoint): ToneCurve {
+        if (index !in points.indices) return this
         val sorted = points.sortedBy { it.x }
         val lo = if (index == 0) 0f else sorted[index - 1].x + MIN_GAP
         val hi = if (index == sorted.lastIndex) 1f else sorted[index + 1].x - MIN_GAP
@@ -62,7 +63,7 @@ data class ToneCurve(val points: List<CurvePoint> = IDENTITY_POINTS) {
 
     fun removePoint(index: Int): ToneCurve {
         val sorted = points.sortedBy { it.x }
-        if (index == 0 || index == sorted.lastIndex) return this
+        if (index !in sorted.indices || index == 0 || index == sorted.lastIndex) return this
         return ToneCurve(sorted.filterIndexed { i, _ -> i != index })
     }
 

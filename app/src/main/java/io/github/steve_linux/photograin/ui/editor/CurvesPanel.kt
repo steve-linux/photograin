@@ -55,6 +55,9 @@ fun CurvesPanel(curves: Curves, onChange: (Curves) -> Unit, onChangeFinished: ()
     var dragIndex by remember { mutableIntStateOf(-1) }
     var dragStart by remember { mutableStateOf(Offset.Zero) }
     var dragTotal by remember { mutableStateOf(Offset.Zero) }
+    // The curve being dragged, kept here: currentCurves only catches up after a recomposition,
+    // so right after onDragStart adds a point it can still hold the curve without it.
+    var dragCurves by remember { mutableStateOf(curves) }
     val lineColor = channelColor(channel, MaterialTheme.colorScheme.onSurface)
     val gridColor = MaterialTheme.colorScheme.outlineVariant
 
@@ -110,6 +113,7 @@ fun CurvesPanel(curves: Curves, onChange: (Curves) -> Unit, onChangeFinished: ()
                                 onChange(currentCurves.with(currentChannel, c))
                                 i = c.points.indexOfFirst { kotlin.math.abs(it.x - x) < 1e-6f }
                             }
+                            dragCurves = currentCurves.with(currentChannel, c)
                             dragIndex = i
                             dragStart = c.points.getOrNull(i)?.let { Offset(it.x * w, (1 - it.y) * h) } ?: p
                             dragTotal = Offset.Zero
@@ -121,9 +125,9 @@ fun CurvesPanel(curves: Curves, onChange: (Curves) -> Unit, onChangeFinished: ()
                             val w = size.width.toFloat()
                             val h = size.height.toFloat()
                             val pos = dragStart + dragTotal
-                            val c = currentCurves[currentChannel]
-                            val moved = c.movePoint(dragIndex, CurvePoint(pos.x / w, 1f - pos.y / h))
-                            onChange(currentCurves.with(currentChannel, moved))
+                            val moved = dragCurves[currentChannel].movePoint(dragIndex, CurvePoint(pos.x / w, 1f - pos.y / h))
+                            dragCurves = dragCurves.with(currentChannel, moved)
+                            onChange(dragCurves)
                         },
                         onDragEnd = {
                             if (dragIndex >= 0) onChangeFinished()
