@@ -188,7 +188,9 @@ bool encodeAvif(const Pixels& in, const EncodeOptions& options, std::vector<uint
     encoder->codecChoice = AVIF_CODEC_CHOICE_AOM;
     encoder->quality = std::clamp(options.quality, 0, 100);
     encoder->qualityAlpha = AVIF_QUALITY_LOSSLESS;
-    encoder->speed = 6;
+    // All-intra speed 8: several times faster than 6 on phones for a small loss in compression.
+    encoder->speed = 8;
+    encoder->autoTiling = AVIF_TRUE;  // tiles let every thread work on a single still image
     encoder->maxThreads = threadCount(options.threads);
     avifRWData output = AVIF_DATA_EMPTY;
     r = avifEncoderWrite(encoder.get(), image.get(), &output);
