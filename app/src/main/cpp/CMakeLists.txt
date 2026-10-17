@@ -6,6 +6,10 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Everything ends up in shared libraries.
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+# Unoptimized, the image codecs take minutes per photo, so debug builds are optimized as well.
+foreach(lang C CXX)
+    set(CMAKE_${lang}_FLAGS_DEBUG "-O2 -DNDEBUG")
+endforeach()
 
 # LibRaw (LGPL-2.1 or CDDL-1.0), pinned as a git submodule. The *_ph.cpp files are
 # placeholders that the upstream build leaves out too.
