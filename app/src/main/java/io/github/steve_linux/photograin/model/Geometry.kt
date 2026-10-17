@@ -4,6 +4,7 @@ package io.github.steve_linux.photograin.model
 import io.github.steve_linux.photograin.math.Affine
 import io.github.steve_linux.photograin.math.Vec2
 import kotlinx.serialization.Serializable
+import kotlin.math.PI
 import kotlin.math.max
 import kotlin.math.roundToInt
 
@@ -89,7 +90,7 @@ class GeometryMapper(
         var h = sourceHeight.toDouble()
         var t = Affine.IDENTITY
         if (base.mirror) t = t.then(Affine(a = -1.0, tx = w))
-        val turns = Math.floorMod(base.quarterTurns + geometry.quarterTurns, 4)
+        val turns = (base.quarterTurns + geometry.quarterTurns).mod(4)
         repeat(turns) {
             // Clockwise quarter turn of a w x h image: (x, y) -> (h - y, x).
             t = t.then(Affine(a = 0.0, b = 1.0, c = -1.0, d = 0.0, tx = h, ty = 0.0))
@@ -103,7 +104,7 @@ class GeometryMapper(
     }
 
     private val straighten: Affine =
-        Affine.rotateAround(Math.toRadians(geometry.straighten.toDouble()), frameWidth / 2, frameHeight / 2)
+        Affine.rotateAround(geometry.straighten.toDouble() * PI / 180, frameWidth / 2, frameHeight / 2)
 
     /** Source pixel -> straightened frame pixel. */
     val sourceToFrame: Affine = orient.then(straighten)
@@ -184,7 +185,7 @@ class GeometryMapper(
 
 /** Rotates the whole edit by a clockwise quarter turn, carrying the crop along. */
 fun Geometry.rotatedClockwise(): Geometry = copy(
-    quarterTurns = Math.floorMod(quarterTurns + 1, 4),
+    quarterTurns = (quarterTurns + 1).mod(4),
     crop = CropRect(1f - crop.bottom, crop.left, 1f - crop.top, crop.right),
 )
 
