@@ -2,6 +2,7 @@
 package io.github.steve_linux.photograin.render
 
 import io.github.steve_linux.photograin.model.Adjustments
+import io.github.steve_linux.photograin.model.HslBand
 import kotlin.math.ceil
 import kotlin.math.log2
 import kotlin.math.max
@@ -48,4 +49,15 @@ object ShaderParams {
      * to the image keeps the preview and the full-size export looking the same.
      */
     fun grainCellFraction(a: Adjustments): Float = (0.0004 + 0.0018 * a.grainSize).toFloat()
+
+    /** HSL as 8 vec3 (hue shift, saturation, luminance) packed for glUniform3fv. */
+    fun hslUniform(a: Adjustments): FloatArray {
+        val out = FloatArray(HslBand.entries.size * 3)
+        for (i in HslBand.entries.indices) {
+            out[i * 3] = a.hsl.hue.getOrElse(i) { 0f }
+            out[i * 3 + 1] = a.hsl.saturation.getOrElse(i) { 0f }
+            out[i * 3 + 2] = a.hsl.luminance.getOrElse(i) { 0f }
+        }
+        return out
+    }
 }
