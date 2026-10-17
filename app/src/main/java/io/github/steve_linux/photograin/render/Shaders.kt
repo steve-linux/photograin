@@ -98,6 +98,17 @@ uniform float uLutOn;
 uniform float uLutAmount;
 uniform float uLutScale;
 uniform float uLutOffset;
+// LUTs are made for sRGB: working-space linear <-> sRGB linear around the lookup.
+uniform float uLutConvert;
+uniform mat3 uToSrgb;
+uniform mat3 uFromSrgb;
+
+// Working-space linear -> output linear, then the output transfer curve (gamma 0 = sRGB curve).
+uniform float uOutConvert;
+uniform mat3 uOutM;
+uniform float uOutGamma;
+// Luminance weights of the working space.
+uniform vec3 uLuma;
 
 // Pixels left of this x (0..1 in the output) show the original. -1 disables comparison.
 uniform float uCompare;
@@ -108,7 +119,7 @@ uniform vec3 uBg;
 in vec2 vCoord;
 out vec4 oColor;
 
-const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722);
+#define LUMA uLuma
 
 vec3 toLinear(vec3 c) {
     return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c));
@@ -276,7 +287,10 @@ vec3 process(vec3 s, vec2 pos) {
     }
 
     if (uLutOn > 0.5) {
-        vec3 l = texture(uLut, clamp(v, 0.0, 1.0) * uLutScale + uLutOffset).rgb;
+        vec3 lin = clamp(v, 0.0, 1.0);
+        if (uLutConvert > 0.5) lin = toSrgb(clamp(uToSrgb * toLinear(lin), 0.0, 1.0));
+        vec3 l = texture(uLut, lin * uLutScale + uLutOffset).rgb;
+        if (uLutConvert > 0.5) l = toSrgb(uFromSrgb * toLinear(l));
         v = mix(v, l, uLutAmount);
     }
 
@@ -304,10 +318,16 @@ vec3 process(vec3 s, vec2 pos) {
     return clamp(v, 0.0, 1.0);
 }
 
+vec3 toOutput(vec3 v) {
+    vec3 l = clamp(uOutM * toLinear(v), 0.0, 1.0);
+    return uOutGamma > 0.0 ? pow(l, vec3(1.0 / uOutGamma)) : toSrgb(l);
+}
+
 void main() {
     vec4 src = texture(uGeo, vCoord);
     vec2 pos = uImgMap.xy + vCoord * uImgMap.zw;
     vec3 rgb = pos.x < uCompare ? src.rgb : process(src.rgb, pos);
+    if (uOutConvert > 0.5) rgb = toOutput(rgb);
     if (uComposite > 0.5) {
         oColor = vec4(mix(uBg, rgb, src.a), 1.0);
     } else {

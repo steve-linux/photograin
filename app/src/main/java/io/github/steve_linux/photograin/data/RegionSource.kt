@@ -8,6 +8,7 @@ import android.graphics.BitmapRegionDecoder
 import android.graphics.Rect
 import android.net.Uri
 import android.os.Build
+import io.github.steve_linux.photograin.model.ColorProfile
 import java.io.Closeable
 import java.io.IOException
 
@@ -15,6 +16,9 @@ import java.io.IOException
 interface RegionSource : Closeable {
     val width: Int
     val height: Int
+
+    /** Color space of the decoded pixels, which the edit is rendered in. */
+    val profile: ColorProfile
 
     /** Decodes [rect] (source pixels), downsampled by the power of two [sampleSize]. */
     fun decode(rect: Rect, sampleSize: Int): Bitmap
@@ -27,8 +31,11 @@ interface RegionSource : Closeable {
         fun open(context: Context, uri: Uri): RegionSource {
             val resolver = context.contentResolver
             if (RawImage.isRaw(resolver.getType(uri), ImageLoader.queryName(context, uri))) {
-                return BitmapRegionSource(RawImage.develop(context, uri, halfSize = false))
+                return BitmapRegionSource(RawImage.develop(context, uri, halfSize = false), ColorSpaces.RAW_WORKING_SPACE)
             }
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+            val profile = ColorSpaces.workingSpaceFor(bounds.outColorSpace)
             val decoder = runCatching {
                 resolver.openInputStream(uri)?.use { stream ->
                     if (Build.VERSION.SDK_INT >= 31) {
@@ -39,19 +46,23 @@ interface RegionSource : Closeable {
                     }
                 }
             }.getOrNull()
-            if (decoder != null) return DecoderRegionSource(decoder)
+            if (decoder != null) return DecoderRegionSource(decoder, profile)
 
             val bitmap = resolver.openInputStream(uri)?.use { stream ->
                 BitmapFactory.decodeStream(stream, null, BitmapFactory.Options().apply {
                     inPreferredConfig = Bitmap.Config.ARGB_8888
+                    inPreferredColorSpace = ColorSpaces.of(profile)
                 })
             } ?: throw IOException("Cannot decode $uri")
-            return BitmapRegionSource(bitmap)
+            return BitmapRegionSource(bitmap, profile)
         }
     }
 }
 
-private class DecoderRegionSource(private val decoder: BitmapRegionDecoder) : RegionSource {
+private class DecoderRegionSource(
+    private val decoder: BitmapRegionDecoder,
+    override val profile: ColorProfile,
+) : RegionSource {
     override val width get() = decoder.width
     override val height get() = decoder.height
 
@@ -59,6 +70,7 @@ private class DecoderRegionSource(private val decoder: BitmapRegionDecoder) : Re
         val options = BitmapFactory.Options().apply {
             inSampleSize = sampleSize
             inPreferredConfig = Bitmap.Config.ARGB_8888
+            inPreferredColorSpace = ColorSpaces.of(profile)
         }
         return decoder.decodeRegion(rect, options) ?: throw IOException("Region decode failed for $rect")
     }
@@ -66,7 +78,10 @@ private class DecoderRegionSource(private val decoder: BitmapRegionDecoder) : Re
     override fun close() = decoder.recycle()
 }
 
-private class BitmapRegionSource(private val bitmap: Bitmap) : RegionSource {
+private class BitmapRegionSource(
+    private val bitmap: Bitmap,
+    override val profile: ColorProfile,
+) : RegionSource {
     override val width get() = bitmap.width
     override val height get() = bitmap.height
 

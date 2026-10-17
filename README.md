@@ -21,6 +21,9 @@ Editor fotografico non distruttivo per Android, libero (GPL-3.0-or-later) e pens
 - **Copia/incolla** delle regolazioni tra foto.
 - **Esportazione a piena risoluzione**, elaborata a tasselli per foto più grandi del limite della GPU;
   JPEG, PNG, WebP; i dati EXIF utili vengono mantenuti, il GPS rimosso per impostazione predefinita.
+- **Profili colore**: le foto con profilo ICC ad ampia gamma (Display P3, Adobe RGB…) e i RAW si
+  modificano in Display P3 senza perdere i colori più saturi; si esporta in sRGB, Display P3 o
+  Adobe RGB con il profilo ICC incorporato.
 - **File RAW** (DNG, CR2, CR3, NEF, ARW, RAF, ORF, RW2 e altri) sviluppati con LibRaw:
   anteprima rapida a metà risoluzione, esportazione a piena risoluzione con demosaicizzazione AHD;
   i dati restano a 16 bit per canale fino alla GPU, così ombre e luci si recuperano senza scalini.

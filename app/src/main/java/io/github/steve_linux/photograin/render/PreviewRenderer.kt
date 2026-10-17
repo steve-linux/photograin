@@ -9,6 +9,7 @@ import android.util.Log
 import io.github.steve_linux.photograin.math.Affine
 import io.github.steve_linux.photograin.model.Adjustments
 import io.github.steve_linux.photograin.model.BaseOrientation
+import io.github.steve_linux.photograin.model.ColorProfile
 import io.github.steve_linux.photograin.model.CubeLut
 import io.github.steve_linux.photograin.model.Geometry
 import io.github.steve_linux.photograin.model.GeometryMapper
@@ -28,6 +29,8 @@ data class PreviewFrame(
     /** See [Pipeline.renderColor]; -1 disables, 2 shows the original everywhere. */
     val compareSplit: Float,
     val background: FloatArray,
+    /** Color space of [bitmap]; the screen is treated as sRGB. */
+    val profile: ColorProfile = ColorProfile.SRGB,
 )
 
 /** Renders [PreviewFrame]s into a [GLSurfaceView] on demand. */
@@ -113,6 +116,7 @@ class PreviewRenderer : GLSurfaceView.Renderer {
             outputHeight = out.height,
             compareSplit = frame.compareSplit,
             composite = true,
+            working = frame.profile,
             background = frame.background,
         )
     }

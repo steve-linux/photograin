@@ -4,8 +4,10 @@ package io.github.steve_linux.photograin.render
 import android.opengl.GLES30
 import io.github.steve_linux.photograin.math.Affine
 import io.github.steve_linux.photograin.model.Adjustments
+import io.github.steve_linux.photograin.model.ColorProfile
 import io.github.steve_linux.photograin.model.CubeLut
 import io.github.steve_linux.photograin.model.Curves
+import io.github.steve_linux.photograin.model.Mat3
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.ceil
@@ -118,6 +120,8 @@ internal class Pipeline {
      * @param geoUvRect which part of the geometry texture to draw (origin.xy, size.zw).
      * @param imageMap maps geometry UVs to positions in the whole output (origin.xy, size.zw).
      * @param lut the table for [Adjustments.look], or null when it is off or not available.
+     * @param working the color space of the source pixels, which the adjustments work in.
+     * @param output the color space to write: sRGB for the screen, the chosen profile for export.
      */
     fun renderColor(
         adjustments: Adjustments,
@@ -129,6 +133,8 @@ internal class Pipeline {
         outputHeight: Int,
         compareSplit: Float,
         composite: Boolean,
+        working: ColorProfile = ColorProfile.SRGB,
+        output: ColorProfile = ColorProfile.SRGB,
         background: FloatArray = floatArrayOf(0f, 0f, 0f),
     ) {
         val geoTarget = checkNotNull(geo) { "renderIntermediate() must run first" }
@@ -179,6 +185,20 @@ internal class Pipeline {
             p.float("uLutAmount", adjustments.look.amount.coerceIn(0f, 1f))
             p.float("uLutScale", (n - 1f) / n)
             p.float("uLutOffset", 0.5f / n)
+        }
+        val luma = working.luma
+        p.vec3("uLuma", luma[0].toFloat(), luma[1].toFloat(), luma[2].toFloat())
+        val lutConvert = lutOn && working != ColorProfile.SRGB
+        p.float("uLutConvert", if (lutConvert) 1f else 0f)
+        if (lutConvert) {
+            p.mat3("uToSrgb", Mat3.toGl(working.conversionTo(ColorProfile.SRGB)))
+            p.mat3("uFromSrgb", Mat3.toGl(ColorProfile.SRGB.conversionTo(working)))
+        }
+        val outConvert = working != output
+        p.float("uOutConvert", if (outConvert) 1f else 0f)
+        if (outConvert) {
+            p.mat3("uOutM", Mat3.toGl(working.conversionTo(output)))
+            p.float("uOutGamma", output.gamma.toFloat())
         }
         p.float("uCompare", compareSplit)
         p.float("uComposite", if (composite) 1f else 0f)

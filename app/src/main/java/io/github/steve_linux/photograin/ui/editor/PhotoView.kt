@@ -94,6 +94,7 @@ fun PhotoView(
             imageRect = rect,
             compareSplit = compare,
             background = floatArrayOf(background.red, background.green, background.blue),
+            profile = image.profile,
         )
 
         val lifecycle = LocalLifecycleOwner.current.lifecycle

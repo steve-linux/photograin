@@ -51,6 +51,8 @@
     <string name="export_size">Dimensione (lato lungo)</string>
     <string name="export_size_full">Originale</string>
     <string name="export_keep_location">Mantieni posizione (GPS)</string>
+    <string name="export_color_profile">Profilo colore</string>
+    <string name="export_color_profile_hint">Conserva colori più saturi per schermi ad ampia gamma e per la stampa. Per condividere online è più sicuro sRGB.</string>
     <string name="export_action">Salva</string>
     <string name="exporting">Esportazione…</string>
 

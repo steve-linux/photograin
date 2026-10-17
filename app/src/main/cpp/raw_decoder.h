@@ -19,7 +19,7 @@ struct RawInfo {
 };
 
 /**
- * One camera RAW file. Pixels are developed to 16-bit sRGB with the camera white balance and are
+ * One camera RAW file. Pixels are developed to 16-bit Display P3 with the camera white balance and are
  * left unrotated: callers apply [RawInfo::flip] themselves, like an EXIF orientation.
  * Each call opens the file afresh, so probe(), develop() and thumbnail() are independent.
  */
