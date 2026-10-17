@@ -115,6 +115,10 @@ set(NCNN_VERSION 20260526 CACHE STRING "" FORCE)  # the pinned tag; the default 
 if(ANDROID)
     set(NCNN_VULKAN ON CACHE BOOL "" FORCE)
 endif()
+if(ANDROID AND NOT TARGET pthread)
+    # ncnn links "pthread", which Android has inside libc: an empty target stands in for it.
+    add_library(pthread INTERFACE)
+endif()
 add_subdirectory(ncnn EXCLUDE_FROM_ALL)
 
 # Portable core, like raw_core.
