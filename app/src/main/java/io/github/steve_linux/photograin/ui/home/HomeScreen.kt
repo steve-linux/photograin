@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,7 +25,10 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AddPhotoAlternate
+import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material.icons.outlined.PhotoLibrary
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
@@ -52,7 +56,14 @@ import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(recents: List<Uri>, onOpenPicker: () -> Unit, onOpen: (Uri) -> Unit, onBatch: () -> Unit) {
+fun HomeScreen(
+    recents: List<Uri>,
+    onOpenPicker: () -> Unit,
+    onOpen: (Uri) -> Unit,
+    onBatch: () -> Unit,
+    showTip: Boolean,
+    onDismissTip: () -> Unit,
+) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -92,6 +103,10 @@ fun HomeScreen(recents: List<Uri>, onOpenPicker: () -> Unit, onOpen: (Uri) -> Un
                     textAlign = TextAlign.Center,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                if (showTip) {
+                    Spacer(Modifier.height(24.dp))
+                    PresetTip(onDismissTip)
+                }
             }
         } else {
             LazyVerticalGrid(
@@ -101,6 +116,9 @@ fun HomeScreen(recents: List<Uri>, onOpenPicker: () -> Unit, onOpen: (Uri) -> Un
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxSize().padding(padding),
             ) {
+                if (showTip) {
+                    item(span = { GridItemSpan(maxLineSpan) }) { PresetTip(onDismissTip) }
+                }
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     Text(
                         stringResource(R.string.recent_edits),
@@ -111,6 +129,32 @@ fun HomeScreen(recents: List<Uri>, onOpenPicker: () -> Unit, onOpen: (Uri) -> Un
                 items(recents, key = { it.toString() }) { uri ->
                     RecentThumbnail(uri, onClick = { onOpen(uri) })
                 }
+            }
+        }
+    }
+}
+
+/** Explains where presets are saved, which new users rarely find on their own. */
+@Composable
+private fun PresetTip(onDismiss: () -> Unit) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(Modifier.padding(start = 16.dp, top = 16.dp, end = 8.dp, bottom = 4.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Outlined.Lightbulb, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.home_tip_title), style = MaterialTheme.typography.titleSmall)
+            }
+            Spacer(Modifier.height(8.dp))
+            Text(
+                stringResource(R.string.home_tip_body),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(end = 8.dp),
+            )
+            TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) {
+                Text(stringResource(R.string.home_tip_dismiss))
             }
         }
     }

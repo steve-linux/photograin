@@ -40,6 +40,7 @@ class MainActivity : ComponentActivity() {
                 val state by editor.state.collectAsStateWithLifecycle()
                 val batchState by batch.state.collectAsStateWithLifecycle()
                 var recents by remember { mutableStateOf(prefs.recents()) }
+                var showTip by remember { mutableStateOf(!prefs.presetTipDismissed) }
                 val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
                     uri?.let(editor::open)
                 }
@@ -62,6 +63,11 @@ class MainActivity : ComponentActivity() {
                         onOpenPicker = { picker.launch(arrayOf("image/*") + RawImage.MIME_TYPES) },
                         onOpen = editor::open,
                         onBatch = { multiPicker.launch(arrayOf("image/*") + RawImage.MIME_TYPES) },
+                        showTip = showTip,
+                        onDismissTip = {
+                            prefs.presetTipDismissed = true
+                            showTip = false
+                        },
                     )
                 }
             }
