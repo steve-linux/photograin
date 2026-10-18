@@ -78,20 +78,22 @@ class TiffWriterTest {
     @Test
     fun exifFromBigEndianBlock() {
         // MM header, IFD0 with Make, Orientation and an EXIF pointer; the EXIF IFD holds an
-        // FNumber rational and a pixel width, which describes the old file and is dropped.
+        // FNumber rational, the filler light source ExifInterface adds and a pixel width, which
+        // describes the old file: those two are dropped.
         val b = ByteBuffer.allocate(200).order(ByteOrder.BIG_ENDIAN)
         b.put('M'.code.toByte()).put('M'.code.toByte()).putShort(42).putInt(8)
         b.putShort(3)
-        b.putShort(271).putShort(2).putInt(6).putInt(100)
+        b.putShort(271).putShort(2).putInt(6).putInt(140)
         b.putShort(274).putShort(3).putInt(1).putShort(6).putShort(0)
         b.putShort(34665.toShort()).putShort(4).putInt(1).putInt(60)
         b.putInt(0)
         b.position(60)
-        b.putShort(2)
+        b.putShort(3)
         b.putShort(33437.toShort()).putShort(5).putInt(1).putInt(120)
+        b.putShort(37384.toShort()).putShort(4).putInt(1).putInt(0)
         b.putShort(40962.toShort()).putShort(4).putInt(1).putInt(4000)
         b.putInt(0)
-        b.position(100)
+        b.position(140)
         b.put("Canon\u0000".toByteArray())
         b.position(120)
         b.putInt(28).putInt(10)

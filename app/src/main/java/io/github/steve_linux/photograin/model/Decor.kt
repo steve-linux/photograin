@@ -92,7 +92,7 @@ data class ShapeItem(
     val fill: Boolean = false,
 ) {
     /** Stroke width in pixels for an output whose short edge is [shortEdge] pixels. */
-    fun strokePx(shortEdge: Int): Float = shortEdge * (0.002f + 0.02f * width.coerceIn(0f, 1f))
+    fun strokePx(shortEdge: Int): Float = shortEdge * (0.002f + 0.04f * width.coerceIn(0f, 1f))
 
     /** A rectangle or ellipse, which can be filled. */
     val isBox: Boolean get() = type == ShapeType.RECT || type == ShapeType.ELLIPSE

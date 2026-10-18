@@ -22,6 +22,7 @@ object TiffWriter {
 
     private const val TAG_EXIF_IFD = 34665
     private const val TAG_GPS_IFD = 34853
+    private const val TAG_LIGHT_SOURCE = 37384
 
     /** Tags of the main IFD taken from the EXIF block: who and what made the photo, and when. */
     private val MAIN_TAGS = setOf(271, 272, 306, 315, 33432)
@@ -128,13 +129,20 @@ object TiffWriter {
             when {
                 e.tag in MAIN_TAGS -> out += e
                 e.sub != null && (e.tag == TAG_EXIF_IFD || e.tag == TAG_GPS_IFD) -> {
-                    val kept = e.sub.filter { it.tag !in SKIPPED_EXIF_TAGS && it.sub == null }
+                    val kept = e.sub.filter { it.tag !in SKIPPED_EXIF_TAGS && it.sub == null && !isFillerLightSource(it) }
                     if (kept.isNotEmpty()) out += Entry(e.tag, LONG, 1, ByteArray(4), kept)
                 }
             }
         }
         return out
     }
+
+    /**
+     * The "unknown" light source ExifInterface adds as a 32-bit number when the photo had none:
+     * the wrong type for the tag, and saying nothing anyway.
+     */
+    private fun isFillerLightSource(e: Entry) =
+        e.tag == TAG_LIGHT_SOURCE && e.type == LONG && e.data.all { it == 0.toByte() }
 
     private class IfdReader(val b: ByteArray) {
         val little = b.size >= 8 && b[0] == 'I'.code.toByte()

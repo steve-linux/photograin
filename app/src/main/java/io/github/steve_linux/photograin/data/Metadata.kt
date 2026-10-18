@@ -37,6 +37,12 @@ enum class MetadataGroup(@param:StringRes val label: Int, val tags: List<String>
             ExifInterface.TAG_FOCAL_LENGTH,
             ExifInterface.TAG_FOCAL_LENGTH_IN_35MM_FILM,
             ExifInterface.TAG_FLASH,
+            ExifInterface.TAG_EXPOSURE_PROGRAM,
+            ExifInterface.TAG_EXPOSURE_BIAS_VALUE,
+            ExifInterface.TAG_METERING_MODE,
+            ExifInterface.TAG_WHITE_BALANCE,
+            // Without it ExifInterface writes "unknown" in its place.
+            ExifInterface.TAG_LIGHT_SOURCE,
         ),
     ),
     AUTHOR(R.string.metadata_author, listOf(ExifInterface.TAG_ARTIST, ExifInterface.TAG_COPYRIGHT)),
@@ -89,7 +95,8 @@ object Metadata {
         exif.latLong?.let { (lat, lon) ->
             add(MetadataGroup.LOCATION, R.string.metadata_coordinates, String.format(Locale.ROOT, "%.5f, %.5f", lat, lon))
         }
-        exif.getAltitude(Double.NaN).takeIf { !it.isNaN() }?.let {
+        // Some phones leave an empty GPS block whose reference tags alone make the altitude read as 0.
+        exif.getAltitude(Double.NaN).takeIf { !it.isNaN() && exif.getAttribute(ExifInterface.TAG_GPS_ALTITUDE) != null }?.let {
             add(MetadataGroup.LOCATION, R.string.metadata_altitude, "${it.roundToInt()} m")
         }
         return out

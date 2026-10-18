@@ -197,8 +197,39 @@ object ExportWriter {
         return null
     }
 
-    /** ICC profile bytes for [space], as Android embeds them: taken from a 1x1 PNG's iCCP chunk. */
-    private fun iccProfile(space: ColorSpace): ByteArray? = runCatching {
+    /**
+     * ICC profile bytes for [space], as Android embeds them: taken from a 1x1 PNG's iCCP chunk, or
+     * for sRGB, which PNG names with a chunk of its own instead, from a 1x1 JPEG.
+     */
+    private fun iccProfile(space: ColorSpace): ByteArray? = pngIcc(space) ?: runCatching {
+        val pixel = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888, false, space)
+        val jpeg = ByteArrayOutputStream().also { pixel.compress(Bitmap.CompressFormat.JPEG, 90, it) }.toByteArray()
+        pixel.recycle()
+        jpegIcc(jpeg)
+    }.getOrNull()
+
+    /** The ICC profile in a JPEG's "ICC_PROFILE" APP2 segments, joined in order. */
+    internal fun jpegIcc(jpeg: ByteArray): ByteArray? {
+        val chunks = sortedMapOf<Int, ByteArray>()
+        var i = 2
+        while (i + 4 <= jpeg.size && jpeg[i] == 0xFF.toByte()) {
+            val marker = jpeg[i + 1].toInt() and 0xFF
+            if (marker == 0xDA || marker == 0xD9) break
+            val length = ((jpeg[i + 2].toInt() and 0xFF) shl 8) or (jpeg[i + 3].toInt() and 0xFF)
+            val start = i + 4
+            val end = i + 2 + length
+            if (end > jpeg.size) break
+            // "ICC_PROFILE\0", then the chunk's number and the chunk count.
+            if (marker == 0xE2 && end - start > 14 && String(jpeg, start, 12, Charsets.ISO_8859_1) == "ICC_PROFILE\u0000") {
+                chunks[jpeg[start + 12].toInt() and 0xFF] = jpeg.copyOfRange(start + 14, end)
+            }
+            i = end
+        }
+        if (chunks.isEmpty()) return null
+        return chunks.values.reduce { acc, b -> acc + b }
+    }
+
+    private fun pngIcc(space: ColorSpace): ByteArray? = runCatching {
         val pixel = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888, false, space)
         val png = ByteArrayOutputStream().also { pixel.compress(Bitmap.CompressFormat.PNG, 100, it) }.toByteArray()
         pixel.recycle()
