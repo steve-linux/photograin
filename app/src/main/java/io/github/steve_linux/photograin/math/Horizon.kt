@@ -50,7 +50,12 @@ object Horizon {
         val columnBest = columns.indices.maxBy { columns[it] }
         if (stands(rows, columns) && stands(columns, rows) && abs(rowBest - columnBest) > 2) return null
         val coarse = DoubleArray(rows.size) { rows[it] + columns[it] }
-        val best = (coarse.indices.maxBy { coarse[it] } - steps) * 0.5
+        val bestIndex = coarse.indices.maxBy { coarse[it] }
+        // Nor when the photo has plenty of lines along the other axis that the angle leaves
+        // scattered: lines that only look slanted, like the edges of a box seen from above, while
+        // its sides and the floor around it converge.
+        if (scatters(columns, rows, bestIndex) || scatters(rows, columns, bestIndex)) return null
+        val best = (bestIndex - steps) * 0.5
         val fine = DoubleArray(21) { score(best - 0.5 + it * 0.05) }
         val k = fine.indices.maxBy { fine[it] }
         // A tilt only counts when it stands out from the typical angle: in noise or texture
@@ -114,6 +119,15 @@ object Horizon {
         return best in 2 until scores.size - 2 &&
             max >= scores.sorted()[scores.size / 2] * PROMINENCE &&
             max >= other.max() * 0.2
+    }
+
+    /**
+     * Whether [scores], with a fair share of the edges compared with the [other] axis, fall below
+     * their typical value at the angle [index]: those lines are not straightened by it.
+     */
+    private fun scatters(scores: DoubleArray, other: DoubleArray, index: Int): Boolean {
+        val typical = scores.sorted()[scores.size / 2]
+        return typical >= other.sorted()[other.size / 2] * 0.25 && scores[index] < typical
     }
 
     /**
