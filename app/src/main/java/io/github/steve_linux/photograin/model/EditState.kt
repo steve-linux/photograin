@@ -14,6 +14,10 @@ data class EditState(
     val masks: List<LocalAdjustment> = emptyList(),
     /** Healing and clone spots, applied to the original before everything else. */
     val retouch: List<RetouchSpot> = emptyList(),
+    /** Border around the photo; it makes the output larger. */
+    val frame: Frame = Frame(),
+    /** Text drawn over the finished photo and its frame. */
+    val texts: List<TextItem> = emptyList(),
 ) {
     fun toJson(): String = json.encodeToString(Recipe(version = Recipe.CURRENT_VERSION, edit = this))
 

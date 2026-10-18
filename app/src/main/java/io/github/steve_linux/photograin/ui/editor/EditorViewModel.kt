@@ -27,6 +27,9 @@ import io.github.steve_linux.photograin.model.CropRect
 import io.github.steve_linux.photograin.model.CubeLut
 import io.github.steve_linux.photograin.model.Curves
 import io.github.steve_linux.photograin.model.EditState
+import io.github.steve_linux.photograin.model.Frame
+import io.github.steve_linux.photograin.model.FrameStyle
+import io.github.steve_linux.photograin.model.TextItem
 import io.github.steve_linux.photograin.model.Geometry
 import io.github.steve_linux.photograin.model.GeometryMapper
 import io.github.steve_linux.photograin.model.BrushStroke
@@ -103,7 +106,14 @@ data class EditorUiState(
     /** Type and size (0..1, relative to the screen) of the next spot. */
     val spotType: RetouchType = RetouchType.HEAL,
     val spotSize: Float = 0.3f,
+    /** In the Effects tab: 0 effects, 1 frame, 2 text. */
+    val effectsMode: Int = 0,
+    /** The text being edited, by index in [EditState.texts]. */
+    val selectedText: Int? = null,
 ) {
+    /** [selectedText] if it still exists. */
+    val activeText: Int? get() = selectedText?.takeIf { it in edit.texts.indices }
+
     /** [selectedSpot] if it still exists. */
     val activeSpot: Int? get() = selectedSpot?.takeIf { it in edit.retouch.indices }
 
@@ -458,6 +468,45 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
                 _state.update { if (it.image?.preview === preview) it.copy(retouchedPreview = result) else it }
             }
         }
+    }
+
+    // --- Frame and text ------------------------------------------------------------------------
+
+    fun setEffectsMode(mode: Int) = _state.update { it.copy(effectsMode = mode) }
+
+    /** Live frame change; [commit] when a slider is released. */
+    fun setFrame(frame: Frame) = updateLive { it.copy(frame = frame) }
+
+    /** Adds [text] and selects it: on a polaroid's bottom border if it has no caption yet, else in the middle. */
+    fun addText(text: String) {
+        val e = _state.value.edit
+        if (text.isBlank() || e.texts.size >= TextItem.MAX_ITEMS) return
+        val image = mapper()?.outputSize
+        var item = TextItem(text.trim())
+        if (image != null && e.frame.style == FrameStyle.POLAROID && e.texts.isEmpty()) {
+            val layout = e.frame.layout(image)
+            val bottomTop = layout.imageTop + image.height
+            val y = (bottomTop + layout.size.height) / 2f / layout.size.height
+            item = item.copy(y = y, color = 0xFF333333.toInt(), shadow = false)
+        }
+        updateLive { it.copy(texts = it.texts + item) }
+        _state.update { it.copy(selectedText = it.edit.texts.lastIndex) }
+        commit()
+    }
+
+    fun selectText(index: Int?) = _state.update { it.copy(selectedText = index) }
+
+    /** Live change of the selected text; [commit] when done. */
+    fun setText(item: TextItem) {
+        val index = _state.value.activeText ?: return
+        updateLive { e -> e.copy(texts = e.texts.mapIndexed { i, old -> if (i == index) item else old }) }
+    }
+
+    fun deleteText(index: Int) {
+        if (index !in _state.value.edit.texts.indices) return
+        updateLive { e -> e.copy(texts = e.texts.filterIndexed { i, _ -> i != index }) }
+        _state.update { it.copy(selectedText = null) }
+        commit()
     }
 
     // --- Before / after ----------------------------------------------------------------------

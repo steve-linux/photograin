@@ -26,6 +26,7 @@ import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Crop
 import androidx.compose.material.icons.outlined.Gradient
 import androidx.compose.material.icons.outlined.Healing
+import androidx.compose.material.icons.outlined.TextFields
 import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Save
@@ -66,6 +67,7 @@ private val TOPICS = listOf(
     Topic(Icons.Outlined.AutoAwesome, R.string.guide_detail_title, R.string.guide_detail_body),
     Topic(Icons.Outlined.Gradient, R.string.guide_local_title, R.string.guide_local_body, Icons.Outlined.Visibility),
     Topic(Icons.Outlined.Healing, R.string.guide_heal_title, R.string.guide_heal_body),
+    Topic(Icons.Outlined.TextFields, R.string.guide_decor_title, R.string.guide_decor_body),
     Topic(Icons.Outlined.Crop, R.string.guide_crop_title, R.string.guide_crop_body),
     Topic(Icons.Outlined.ContentCopy, R.string.guide_copy_title, R.string.guide_copy_body),
     Topic(Icons.Outlined.Save, R.string.guide_export_title, R.string.guide_export_body, Icons.Outlined.Save),

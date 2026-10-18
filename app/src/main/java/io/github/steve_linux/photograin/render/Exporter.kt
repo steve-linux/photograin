@@ -19,6 +19,7 @@ import io.github.steve_linux.photograin.model.BaseOrientation
 import io.github.steve_linux.photograin.model.ColorProfile
 import io.github.steve_linux.photograin.model.CubeLut
 import io.github.steve_linux.photograin.model.EditState
+import io.github.steve_linux.photograin.model.FrameStyle
 import io.github.steve_linux.photograin.model.GeometryMapper
 import io.github.steve_linux.photograin.model.PxSize
 import io.github.steve_linux.photograin.model.RetouchSpot
@@ -52,11 +53,15 @@ object Exporter {
      */
     const val MAX_UPSCALED_PIXELS = 48_000_000L
 
+    /** Size of the exported file: the photo (see [imageSize]) plus its frame. */
+    fun outputSize(source: PxSize, base: BaseOrientation, edit: EditState, maxLongEdge: Int?, upscale: Int = 1): PxSize =
+        edit.frame.layout(imageSize(source, base, edit, maxLongEdge, upscale)).size
+
     /**
-     * Output size for [edit] when the long edge is limited to [maxLongEdge] (null = full size)
-     * or the photo is enlarged [upscale] times, up to [MAX_UPSCALED_PIXELS].
+     * Size of the photo itself for [edit] when the long edge is limited to [maxLongEdge] (null =
+     * full size) or the photo is enlarged [upscale] times, up to [MAX_UPSCALED_PIXELS].
      */
-    fun outputSize(source: PxSize, base: BaseOrientation, edit: EditState, maxLongEdge: Int?, upscale: Int = 1): PxSize {
+    fun imageSize(source: PxSize, base: BaseOrientation, edit: EditState, maxLongEdge: Int?, upscale: Int = 1): PxSize {
         val full = GeometryMapper(source.width, source.height, base, edit.geometry).outputSize
         val scale = scaleFor(full, maxLongEdge, upscale)
         return PxSize(max(1, (full.width * scale).roundToInt()), max(1, (full.height * scale).roundToInt()))
@@ -107,7 +112,8 @@ object Exporter {
         val mapper = GeometryMapper(source.width, source.height, base, edit.geometry)
         val full = mapper.outputSize
         val scale = scaleFor(full, maxLongEdge, upscale)
-        val out = outputSize(PxSize(source.width, source.height), base, edit, maxLongEdge, upscale)
+        val out = imageSize(PxSize(source.width, source.height), base, edit, maxLongEdge, upscale)
+        val layout = edit.frame.layout(out)
         // Enlarging needs a sharper filter than bilinear; a 1:1 export takes pixels as they are.
         val cubic = scale > 1.01
         // Output pixel -> source pixel, including the export scale.
@@ -117,8 +123,10 @@ object Exporter {
         // The bitmaps are tagged with the output space so the encoder embeds its ICC profile. Tiles and
         // result share it, so drawing one onto the other copies the pixels without converting them.
         val colorSpace = ColorSpaces.of(output)
-        val result = Bitmap.createBitmap(out.width, out.height, Bitmap.Config.ARGB_8888, false, colorSpace)
+        val result = Bitmap.createBitmap(layout.size.width, layout.size.height, Bitmap.Config.ARGB_8888, false, colorSpace)
         val canvas = Canvas(result)
+        // Colors given in sRGB are converted to the bitmap's space by the canvas.
+        if (edit.frame.style != FrameStyle.NONE) canvas.drawColor(edit.frame.color)
 
         OffscreenGl().use {
             val pipeline = Pipeline()
@@ -200,12 +208,13 @@ object Exporter {
                     // A raw copy: setPixels() would treat the values as sRGB and convert them.
                     pixels.position(0)
                     tileBitmap.copyPixelsFromBuffer(pixels)
-                    canvas.drawBitmap(tileBitmap, tx.toFloat(), ty.toFloat(), null)
+                    canvas.drawBitmap(tileBitmap, (tx + layout.imageLeft).toFloat(), (ty + layout.imageTop).toFloat(), null)
                     onProgress((row * cols + col + 1f) / (rows * cols))
                 }
                 GlUtil.deleteTexture(sourceTexture)
                 target.release()
                 patches.values.forEach { it.bitmap.recycle() }
+                DecorPainter.drawTexts(canvas, layout.size, edit.texts)
                 tileBitmaps.values.forEach(Bitmap::recycle)
             } finally {
                 pipeline.release()

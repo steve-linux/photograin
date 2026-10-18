@@ -222,4 +222,26 @@
     <string name="guide_heal_body">In Retouch, choose Heal and tap what you want to remove: a spot, a speck of dust, a wire. Photograin covers it with a matching nearby area. Drag the dashed circle to pick a different source, and use Clone for an exact copy.</string>
     <string name="perspective_vertical">Vertical perspective</string>
     <string name="perspective_horizontal">Horizontal perspective</string>
+    <string name="mode_effects">Effects</string>
+    <string name="mode_frame">Frame</string>
+    <string name="mode_text">Text</string>
+    <string name="frame_none">None</string>
+    <string name="frame_border">Border</string>
+    <string name="frame_polaroid">Polaroid</string>
+    <string name="frame_width">Width</string>
+    <string name="text_add">Text</string>
+    <string name="text_hint_empty">Add a caption, a date or a signature. Drag it on the photo to place it.</string>
+    <string name="text_hint_select">Tap a text to change it, or drag it on the photo.</string>
+    <string name="text_bold">Bold</string>
+    <string name="text_shadow">Shadow</string>
+    <string name="text_edit">Edit text</string>
+    <string name="text_delete">Delete text</string>
+    <string name="text_size">Size</string>
+    <string name="text_dialog_title">Text</string>
+    <string name="font_sans">Sans</string>
+    <string name="font_serif">Serif</string>
+    <string name="font_mono">Mono</string>
+    <string name="font_handwriting">Handwriting</string>
+    <string name="guide_decor_title">Frames and text</string>
+    <string name="guide_decor_body">In Effects, Frame adds a border around the photo, or a polaroid with room for a caption. Text adds captions, dates or a signature: drag them on the photo to place them, and pick size, font and color.</string>
 </resources>
