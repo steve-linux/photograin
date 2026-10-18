@@ -3,6 +3,8 @@ package io.github.steve_linux.photograin
 
 import io.github.steve_linux.photograin.math.Affine
 import io.github.steve_linux.photograin.model.BaseOrientation
+import io.github.steve_linux.photograin.model.BrushRaster
+import io.github.steve_linux.photograin.model.BrushStroke
 import io.github.steve_linux.photograin.model.CropRect
 import io.github.steve_linux.photograin.model.EditState
 import io.github.steve_linux.photograin.model.Geometry
@@ -114,5 +116,33 @@ class LocalAdjustmentTest {
         assertEquals(1f, radial.opt[0], 0f)
         assertEquals(1f, radial.opt[3], 0f)
         assertEquals(0.5f, radial.locB[3], 0f)
+    }
+
+    @Test
+    fun brushPaintsAlongTheStrokeAndErases() {
+        val raster = BrushRaster(2000, 1000)
+        assertEquals(1024, raster.width)
+        assertEquals(512, raster.height)
+        val paint = BrushStroke(listOf(0.2f, 0.5f, 0.8f, 0.5f), radius = 0.05f, hardness = 0.5f)
+        assertTrue(raster.sync(listOf(paint)))
+        assertEquals(1f, raster.valueAt(0.5f, 0.5f), 0f)
+        assertEquals(0f, raster.valueAt(0.5f, 0.1f), 0f)
+        assertEquals(0f, raster.valueAt(0.95f, 0.5f), 0f)
+        val erase = BrushStroke(listOf(0.5f, 0.5f), radius = 0.02f, hardness = 0.9f, erase = true)
+        raster.sync(listOf(paint, erase))
+        assertEquals(0f, raster.valueAt(0.5f, 0.5f), 0f)
+        assertEquals(1f, raster.valueAt(0.3f, 0.5f), 0f)
+    }
+
+    @Test
+    fun growingStrokeMatchesStrokeDrawnWhole() {
+        val points = listOf(0.1f, 0.1f, 0.3f, 0.25f, 0.35f, 0.6f, 0.7f, 0.65f, 0.9f, 0.2f)
+        val live = BrushRaster(1200, 900)
+        for (n in 2..points.size step 2) {
+            live.sync(listOf(BrushStroke(points.subList(0, n).toList(), 0.04f, 0.3f)))
+        }
+        val whole = BrushRaster(1200, 900)
+        whole.sync(listOf(BrushStroke(points, 0.04f, 0.3f)))
+        assertTrue(live.data.contentEquals(whole.data))
     }
 }

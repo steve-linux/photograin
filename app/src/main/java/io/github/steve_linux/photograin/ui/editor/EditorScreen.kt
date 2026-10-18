@@ -226,6 +226,8 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit) {
                         onInvert = viewModel::setMaskInvert,
                         onShowMask = viewModel::setShowMask,
                         onChangeFinished = viewModel::commit,
+                        brush = state.brush,
+                        onBrush = viewModel::setBrush,
                     )
                 } else if (state.tool == ToolGroup.CROP) {
                     CropPanel(

@@ -148,8 +148,10 @@ uniform mat3 uPosToSrc;
 uniform vec2 uSrcAspect;
 // Linear: start xy, end zw. Radial: center xy, radii zw (in long-edge units).
 uniform vec4 uMaskGeo[8];
-// Type (0 linear, 1 radial), angle, feather, invert.
+// Type (0 linear, 1 radial, 2 brush), angle (brush: layer of uBrush), feather, invert.
 uniform vec4 uMaskOpt[8];
+// Painted brush masks over the whole source, one layer per mask (see BrushRaster).
+uniform mediump sampler2DArray uBrush;
 // Exposure, contrast, highlights, shadows.
 uniform vec4 uLocA[8];
 // Temperature, tint, saturation, clarity.
@@ -282,7 +284,10 @@ float maskWeight(int i, vec2 pos) {
     vec4 g = uMaskGeo[i];
     vec4 o = uMaskOpt[i];
     float w;
-    if (o.x < 0.5) {
+    if (o.x > 1.5) {
+        vec2 src = clamp(q / uSrcAspect, 0.0, 1.0);
+        w = textureLod(uBrush, vec3(src, o.y), 0.0).r;
+    } else if (o.x < 0.5) {
         vec2 a = g.xy * uSrcAspect;
         vec2 d = g.zw * uSrcAspect - a;
         float t = dot(q - a, d) / max(dot(d, d), 1e-8);

@@ -26,6 +26,7 @@ import io.github.steve_linux.photograin.model.Curves
 import io.github.steve_linux.photograin.model.EditState
 import io.github.steve_linux.photograin.model.Geometry
 import io.github.steve_linux.photograin.model.GeometryMapper
+import io.github.steve_linux.photograin.model.BrushStroke
 import io.github.steve_linux.photograin.model.History
 import io.github.steve_linux.photograin.model.LocalAdjustment
 import io.github.steve_linux.photograin.model.LocalParamSpec
@@ -86,10 +87,17 @@ data class EditorUiState(
     val showMask: Boolean = false,
     /** A mask handle is being dragged: the mask is shown while it moves. */
     val maskDragging: Boolean = false,
+    val brush: BrushSettings = BrushSettings(),
 ) {
     /** [selectedMask] if it still exists (undo can remove it). */
     val activeMask: Int? get() = selectedMask?.takeIf { it in edit.masks.indices }
 }
+
+/**
+ * The brush used to paint masks. [size] (0..1) sets the radius relative to the screen, so
+ * zooming in paints finer detail; [hardness] (0..1) is the part painted at full strength.
+ */
+data class BrushSettings(val size: Float = 0.35f, val hardness: Float = 0.4f, val erase: Boolean = false)
 
 /** An export waiting for the user to pick where it goes. */
 data class SaveRequest(val options: ExportOptions, val fileName: String)
@@ -306,6 +314,32 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         updateMask { it.copy(mask = it.mask.copy(invert = invert)) }
         commit()
     }
+
+    fun setBrush(brush: BrushSettings) = _state.update { it.copy(brush = brush) }
+
+    /** Starts a stroke on the selected brush mask at source-normalized ([x], [y]). */
+    fun beginStroke(x: Float, y: Float, radius: Float) {
+        val b = _state.value.brush
+        val stroke = BrushStroke(listOf(x, y), radius, b.hardness, b.erase)
+        _state.update { it.copy(maskDragging = true) }
+        updateMask { it.copy(mask = it.mask.copy(strokes = it.mask.strokes + stroke)) }
+    }
+
+    /** Extends the stroke being painted, skipping points too close to the last one. */
+    fun extendStroke(x: Float, y: Float) = updateMask { local ->
+        val strokes = local.mask.strokes
+        val last = strokes.lastOrNull() ?: return@updateMask local
+        val n = last.points.size
+        val dx = x - last.points[n - 2]
+        val dy = y - last.points[n - 1]
+        // A fifth of the radius between points; the radius is in long-edge units, close enough here.
+        val step = last.radius * 0.2f
+        if (dx * dx + dy * dy < step * step) return@updateMask local
+        val grown = last.copy(points = last.points + listOf(x, y))
+        local.copy(mask = local.mask.copy(strokes = strokes.dropLast(1) + grown))
+    }
+
+    fun endStroke() = setMaskDragging(false)
 
     fun setShowMask(show: Boolean) = _state.update { it.copy(showMask = show) }
 

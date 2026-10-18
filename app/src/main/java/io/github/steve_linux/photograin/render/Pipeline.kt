@@ -4,10 +4,12 @@ package io.github.steve_linux.photograin.render
 import android.opengl.GLES30
 import io.github.steve_linux.photograin.math.Affine
 import io.github.steve_linux.photograin.model.Adjustments
+import io.github.steve_linux.photograin.model.BrushRaster
 import io.github.steve_linux.photograin.model.ColorProfile
 import io.github.steve_linux.photograin.model.CubeLut
 import io.github.steve_linux.photograin.model.Curves
 import io.github.steve_linux.photograin.model.LocalAdjustment
+import io.github.steve_linux.photograin.model.MaskType
 import io.github.steve_linux.photograin.model.Mat3
 import io.github.steve_linux.photograin.model.PxSize
 import java.nio.ByteBuffer
@@ -45,6 +47,10 @@ internal class Pipeline {
     private var uploadedCurves: Curves? = null
     private var lutTexture = 0
     private var uploadedLut: CubeLut? = null
+    private var brushTexture = 0
+    private var brushTextureSize: PxSize? = null
+    private val brushRasters = arrayOfNulls<BrushRaster>(LocalAdjustment.MAX)
+    private var brushUpload: ByteBuffer? = null
 
     init {
         val vertices = floatArrayOf(0f, 0f, 1f, 0f, 0f, 1f, 1f, 1f)
@@ -218,6 +224,9 @@ internal class Pipeline {
         p.int("uMaskCount", mu.count)
         val shown = if (showMask in 0 until mu.count) showMask else -1
         p.int("uShowMask", shown)
+        GLES30.glActiveTexture(GLES30.GL_TEXTURE4)
+        GLES30.glBindTexture(GLES30.GL_TEXTURE_2D_ARRAY, brushTexture(masks, sourceWidth, sourceHeight))
+        p.int("uBrush", 4)
         if (mu.count > 0 || shown >= 0) {
             p.mat3("uPosToSrc", posToSource.toGlMat3())
             val srcLong = max(sourceWidth, sourceHeight).toFloat()
@@ -277,6 +286,57 @@ internal class Pipeline {
         return lutTexture
     }
 
+    /**
+     * Texture array with one layer per mask index, holding the rasters of the brush masks.
+     * Layers are re-uploaded only when their strokes change. Without brush masks it is a
+     * 1x1 texture, so the sampler stays valid.
+     */
+    private fun brushTexture(masks: List<LocalAdjustment>, sourceWidth: Int, sourceHeight: Int): Int {
+        val hasBrush = masks.take(LocalAdjustment.MAX).any { it.mask.type == MaskType.BRUSH }
+        val size = if (hasBrush) {
+            BrushRaster.size(sourceWidth, sourceHeight)
+        } else {
+            brushTextureSize ?: PxSize(1, 1)
+        }
+        if (brushTexture == 0 || size != brushTextureSize) {
+            if (brushTexture == 0) brushTexture = GlUtil.genTexture()
+            GLES30.glActiveTexture(GLES30.GL_TEXTURE4)
+            GLES30.glBindTexture(GLES30.GL_TEXTURE_2D_ARRAY, brushTexture)
+            for (param in intArrayOf(GLES30.GL_TEXTURE_WRAP_S, GLES30.GL_TEXTURE_WRAP_T)) {
+                GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D_ARRAY, param, GLES30.GL_CLAMP_TO_EDGE)
+            }
+            GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D_ARRAY, GLES30.GL_TEXTURE_MIN_FILTER, GLES30.GL_LINEAR)
+            GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D_ARRAY, GLES30.GL_TEXTURE_MAG_FILTER, GLES30.GL_LINEAR)
+            GLES30.glTexImage3D(
+                GLES30.GL_TEXTURE_2D_ARRAY, 0, GLES30.GL_R8, size.width, size.height, LocalAdjustment.MAX, 0,
+                GLES30.GL_RED, GLES30.GL_UNSIGNED_BYTE, null,
+            )
+            brushTextureSize = size
+            brushRasters.fill(null)
+        }
+        if (!hasBrush) return brushTexture
+        GLES30.glActiveTexture(GLES30.GL_TEXTURE4)
+        GLES30.glBindTexture(GLES30.GL_TEXTURE_2D_ARRAY, brushTexture)
+        GLES30.glPixelStorei(GLES30.GL_UNPACK_ALIGNMENT, 1)
+        masks.take(LocalAdjustment.MAX).forEachIndexed { i, local ->
+            if (local.mask.type != MaskType.BRUSH) return@forEachIndexed
+            // A new raster is uploaded even when empty: the layer may hold another photo's paint.
+            val created = brushRasters[i] == null
+            val raster = brushRasters[i] ?: BrushRaster(sourceWidth, sourceHeight).also { brushRasters[i] = it }
+            if (raster.sync(local.mask.strokes) || created) {
+                val buffer = brushUpload?.takeIf { it.capacity() == raster.data.size }
+                    ?: ByteBuffer.allocateDirect(raster.data.size).also { brushUpload = it }
+                buffer.clear()
+                buffer.put(raster.data).position(0)
+                GLES30.glTexSubImage3D(
+                    GLES30.GL_TEXTURE_2D_ARRAY, 0, 0, 0, i, raster.width, raster.height, 1,
+                    GLES30.GL_RED, GLES30.GL_UNSIGNED_BYTE, buffer,
+                )
+            }
+        }
+        return brushTexture
+    }
+
     private fun drawQuad(program: GlProgram, clipRect: FloatArray, srcRect: FloatArray) {
         program.vec4("uDst", clipRect)
         program.vec4("uSrc", srcRect)
@@ -294,6 +354,9 @@ internal class Pipeline {
         blurB?.release(); blurB = null
         GlUtil.deleteTexture(curveTexture); curveTexture = 0
         GlUtil.deleteTexture(lutTexture); lutTexture = 0
+        GlUtil.deleteTexture(brushTexture); brushTexture = 0
+        brushTextureSize = null
+        brushRasters.fill(null)
         uploadedLut = null
         geometryProgram.release()
         blurProgram.release()

@@ -182,12 +182,19 @@
     <string name="local_add_radial">Circolare</string>
     <string name="local_linear_n">Lineare %1$d</string>
     <string name="local_radial_n">Circolare %1$d</string>
-    <string name="local_hint_empty">Aggiungi una sfumatura per regolare solo una parte della foto: lineare per un cielo o un primo piano, circolare per un soggetto.</string>
+    <string name="local_hint_empty">Aggiungi una maschera per regolare solo una parte della foto: lineare per un cielo o un primo piano, circolare per un soggetto, pennello per dipingere esattamente dove vuoi.</string>
     <string name="local_hint_select">Tocca una maschera per modificarla, o trascina il suo punto sulla foto.</string>
     <string name="local_invert">Inverti</string>
     <string name="local_show_mask">Mostra maschera</string>
     <string name="local_delete">Elimina maschera</string>
     <string name="local_feather">Sfumatura</string>
     <string name="guide_local_title">Maschere</string>
-    <string name="guide_local_body">Regola solo una parte della foto. Una sfumatura lineare scurisce un cielo troppo chiaro o schiarisce il primo piano; una circolare fa risaltare un soggetto. Trascina i punti sulla foto per spostarla e darle forma, usa {icon} per vedere dove agisce e Inverti per cambiare tutto il resto.</string>
+    <string name="guide_local_body">Regola solo una parte della foto. Una sfumatura lineare scurisce un cielo troppo chiaro o schiarisce il primo piano; una circolare fa risaltare un soggetto; col pennello dipingi tu la zona, e Cancella corregge le sbavature. Trascina i punti sulla foto per spostarla e darle forma, usa {icon} per vedere dove agisce e Inverti per cambiare tutto il resto.</string>
+    <string name="local_add_brush">Pennello</string>
+    <string name="local_brush_n">Pennello %1$d</string>
+    <string name="brush_paint">Dipingi</string>
+    <string name="brush_erase">Cancella</string>
+    <string name="brush_size">Dimensione pennello</string>
+    <string name="brush_hardness">Durezza</string>
+    <string name="local_hint_brush">Dipingi sulla foto con un dito; con due dita ingrandisci.</string>
 </resources>

@@ -81,8 +81,13 @@ object ShaderParams {
             } else {
                 geo[k] = m.x0; geo[k + 1] = m.y0; geo[k + 2] = m.radiusX; geo[k + 3] = m.radiusY
             }
-            opt[k] = if (m.type == MaskType.LINEAR) 0f else 1f
-            opt[k + 1] = m.angle
+            opt[k] = when (m.type) {
+                MaskType.LINEAR -> 0f
+                MaskType.RADIAL -> 1f
+                MaskType.BRUSH -> 2f
+            }
+            // A brush mask is drawn into the layer of the brush texture matching its index.
+            opt[k + 1] = if (m.type == MaskType.BRUSH) i.toFloat() else m.angle
             opt[k + 2] = m.feather
             opt[k + 3] = if (m.invert) 1f else 0f
             locA[k] = l.exposure; locA[k + 1] = l.contrast; locA[k + 2] = l.highlights; locA[k + 3] = l.shadows

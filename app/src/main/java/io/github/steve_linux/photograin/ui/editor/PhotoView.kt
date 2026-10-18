@@ -8,6 +8,7 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.drag
+import androidx.compose.ui.unit.Density
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
@@ -37,6 +38,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import io.github.steve_linux.photograin.model.CropRect
+import io.github.steve_linux.photograin.model.MaskType
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -157,7 +159,14 @@ fun PhotoView(
             val currentSelected by rememberUpdatedState(state.activeMask)
             // A finger on a mask handle: holding still must not reveal the original.
             var handleHeld by remember { mutableStateOf(false) }
-            if (space != null) MaskOverlay(state.edit.masks, state.activeMask, space, state.maskDragging)
+            val currentBrush by rememberUpdatedState(state.brush)
+            var brushCursor by remember { mutableStateOf<Offset?>(null) }
+            if (space != null) {
+                MaskOverlay(
+                    state.edit.masks, state.activeMask, space, state.maskDragging,
+                    brushCursor, brushRadiusPx(state.brush.size, density),
+                )
+            }
             Box(
                 Modifier
                     .fillMaxSize()
@@ -206,6 +215,40 @@ fun PhotoView(
                             val down = awaitFirstDown(requireUnconsumed = false)
                             val sp = currentSpace ?: return@awaitEachGesture
                             val masks = currentMasks
+                            val selected = currentSelected
+                            if (selected != null && masks[selected].mask.type == MaskType.BRUSH) {
+                                // One finger paints; a second one before it moves means zoom or pan.
+                                handleHeld = true
+                                var painting = false
+                                try {
+                                    while (true) {
+                                        val event = awaitPointerEvent()
+                                        if (event.changes.count { it.pressed } > 1) return@awaitEachGesture
+                                        val c = event.changes.firstOrNull { it.id == down.id } ?: return@awaitEachGesture
+                                        if (!c.pressed) return@awaitEachGesture
+                                        if ((c.position - down.position).getDistance() > viewConfiguration.touchSlop) {
+                                            c.consume()
+                                            break
+                                        }
+                                    }
+                                    val radiusPx = brushRadiusPx(currentBrush.size, this)
+                                    val (x, y) = sp.toSource(down.position)
+                                    viewModel.beginStroke(x.toFloat(), y.toFloat(), sp.unitsFor(down.position, radiusPx).toFloat())
+                                    painting = true
+                                    brushCursor = down.position
+                                    drag(down.id) { change ->
+                                        val (cx, cy) = sp.toSource(change.position)
+                                        viewModel.extendStroke(cx.toFloat(), cy.toFloat())
+                                        brushCursor = change.position
+                                        change.consume()
+                                    }
+                                } finally {
+                                    handleHeld = false
+                                    brushCursor = null
+                                    if (painting) viewModel.endStroke()
+                                }
+                                return@awaitEachGesture
+                            }
                             val (index, handle) = hitMask(sp, masks, currentSelected, down.position, reach)
                                 ?: return@awaitEachGesture
                             down.consume()
@@ -257,3 +300,6 @@ private fun SplitDivider(split: Float, rect: RectF, onSplit: (Float) -> Unit) {
             },
     )
 }
+
+/** Brush radius on screen for a brush [size] of 0..1. */
+private fun brushRadiusPx(size: Float, density: Density): Float = with(density) { (6 + 74 * size).dp.toPx() }
