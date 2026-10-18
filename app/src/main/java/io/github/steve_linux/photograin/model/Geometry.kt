@@ -280,6 +280,37 @@ class GeometryMapper(
         return CropRect(cx - hw, cy - hh, cx + hw, cy + hh)
     }
 
+    /**
+     * Largest crop of the given output aspect ratio (width / height) on image content, wherever
+     * it fits best: after a strong perspective correction the content is lopsided, and a crop
+     * kept in the middle would be needlessly small.
+     */
+    fun largestCrop(ratio: Float): CropRect {
+        val frameRatio = (frameWidth / frameHeight).toFloat()
+        val (nw, nh) = if (ratio > frameRatio) 1f to frameRatio / ratio else ratio / frameRatio to 1f
+        fun at(cx: Float, cy: Float): CropRect {
+            // As large as the frame allows around this point, then shrunk onto content.
+            val s = minOf(1f, 2 * minOf(cx, 1 - cx) / nw, 2 * minOf(cy, 1 - cy) / nh)
+            return fitCrop(CropRect(cx - nw * s / 2, cy - nh * s / 2, cx + nw * s / 2, cy + nh * s / 2))
+        }
+        var best = at(0.5f, 0.5f)
+        var step = 0.1f
+        var centre = 0.5f to 0.5f
+        // A coarse grid of centres, then a finer one around the best.
+        repeat(2) {
+            val (bx, by) = centre
+            for (i in -3..3) for (j in -3..3) {
+                val cx = (bx + i * step).coerceIn(0.05f, 0.95f)
+                val cy = (by + j * step).coerceIn(0.05f, 0.95f)
+                val c = at(cx, cy)
+                if (c.width * c.height > best.width * best.height) best = c
+            }
+            centre = (best.left + best.right) / 2 to (best.top + best.bottom) / 2
+            step /= 6
+        }
+        return best
+    }
+
     /** Largest crop of the given output aspect ratio (width / height) centered in the frame, fitted to content. */
     fun centeredCrop(ratio: Float): CropRect {
         val frameRatio = (frameWidth / frameHeight).toFloat()

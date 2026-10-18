@@ -59,6 +59,20 @@ class PerspectivePointsTest {
     }
 
     @Test
+    fun largestCropBeatsTheCentredOne() {
+        // A lopsided correction: the content leans to one side of the frame.
+        val lopsided = Quad(0.1f, 0.1f, 0.5f, 0.3f, 0.5f, 0.7f, 0.1f, 0.9f)
+        val m = GeometryMapper(600, 400, BaseOrientation(), Geometry(quad = lopsided))
+        val ratio = 1.5f
+        val centred = m.centeredCrop(ratio)
+        val largest = m.largestCrop(ratio)
+        assertTrue(m.isCropValid(largest))
+        assertTrue(largest.width * largest.height >= centred.width * centred.height)
+        assertTrue("largest ${largest.width * largest.height} centred ${centred.width * centred.height}", largest.width * largest.height > 1.1f * centred.width * centred.height)
+        assertEquals(ratio.toDouble(), (largest.width * 600.0) / (largest.height * 400.0), 0.01)
+    }
+
+    @Test
     fun unusableQuadIsIgnored() {
         val crossed = Quad(0.2f, 0.2f, 0.8f, 0.8f, 0.8f, 0.2f, 0.2f, 0.8f)
         val tiny = Quad(0.5f, 0.5f, 0.51f, 0.5f, 0.51f, 0.51f, 0.5f, 0.51f)

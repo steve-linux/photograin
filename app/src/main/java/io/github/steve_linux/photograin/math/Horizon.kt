@@ -3,20 +3,26 @@ package io.github.steve_linux.photograin.math
 
 import kotlin.math.PI
 import kotlin.math.abs
-import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.hypot
 import kotlin.math.roundToInt
+import kotlin.math.sin
 import kotlin.math.sqrt
 
 /**
  * Finds how much a photo is tilted from the straight lines in it: horizons, roofs, door
- * frames, walls. Horizontal and vertical lines count alike, since a tilt turns both.
+ * frames, walls, lines of text. Horizontal and vertical lines count alike, since a tilt
+ * turns both.
+ *
+ * Each candidate angle is scored by how sharply the photo's edges pile up into rows and
+ * columns once turned by it: at the true tilt, every straight line falls into a single row
+ * or column, and the sum of squared row and column totals peaks.
  */
 object Horizon {
     /** Largest tilt looked for, in degrees; beyond it lines are taken to be meant as diagonals. */
     const val MAX_TILT = 20f
 
-    private const val BLOCK = 16
-    private const val BIN = 0.1f
+    private const val MAX_POINTS = 40_000
 
     /**
      * The straighten angle in degrees (as [io.github.steve_linux.photograin.model.Geometry.straighten])
@@ -25,74 +31,90 @@ object Horizon {
      */
     fun straightenAngle(lum: FloatArray, width: Int, height: Int): Float? {
         require(lum.size >= width * height)
-        val bins = (2 * MAX_TILT / BIN).roundToInt() + 1
-        val histogram = DoubleArray(bins)
-        var total = 0.0
-        // Per block, the structure tensor of the gradients gives one orientation and how
-        // strongly the block agrees on it: a straight edge does, texture and noise do not.
-        for (by in 1 until height - BLOCK step BLOCK) for (bx in 1 until width - BLOCK step BLOCK) {
-            var xx = 0.0
-            var yy = 0.0
-            var xy = 0.0
-            for (y in by until minOf(by + BLOCK, height - 1)) for (x in bx until minOf(bx + BLOCK, width - 1)) {
-                val i = y * width + x
-                // Scharr: closer to the true direction than Sobel at angles between the axes.
-                val gx = 3 * (lum[i - width + 1] + lum[i + width + 1] - lum[i - width - 1] - lum[i + width - 1]) +
-                    10 * (lum[i + 1] - lum[i - 1])
-                val gy = 3 * (lum[i + width - 1] + lum[i + width + 1] - lum[i - width - 1] - lum[i - width + 1]) +
-                    10 * (lum[i + width] - lum[i - width])
-                xx += gx * gx
-                yy += gy * gy
-                xy += gx * gy
-            }
-            val energy = xx + yy
-            if (energy < 1e-4) continue
-            val coherence = sqrt((xx - yy) * (xx - yy) + 4 * xy * xy) / energy
-            if (coherence < 0.75) continue
-            // Gradient direction, then the edge across it, folded so vertical edges join horizontal ones.
-            val gradient = 0.5 * atan2(2 * xy, xx - yy) * 180 / PI
-            val tilt = fold(gradient + 90)
-            if (abs(tilt) > MAX_TILT) continue
-            val weight = energy * coherence * coherence
-            val pos = (tilt + MAX_TILT) / BIN
-            val lo = pos.toInt().coerceIn(0, bins - 1)
-            val hi = (lo + 1).coerceAtMost(bins - 1)
-            val f = pos - lo
-            histogram[lo] += weight * (1 - f)
-            histogram[hi] += weight * f
-            total += weight
+        val edges = edgePoints(lum, width, height) ?: return null
+        val diag = hypot(width.toDouble(), height.toDouble())
+        val bins = DoubleArray(2 * diag.toInt() + 4)
+        fun score(degrees: Double) = score(edges, degrees * PI / 180, bins, diag)
+
+        // Coarse, then fine around the best coarse angle.
+        val steps = (MAX_TILT * 2).roundToInt()
+        val coarse = DoubleArray(2 * steps + 1) { score((it - steps) * 0.5) }
+        val best = (coarse.indices.maxBy { coarse[it] } - steps) * 0.5
+        val fine = DoubleArray(21) { score(best - 0.5 + it * 0.05) }
+        val k = fine.indices.maxBy { fine[it] }
+        // A tilt only counts when it stands out from the typical angle: in noise or texture
+        // every angle scores about the same.
+        val typical = coarse.sorted()[coarse.size / 2]
+        if (fine[k] < typical * 1.25) return null
+        // Between fine steps, the vertex of the parabola through the best one and its neighbours.
+        var tilt = best - 0.5 + k * 0.05
+        if (k in 1..19) {
+            val d = fine[k - 1] - 2 * fine[k] + fine[k + 1]
+            if (d < 0) tilt += 0.05 * 0.5 * (fine[k - 1] - fine[k + 1]) / d
         }
-        if (total <= 0) return null
-        val smooth = smooth(histogram, radius = 5)
-        val peak = smooth.indices.maxBy { smooth[it] }
-        // The peak must stand out: a third of all line weight within a degree of it.
-        val reach = (1f / BIN).roundToInt()
-        var near = 0.0
-        var moment = 0.0
-        for (k in maxOf(0, peak - reach)..minOf(bins - 1, peak + reach)) {
-            near += histogram[k]
-            moment += histogram[k] * k
-        }
-        if (near < total / 3) return null
-        val tilt = (moment / near).toFloat() * BIN - MAX_TILT
         // A line tilted clockwise on screen is levelled by turning the photo the other way.
-        return -tilt
+        return (-tilt).toFloat()
     }
 
-    /** [degrees] folded into -45..45, a quarter turn being the same line orientation. */
-    private fun fold(degrees: Double): Double {
-        var d = degrees % 90
-        if (d >= 45) d -= 90
-        if (d < -45) d += 90
-        return d
-    }
-
-    private fun smooth(values: DoubleArray, radius: Int): DoubleArray = DoubleArray(values.size) { i ->
-        var sum = 0.0
-        for (k in -radius..radius) {
-            val j = i + k
-            if (j in values.indices) sum += values[j] * (radius + 1 - abs(k))
+    /** Edge points as (x, y, gx, gy), x and y from the centre: the strongest tenth or so, or null if too few. */
+    private fun edgePoints(lum: FloatArray, w: Int, h: Int): FloatArray? {
+        if (w < 16 || h < 16) return null
+        val mags = FloatArray(w * h)
+        val gxs = FloatArray(w * h)
+        val gys = FloatArray(w * h)
+        for (y in 1 until h - 1) for (x in 1 until w - 1) {
+            val i = y * w + x
+            // Scharr: closer to the true direction than Sobel at angles between the axes.
+            val gx = 3 * (lum[i - w + 1] + lum[i + w + 1] - lum[i - w - 1] - lum[i + w - 1]) + 10 * (lum[i + 1] - lum[i - 1])
+            val gy = 3 * (lum[i + w - 1] + lum[i + w + 1] - lum[i - w - 1] - lum[i - w + 1]) + 10 * (lum[i + w] - lum[i - w])
+            gxs[i] = gx
+            gys[i] = gy
+            mags[i] = sqrt(gx * gx + gy * gy)
         }
-        sum
+        // The threshold for the strongest tenth, from a spread-out sample.
+        val sample = FloatArray(4096) { mags[(it.toLong() * 7919 % mags.size).toInt()] }.sorted()
+        val threshold = maxOf(sample[(sample.size * 0.9).toInt()], 0.5f)
+        var count = 0
+        for (m in mags) if (m >= threshold) count++
+        if (count < 200) return null
+        val stride = maxOf(1, count / MAX_POINTS)
+        val out = FloatArray((count / stride + 1) * 4)
+        var n = 0
+        var seen = 0
+        for (i in mags.indices) {
+            if (mags[i] < threshold || seen++ % stride != 0 || n + 4 > out.size) continue
+            out[n++] = i % w - w / 2f
+            out[n++] = i / w - h / 2f
+            out[n++] = gxs[i]
+            out[n++] = gys[i]
+        }
+        return out.copyOf(n)
+    }
+
+    /**
+     * How sharply the edges fall into rows and columns once turned back by [radians]: each
+     * point adds the part of its gradient across the row (or column) to that row's total.
+     */
+    private fun score(edges: FloatArray, radians: Double, bins: DoubleArray, diag: Double): Double {
+        val c = cos(radians)
+        val s = sin(radians)
+        var total = 0.0
+        for (axis in 0..1) {
+            bins.fill(0.0)
+            var p = 0
+            while (p < edges.size) {
+                val x = edges[p]
+                val y = edges[p + 1]
+                val gx = edges[p + 2]
+                val gy = edges[p + 3]
+                // Rows run along the tilted direction (c, s); columns across it.
+                val pos = if (axis == 0) -x * s + y * c else x * c + y * s
+                val across = if (axis == 0) -gx * s + gy * c else gx * c + gy * s
+                bins[(pos + diag).toInt().coerceIn(0, bins.size - 1)] += abs(across)
+                p += 4
+            }
+            for (b in bins) total += b * b
+        }
+        return total
     }
 }

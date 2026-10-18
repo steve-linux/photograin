@@ -48,6 +48,7 @@ import io.github.steve_linux.photograin.model.Params
 import io.github.steve_linux.photograin.model.Quad
 import io.github.steve_linux.photograin.model.ToolGroup
 import java.util.Locale
+import kotlin.math.abs
 
 @Composable
 fun AdjustmentPanel(
@@ -186,7 +187,8 @@ fun CropPanel(
             label = stringResource(R.string.straighten),
             value = geometry.straighten,
             range = -45f..45f,
-            display = String.format(Locale.getDefault(), "%.1f°", geometry.straighten),
+            // Tiny automatic angles would otherwise read "-0.0°".
+            display = String.format(Locale.getDefault(), "%.1f°", if (abs(geometry.straighten) < 0.05f) 0f else geometry.straighten),
             onChange = onStraighten,
             onChangeFinished = onStraightenFinished,
             onReset = {

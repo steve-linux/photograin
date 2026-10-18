@@ -726,7 +726,7 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
     private fun refit(g: Geometry): Geometry {
         val m = mapper(g) ?: return g
         val ratio = aspectRatioValue(g.aspect, g)
-        return g.copy(crop = if (ratio != null) m.centeredCrop(ratio) else m.fitCrop(CropRect.FULL))
+        return g.copy(crop = m.largestCrop(ratio ?: (m.frameWidth / m.frameHeight).toFloat()))
     }
 
     /** Luminance of [bitmap] scaled down to [longEdge] pixels, with its size. */
