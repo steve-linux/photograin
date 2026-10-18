@@ -6,7 +6,6 @@ import android.graphics.Bitmap
 import android.graphics.ColorSpace
 import android.net.Uri
 import android.os.Build
-import android.util.Half
 import androidx.exifinterface.media.ExifInterface
 import io.github.steve_linux.photograin.model.ColorProfile
 import java.io.ByteArrayOutputStream
@@ -142,7 +141,7 @@ object ExportWriter {
                 if (deep) {
                     val halves = buffer.asShortBuffer()
                     for (x in 0 until w) for (c in 0 until 3) {
-                        val v = Half.toFloat(halves.get((r * w + x) * 4 + c))
+                        val v = HalfFloats.toFloat(halves.get((r * w + x) * 4 + c))
                         samples[x * 3 + c] = (v.coerceIn(0f, 1f) * 65535f + 0.5f).toInt().toShort()
                     }
                 } else {

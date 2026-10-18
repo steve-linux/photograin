@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package io.github.steve_linux.photograin
 
+import io.github.steve_linux.photograin.data.HalfFloats
 import io.github.steve_linux.photograin.data.TiffWriter
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -111,5 +112,25 @@ class TiffWriterTest {
         val valueAt = out.getInt(sub + 2 + 8) - start.toInt()
         assertEquals(28, out.getInt(valueAt))
         assertEquals(10, out.getInt(valueAt + 4))
+    }
+
+    @Test
+    fun halfFloats() {
+        // Known encodings: 1, 0.5, -2, the largest half, the smallest subnormal.
+        val known = mapOf(1f to 0x3C00, 0.5f to 0x3800, -2f to 0xC000, 65504f to 0x7BFF, 5.9604645e-8f to 0x0001, 0f to 0)
+        for ((v, bits) in known) {
+            assertEquals(bits.toShort(), HalfFloats.fromFloat(v))
+            assertEquals(v, HalfFloats.toFloat(bits.toShort()), 0f)
+        }
+        // Every finite half survives the round trip, and 8-bit levels land within half a 16-bit step.
+        for (bits in 0 until 0x7C00) {
+            val h = bits.toShort()
+            assertEquals(h, HalfFloats.fromFloat(HalfFloats.toFloat(h)))
+        }
+        for (level in 0..255) {
+            val v = HalfFloats.toFloat(HalfFloats.fromFloat(level / 255f))
+            assertEquals(level / 255f, v, 1f / 2048)
+        }
+        assertEquals(0x7C00.toShort(), HalfFloats.fromFloat(1e6f))
     }
 }

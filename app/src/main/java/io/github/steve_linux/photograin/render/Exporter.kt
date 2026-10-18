@@ -6,10 +6,10 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Rect
 import android.opengl.GLES30
-import android.util.Half
 import io.github.steve_linux.photograin.data.AiUpscaleSource
 import io.github.steve_linux.photograin.data.ColorSpaces
 import io.github.steve_linux.photograin.data.ExportOptions
+import io.github.steve_linux.photograin.data.HalfFloats
 import io.github.steve_linux.photograin.data.RegionSource
 import io.github.steve_linux.photograin.data.Retoucher
 import io.github.steve_linux.photograin.math.Affine
@@ -254,7 +254,7 @@ object Exporter {
         GLES30.glReadPixels(0, 0, w, h, GLES30.GL_RGBA, GLES30.GL_FLOAT, floats)
         val f = floats.asFloatBuffer()
         val s = out.asShortBuffer()
-        for (i in 0 until w * h * 4) s.put(i, Half.toHalf(f.get(i)))
+        for (i in 0 until w * h * 4) s.put(i, HalfFloats.fromFloat(f.get(i)))
     }
 
     /** [bitmap] of the source [region] with the edit's healing and clone spots drawn in. */
