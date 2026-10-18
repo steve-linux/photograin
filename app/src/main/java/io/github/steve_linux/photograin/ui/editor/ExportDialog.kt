@@ -33,6 +33,7 @@ import io.github.steve_linux.photograin.R
 import io.github.steve_linux.photograin.data.AiUpscaler
 import io.github.steve_linux.photograin.data.ExportFormat
 import io.github.steve_linux.photograin.data.ExportOptions
+import io.github.steve_linux.photograin.data.MetadataGroup
 import io.github.steve_linux.photograin.model.ColorProfile
 import io.github.steve_linux.photograin.model.PxSize
 
@@ -179,12 +180,30 @@ fun ExportOptionsEditor(
             Text(stringResource(R.string.export_keep_metadata), Modifier.weight(1f))
             Switch(checked = options.keepMetadata, onCheckedChange = { onChange(options.copy(keepMetadata = it)) })
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(R.string.export_keep_location), Modifier.weight(1f))
-            Switch(
-                checked = options.keepMetadata && options.keepLocation,
-                enabled = options.keepMetadata,
-                onCheckedChange = { onChange(options.copy(keepLocation = it)) },
+        if (options.keepMetadata) {
+            // Location keeps its own flag so photos shared before this choice existed stay private.
+            FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                for (g in MetadataGroup.entries) {
+                    val kept = g in options.keptGroups
+                    FilterChip(
+                        selected = kept,
+                        onClick = {
+                            onChange(
+                                if (g == MetadataGroup.LOCATION) {
+                                    options.copy(keepLocation = !kept)
+                                } else {
+                                    options.copy(dropped = if (kept) options.dropped + g else options.dropped - g)
+                                },
+                            )
+                        },
+                        label = { Text(stringResource(g.label)) },
+                    )
+                }
+            }
+            Text(
+                stringResource(R.string.export_metadata_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }

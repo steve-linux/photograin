@@ -26,6 +26,7 @@ import androidx.compose.material.icons.outlined.ContentPaste
 import androidx.compose.material.icons.outlined.Crop
 import androidx.compose.material.icons.outlined.Details
 import androidx.compose.material.icons.outlined.Gradient
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.RestartAlt
@@ -87,6 +88,7 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit) {
     // The dialog reopens with the last choices for this photo session, else the settings' defaults.
     var lastExport by remember { mutableStateOf<ExportOptions?>(null) }
     var menuOpen by remember { mutableStateOf(false) }
+    var showInfo by remember { mutableStateOf(false) }
     var lightCurves by rememberSaveable { mutableStateOf(false) }
     var colorHsl by rememberSaveable { mutableStateOf(false) }
 
@@ -163,6 +165,12 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit) {
                                 text = { Text(stringResource(R.string.reset_all)) },
                                 leadingIcon = { Icon(Icons.Outlined.RestartAlt, null) },
                                 onClick = { menuOpen = false; viewModel.resetAll() },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.photo_info)) },
+                                leadingIcon = { Icon(Icons.Outlined.Info, null) },
+                                enabled = state.image != null,
+                                onClick = { menuOpen = false; showInfo = true },
                             )
                         }
                     }
@@ -341,6 +349,9 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit) {
         }
     }
 
+    if (showInfo) {
+        state.image?.let { PhotoInfoDialog(it, onDismiss = { showInfo = false }) }
+    }
     if (showExport) {
         ExportDialog(
             initial = lastExport ?: settings.export,

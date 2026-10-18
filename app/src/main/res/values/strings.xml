@@ -60,7 +60,6 @@
     <string name="export_size">Size (long edge)</string>
     <string name="export_size_full">Original</string>
     <string name="export_dimensions" translatable="false">%1$d × %2$d px</string>
-    <string name="export_keep_location">Keep location (GPS)</string>
     <string name="export_format">Format</string>
     <string name="export_quality_lossless">Quality: 100 (lossless)</string>
     <string name="export_color_profile">Color profile</string>
@@ -131,6 +130,28 @@
     <string name="batch_done">Done: %1$d saved, %2$d failed</string>
     <string name="msg_exported_pictures">Photo saved to Pictures/Photograin</string>
     <string name="export_keep_metadata">Keep shooting data (EXIF)</string>
+    <string name="export_metadata_hint">Tap a kind of information to leave it out of the saved photo.</string>
+    <string name="photo_info">Photo information</string>
+    <string name="close">Close</string>
+    <string name="metadata_file">File</string>
+    <string name="metadata_size">Size</string>
+    <string name="metadata_none">This photo carries no camera information.</string>
+    <string name="metadata_date">Date</string>
+    <string name="metadata_camera">Camera</string>
+    <string name="metadata_settings">Shot settings</string>
+    <string name="metadata_author">Author</string>
+    <string name="metadata_location">Location</string>
+    <string name="metadata_taken">Taken</string>
+    <string name="metadata_camera_model">Model</string>
+    <string name="metadata_lens">Lens</string>
+    <string name="metadata_aperture">Aperture</string>
+    <string name="metadata_shutter">Shutter</string>
+    <string name="metadata_iso">ISO</string>
+    <string name="metadata_focal">Focal length</string>
+    <string name="metadata_artist">Artist</string>
+    <string name="metadata_copyright">Copyright</string>
+    <string name="metadata_coordinates">Coordinates</string>
+    <string name="metadata_altitude">Altitude</string>
     <string name="settings_title">Settings</string>
     <string name="settings_save">Save location</string>
     <string name="settings_save_pictures">Pictures/%1$s</string>
@@ -187,7 +208,7 @@
     <string name="guide_copy_title">Same edits on many photos</string>
     <string name="guide_copy_body">From the editor menu, copy the adjustments and paste them onto another photo. For many photos at once, tap “Batch” on the home screen: apply the copied adjustments or a preset and, if you like, export them all in one go.</string>
     <string name="guide_export_title">Save the photo</string>
-    <string name="guide_export_body">Tap {icon} to save a copy. Choose format, quality and size: you can also enlarge the photo 2× or 4×, with AI to restore detail. The sRGB color profile is right for sharing; Display P3 and Adobe RGB keep more color for printing.</string>
+    <string name="guide_export_body">Tap {icon} to save a copy. Choose format, quality and size: you can also enlarge the photo 2× or 4×, with AI to restore detail. The sRGB color profile is right for sharing; Display P3 and Adobe RGB keep more color for printing. Under the shooting data you choose what goes with the photo: date, camera, settings, author, location (off by default). Photo information in the ⋮ menu shows what the original contains.</string>
     <string name="guide_settings_title">Settings</string>
     <string name="guide_settings_body">With {icon} you choose where to save (Pictures/Photograin to begin with), how files are named, the default format, whether to remove the GPS location, and a light or dark theme.</string>
     <string name="tool_local">Retouch</string>
