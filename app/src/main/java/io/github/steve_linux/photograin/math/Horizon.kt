@@ -27,6 +27,9 @@ object Horizon {
     /** How far above the typical angle's score the best one must be to count. */
     private const val PROMINENCE = 1.25
 
+    /** Below this share of their typical score, the other axis's lines count as left scattered. */
+    private const val SCATTERED = 0.97
+
     /**
      * The straighten angle in degrees (as [io.github.steve_linux.photograin.model.Geometry.straighten])
      * that levels the [width] x [height] luminance image [lum], or null when it has no lines
@@ -122,12 +125,12 @@ object Horizon {
     }
 
     /**
-     * Whether [scores], with a fair share of the edges compared with the [other] axis, fall below
-     * their typical value at the angle [index]: those lines are not straightened by it.
+     * Whether [scores], with a fair share of the edges compared with the [other] axis, fall clearly
+     * below their typical value at the angle [index]: those lines are not straightened by it.
      */
     private fun scatters(scores: DoubleArray, other: DoubleArray, index: Int): Boolean {
         val typical = scores.sorted()[scores.size / 2]
-        return typical >= other.sorted()[other.size / 2] * 0.25 && scores[index] < typical
+        return typical >= other.sorted()[other.size / 2] * 0.25 && scores[index] < typical * SCATTERED
     }
 
     /**

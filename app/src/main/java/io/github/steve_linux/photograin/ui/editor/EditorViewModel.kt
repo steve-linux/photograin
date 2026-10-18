@@ -729,19 +729,26 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         return g.copy(crop = m.largestCrop(ratio ?: (m.frameWidth / m.frameHeight).toFloat()))
     }
 
-    /** Luminance of [bitmap] scaled down to [longEdge] pixels, with its size. */
+    /**
+     * Luminance of [bitmap] scaled down to about [longEdge] pixels, with its size. Each pixel
+     * averages a whole block, so fine detail does not turn into aliasing that blurs the lines.
+     */
     private fun luminance(bitmap: Bitmap, longEdge: Int): Triple<FloatArray, Int, Int> {
-        val s = minOf(1f, longEdge.toFloat() / maxOf(bitmap.width, bitmap.height))
-        val w = maxOf(1, (bitmap.width * s).toInt())
-        val h = maxOf(1, (bitmap.height * s).toInt())
-        val small = if (s < 1f) Bitmap.createScaledBitmap(bitmap, w, h, true) else bitmap
-        val px = IntArray(w * h)
-        small.getPixels(px, 0, w, 0, 0, w, h)
-        if (small !== bitmap) small.recycle()
-        val lum = FloatArray(w * h) { i ->
-            val c = px[i]
-            (0.2126f * ((c shr 16) and 0xFF) + 0.7152f * ((c shr 8) and 0xFF) + 0.0722f * (c and 0xFF)) / 255f
+        val k = maxOf(1, (maxOf(bitmap.width, bitmap.height) + longEdge - 1) / longEdge)
+        val w = maxOf(1, bitmap.width / k)
+        val h = maxOf(1, bitmap.height / k)
+        val lum = FloatArray(w * h)
+        val row = IntArray(bitmap.width)
+        for (y in 0 until h * k) {
+            bitmap.getPixels(row, 0, bitmap.width, 0, y, bitmap.width, 1)
+            val o = (y / k) * w
+            for (x in 0 until w * k) {
+                val c = row[x]
+                lum[o + x / k] += 0.2126f * ((c shr 16) and 0xFF) + 0.7152f * ((c shr 8) and 0xFF) + 0.0722f * (c and 0xFF)
+            }
         }
+        val scale = 1f / (255f * k * k)
+        for (i in lum.indices) lum[i] *= scale
         return Triple(lum, w, h)
     }
 
