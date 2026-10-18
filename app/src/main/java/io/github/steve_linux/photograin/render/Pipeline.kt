@@ -34,7 +34,8 @@ internal class Pipeline {
     private val geometryProgram = GlProgram(Shaders.VERTEX, Shaders.GEOMETRY)
     private val blurProgram = GlProgram(Shaders.VERTEX, Shaders.BLUR)
     private val colorProgram = GlProgram(Shaders.VERTEX, Shaders.COLOR)
-    private val halfFloat = GlUtil.hasExtension("GL_EXT_color_buffer_half_float") ||
+    /** Whether render targets can hold half floats; without them every pass rounds to 8 bits. */
+    val halfFloatTargets = GlUtil.hasExtension("GL_EXT_color_buffer_half_float") ||
         GlUtil.hasExtension("GL_EXT_color_buffer_float")
 
     val maxTextureSize = GlUtil.maxTextureSize()
@@ -82,7 +83,7 @@ internal class Pipeline {
     ) {
         val geoTarget = geo?.takeIf { it.matches(width, height) } ?: run {
             geo?.release()
-            RenderTarget(width, height, mipmap = true, halfFloat = halfFloat).also { geo = it }
+            RenderTarget(width, height, mipmap = true, halfFloat = halfFloatTargets).also { geo = it }
         }
 
         GLES30.glDisable(GLES30.GL_BLEND)
@@ -102,11 +103,11 @@ internal class Pipeline {
         val bh = max(1, ceil(height / down.toDouble()).toInt())
         val a = blurA?.takeIf { it.matches(bw, bh) } ?: run {
             blurA?.release()
-            RenderTarget(bw, bh, mipmap = false, halfFloat = halfFloat).also { blurA = it }
+            RenderTarget(bw, bh, mipmap = false, halfFloat = halfFloatTargets).also { blurA = it }
         }
         val b = blurB?.takeIf { it.matches(bw, bh) } ?: run {
             blurB?.release()
-            RenderTarget(bw, bh, mipmap = false, halfFloat = halfFloat).also { blurB = it }
+            RenderTarget(bw, bh, mipmap = false, halfFloat = halfFloatTargets).also { blurB = it }
         }
 
         blurProgram.use()

@@ -725,7 +725,7 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
                 try {
                     val (source, render) = Exporter.prepare(app, RegionSource.open(app, image.uri), image.base, edit, options)
                     val bitmap = source.use {
-                        Exporter.render(it, image.base, edit, lut, render.maxLongEdge, render.colorProfile, render.upscale) { p ->
+                        Exporter.render(it, image.base, edit, lut, render.maxLongEdge, render.colorProfile, render.upscale, render.format.deep) { p ->
                             _state.update { s -> s.copy(exportProgress = p) }
                         }
                     }

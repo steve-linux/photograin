@@ -6,20 +6,32 @@ import android.graphics.Bitmap
 import android.graphics.ColorSpace
 import android.net.Uri
 import android.os.Build
+import android.util.Half
 import androidx.exifinterface.media.ExifInterface
 import io.github.steve_linux.photograin.model.ColorProfile
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.IOException
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.util.zip.Inflater
 
-enum class ExportFormat(val mimeType: String, val extension: String, val label: String, val lossy: Boolean) {
+enum class ExportFormat(
+    val mimeType: String,
+    val extension: String,
+    val label: String,
+    val lossy: Boolean,
+    /** Rendered and stored with 16 bits per channel instead of 8. */
+    val deep: Boolean = false,
+) {
     JPEG("image/jpeg", "jpg", "JPEG", lossy = true),
     PNG("image/png", "png", "PNG", lossy = false),
     WEBP("image/webp", "webp", "WebP", lossy = true),
     AVIF("image/avif", "avif", "AVIF", lossy = true),
     /** At quality 100 JPEG XL is mathematically lossless. */
     JXL("image/jxl", "jxl", "JPEG XL", lossy = true),
+    /** 16 bits per channel, for further editing or printing: large files, no rounding to 8 bits. */
+    TIFF("image/tiff", "tif", "TIFF 16 bit", lossy = false, deep = true),
 }
 
 data class ExportOptions(
@@ -52,6 +64,10 @@ data class ExportOptions(
 /** Encodes a rendered bitmap, carries over useful metadata and writes it to a user-chosen document. */
 object ExportWriter {
     fun write(context: Context, bitmap: Bitmap, original: Uri, destination: Uri, options: ExportOptions) {
+        if (options.format == ExportFormat.TIFF) {
+            writeTiff(context, bitmap, original, destination, options)
+            return
+        }
         if (options.format == ExportFormat.AVIF || options.format == ExportFormat.JXL) {
             val exif = runCatching { exifPayload(context, original, options) }.getOrNull()
             // AVIF names sRGB and Display P3 with CICP codes; Adobe RGB needs its ICC profile.
@@ -95,6 +111,53 @@ object ExportWriter {
         // Pixels are already rotated, so viewers must not rotate them again.
         target.setAttribute(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL.toString())
         target.saveAttributes()
+    }
+
+    /**
+     * Writes [bitmap] as a 16-bit TIFF. A half-float bitmap keeps the precision of the render;
+     * an 8-bit one (no half-float rendering on this GPU) is widened.
+     */
+    private fun writeTiff(context: Context, bitmap: Bitmap, original: Uri, destination: Uri, options: ExportOptions) {
+        val exif = runCatching { exifPayload(context, original, options) }.getOrNull()
+        val icc = bitmap.colorSpace?.let(::iccProfile)
+        val w = bitmap.width
+        val deep = bitmap.config == Bitmap.Config.RGBA_F16
+        // Rows are copied out a band at a time: a full copy of a large half-float photo would double its memory.
+        val band = maxOf(1, (4 shl 20) / (w * 8))
+        var bandTop = -1
+        var bandRows = 0
+        val buffer = ByteBuffer.allocateDirect(w * band * (if (deep) 8 else 4)).order(ByteOrder.nativeOrder())
+        val tmp = File.createTempFile("export", ".tif", context.cacheDir)
+        try {
+            TiffWriter.write(tmp, w, bitmap.height, icc, exif, "Photograin") { y, samples ->
+                if (bandTop < 0 || y >= bandTop + bandRows) {
+                    bandTop = y
+                    bandRows = minOf(band, bitmap.height - y)
+                    val part = Bitmap.createBitmap(bitmap, 0, y, w, bandRows)
+                    buffer.clear()
+                    part.copyPixelsToBuffer(buffer)
+                    if (part !== bitmap) part.recycle()
+                }
+                val r = y - bandTop
+                if (deep) {
+                    val halves = buffer.asShortBuffer()
+                    for (x in 0 until w) for (c in 0 until 3) {
+                        val v = Half.toFloat(halves.get((r * w + x) * 4 + c))
+                        samples[x * 3 + c] = (v.coerceIn(0f, 1f) * 65535f + 0.5f).toInt().toShort()
+                    }
+                } else {
+                    for (x in 0 until w) for (c in 0 until 3) {
+                        val v = buffer.get((r * w + x) * 4 + c).toInt() and 0xFF
+                        samples[x * 3 + c] = (v * 257).toShort()
+                    }
+                }
+            }
+            val out = context.contentResolver.openOutputStream(destination, "wt")
+                ?: throw IOException("Cannot write $destination")
+            out.use { stream -> tmp.inputStream().use { it.copyTo(stream) } }
+        } finally {
+            tmp.delete()
+        }
     }
 
     /**
@@ -171,6 +234,6 @@ object ExportWriter {
             @Suppress("DEPRECATION")
             Bitmap.CompressFormat.WEBP
         }
-        ExportFormat.AVIF, ExportFormat.JXL -> throw IllegalArgumentException("$format is encoded natively")
+        ExportFormat.AVIF, ExportFormat.JXL, ExportFormat.TIFF -> throw IllegalArgumentException("$format is encoded natively")
     }
 }

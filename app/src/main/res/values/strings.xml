@@ -62,6 +62,7 @@
     <string name="export_dimensions" translatable="false">%1$d × %2$d px</string>
     <string name="export_format">Format</string>
     <string name="export_quality_lossless">Quality: 100 (lossless)</string>
+    <string name="export_tiff_hint">16 bits per color, for printing or editing in another program. Files are several times larger than JPEG.</string>
     <string name="export_color_profile">Color profile</string>
     <string name="export_color_profile_hint">Keeps more saturated colors for wide-gamut screens and printing. For sharing online, sRGB is safer.</string>
     <string name="export_action">Save</string>
@@ -208,7 +209,7 @@
     <string name="guide_copy_title">Same edits on many photos</string>
     <string name="guide_copy_body">From the editor menu, copy the adjustments and paste them onto another photo. For many photos at once, tap “Batch” on the home screen: apply the copied adjustments or a preset and, if you like, export them all in one go.</string>
     <string name="guide_export_title">Save the photo</string>
-    <string name="guide_export_body">Tap {icon} to save a copy. Choose format, quality and size: you can also enlarge the photo 2× or 4×, with AI to restore detail. The sRGB color profile is right for sharing; Display P3 and Adobe RGB keep more color for printing. Under the shooting data you choose what goes with the photo: date, camera, settings, author, location (off by default). Photo information in the ⋮ menu shows what the original contains.</string>
+    <string name="guide_export_body">Tap {icon} to save a copy. Choose format, quality and size (TIFF keeps 16 bits per color): you can also enlarge the photo 2× or 4×, with AI to restore detail. The sRGB color profile is right for sharing; Display P3 and Adobe RGB keep more color for printing. Under the shooting data you choose what goes with the photo: date, camera, settings, author, location (off by default). Photo information in the ⋮ menu shows what the original contains.</string>
     <string name="guide_settings_title">Settings</string>
     <string name="guide_settings_body">With {icon} you choose where to save (Pictures/Photograin to begin with), how files are named, the default format, whether to remove the GPS location, and a light or dark theme.</string>
     <string name="tool_local">Retouch</string>

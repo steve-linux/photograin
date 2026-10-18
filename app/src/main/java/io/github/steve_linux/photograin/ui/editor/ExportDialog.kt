@@ -93,6 +93,13 @@ fun ExportOptionsEditor(
                 FilterChip(selected = format == f, onClick = { onChange(options.copy(format = f)) }, label = { Text(f.label) })
             }
         }
+        if (format.deep) {
+            Text(
+                stringResource(R.string.export_tiff_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         if (format.lossy) {
             Spacer(Modifier.height(12.dp))
             val label = if (format == ExportFormat.JXL && quality.toInt() >= 100) {

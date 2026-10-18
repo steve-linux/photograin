@@ -6,6 +6,7 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Rect
 import android.opengl.GLES30
+import android.util.Half
 import io.github.steve_linux.photograin.data.AiUpscaleSource
 import io.github.steve_linux.photograin.data.ColorSpaces
 import io.github.steve_linux.photograin.data.ExportOptions
@@ -107,6 +108,7 @@ object Exporter {
         maxLongEdge: Int?,
         output: ColorProfile,
         upscale: Int = 1,
+        deep: Boolean = false,
         onProgress: (Float) -> Unit,
     ): Bitmap {
         val mapper = GeometryMapper(source.width, source.height, base, edit.geometry)
@@ -123,13 +125,16 @@ object Exporter {
         // The bitmaps are tagged with the output space so the encoder embeds its ICC profile. Tiles and
         // result share it, so drawing one onto the other copies the pixels without converting them.
         val colorSpace = ColorSpaces.of(output)
-        val result = Bitmap.createBitmap(layout.size.width, layout.size.height, Bitmap.Config.ARGB_8888, false, colorSpace)
-        val canvas = Canvas(result)
-        // Colors given in sRGB are converted to the bitmap's space by the canvas.
-        if (edit.frame.style != FrameStyle.NONE) canvas.drawColor(edit.frame.color)
-
-        OffscreenGl().use {
+        return OffscreenGl().use {
             val pipeline = Pipeline()
+            // A 16-bit export keeps the half-float precision the pipeline works in, where the GPU can render it.
+            val halfFloat = deep && pipeline.halfFloatTargets
+            val config = if (halfFloat) Bitmap.Config.RGBA_F16 else Bitmap.Config.ARGB_8888
+            val bytesPerPixel = if (halfFloat) 8 else 4
+            val result = Bitmap.createBitmap(layout.size.width, layout.size.height, config, false, colorSpace)
+            val canvas = Canvas(result)
+            // Colors given in sRGB are converted to the bitmap's space by the canvas.
+            if (edit.frame.style != FrameStyle.NONE) canvas.drawColor(edit.frame.color)
             try {
                 val margin = ShaderParams.tileMarginPx(out.longEdge)
                 val maxTex = pipeline.maxTextureSize
@@ -143,9 +148,10 @@ object Exporter {
                 val cols = ceil(out.width / tile.toDouble()).toInt()
                 val rows = ceil(out.height / tile.toDouble()).toInt()
                 val tileBitmaps = HashMap<Long, Bitmap>()
-                val pixels = ByteBuffer.allocateDirect(tile * tile * 4).order(ByteOrder.nativeOrder())
+                val pixels = ByteBuffer.allocateDirect(tile * tile * bytesPerPixel).order(ByteOrder.nativeOrder())
+                val floats = if (halfFloat) ByteBuffer.allocateDirect(tile * tile * 16).order(ByteOrder.nativeOrder()) else null
                 var sourceTexture = 0
-                val target = RenderTargetHolder()
+                val target = RenderTargetHolder(halfFloat)
                 // Spots crossing several tiles are worked out once.
                 val patches = HashMap<RetouchSpot, Retoucher.Patch>()
 
@@ -201,9 +207,13 @@ object Exporter {
 
                     pixels.clear()
                     GLES30.glPixelStorei(GLES30.GL_PACK_ALIGNMENT, 1)
-                    GLES30.glReadPixels(0, 0, tw, th, GLES30.GL_RGBA, GLES30.GL_UNSIGNED_BYTE, pixels)
+                    if (floats != null) {
+                        readHalfFloat(tw, th, pixels, floats)
+                    } else {
+                        GLES30.glReadPixels(0, 0, tw, th, GLES30.GL_RGBA, GLES30.GL_UNSIGNED_BYTE, pixels)
+                    }
                     val tileBitmap = tileBitmaps.getOrPut((tw.toLong() shl 32) or th.toLong()) {
-                        Bitmap.createBitmap(tw, th, Bitmap.Config.ARGB_8888, false, colorSpace)
+                        Bitmap.createBitmap(tw, th, config, false, colorSpace)
                     }
                     // A raw copy: setPixels() would treat the values as sRGB and convert them.
                     pixels.position(0)
@@ -217,11 +227,34 @@ object Exporter {
                 DecorPainter.drawShapes(canvas, layout.size, edit.shapes)
                 DecorPainter.drawTexts(canvas, layout.size, edit.texts)
                 tileBitmaps.values.forEach(Bitmap::recycle)
+                result
+            } catch (e: Throwable) {
+                result.recycle()
+                throw e
             } finally {
                 pipeline.release()
             }
         }
-        return result
+    }
+
+    /**
+     * Reads a [w] x [h] half-float tile into [out] as half floats, the layout of an RGBA_F16
+     * bitmap. Float reads are always allowed from a float buffer; half floats only when the
+     * driver says so, which saves the conversion.
+     */
+    private fun readHalfFloat(w: Int, h: Int, out: ByteBuffer, floats: ByteBuffer) {
+        val q = IntArray(2)
+        GLES30.glGetIntegerv(GLES30.GL_IMPLEMENTATION_COLOR_READ_FORMAT, q, 0)
+        GLES30.glGetIntegerv(GLES30.GL_IMPLEMENTATION_COLOR_READ_TYPE, q, 1)
+        if (q[0] == GLES30.GL_RGBA && q[1] == GLES30.GL_HALF_FLOAT) {
+            GLES30.glReadPixels(0, 0, w, h, GLES30.GL_RGBA, GLES30.GL_HALF_FLOAT, out)
+            return
+        }
+        floats.clear()
+        GLES30.glReadPixels(0, 0, w, h, GLES30.GL_RGBA, GLES30.GL_FLOAT, floats)
+        val f = floats.asFloatBuffer()
+        val s = out.asShortBuffer()
+        for (i in 0 until w * h * 4) s.put(i, Half.toHalf(f.get(i)))
     }
 
     /** [bitmap] of the source [region] with the edit's healing and clone spots drawn in. */
@@ -271,13 +304,13 @@ object Exporter {
 }
 
 /** Reusable output render target for export tiles. */
-private class RenderTargetHolder {
+private class RenderTargetHolder(private val halfFloat: Boolean) {
     private var target: RenderTarget? = null
 
     fun bind(w: Int, h: Int) {
         val t = target?.takeIf { it.matches(w, h) } ?: run {
             target?.release()
-            RenderTarget(w, h, mipmap = false, halfFloat = false).also { target = it }
+            RenderTarget(w, h, mipmap = false, halfFloat = halfFloat).also { target = it }
         }
         t.bind()
     }

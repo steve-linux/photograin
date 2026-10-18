@@ -55,6 +55,7 @@
     <string name="export_size_full">Originale</string>
     <string name="export_format">Formato</string>
     <string name="export_quality_lossless">Qualità: 100 (senza perdita)</string>
+    <string name="export_tiff_hint">16 bit per colore, per la stampa o per modificarla in un altro programma. I file sono molto più grandi di un JPEG.</string>
     <string name="export_color_profile">Profilo colore</string>
     <string name="export_color_profile_hint">Conserva colori più saturi per schermi ad ampia gamma e per la stampa. Per condividere online è più sicuro sRGB.</string>
     <string name="export_action">Salva</string>
@@ -195,7 +196,7 @@
     <string name="guide_copy_title">Stesse modifiche su più foto</string>
     <string name="guide_copy_body">Dal menu dell\'editor copia le regolazioni e incollale su un\'altra foto. Per molte foto insieme tocca «In serie» nella schermata iniziale: applichi le regolazioni copiate o un preset e, se vuoi, le esporti tutte in una volta.</string>
     <string name="guide_export_title">Salva la foto</string>
-    <string name="guide_export_body">Tocca {icon} per salvare una copia. Scegli formato, qualità e dimensione: puoi anche ingrandire la foto 2× o 4×, con l\'IA per recuperare i dettagli. Il profilo colore sRGB va bene per condividere; Display P3 e Adobe RGB conservano più colori per la stampa. Sotto i dati di scatto scegli cosa accompagna la foto: data, fotocamera, impostazioni, autore, posizione (esclusa di base). Informazioni foto nel menu ⋮ mostra cosa contiene l\'originale.</string>
+    <string name="guide_export_body">Tocca {icon} per salvare una copia. Scegli formato, qualità e dimensione (TIFF conserva 16 bit per colore): puoi anche ingrandire la foto 2× o 4×, con l\'IA per recuperare i dettagli. Il profilo colore sRGB va bene per condividere; Display P3 e Adobe RGB conservano più colori per la stampa. Sotto i dati di scatto scegli cosa accompagna la foto: data, fotocamera, impostazioni, autore, posizione (esclusa di base). Informazioni foto nel menu ⋮ mostra cosa contiene l\'originale.</string>
     <string name="guide_settings_title">Impostazioni</string>
     <string name="guide_settings_body">Con {icon} scegli dove salvare (per iniziare in Immagini/Photograin), come chiamare i file, il formato predefinito, se togliere la posizione GPS e il tema chiaro o scuro.</string>
     <string name="tool_local">Ritocco</string>
