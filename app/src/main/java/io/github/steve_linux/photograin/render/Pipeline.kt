@@ -2,7 +2,7 @@
 package io.github.steve_linux.photograin.render
 
 import android.opengl.GLES30
-import io.github.steve_linux.photograin.math.Affine
+import io.github.steve_linux.photograin.math.Homography
 import io.github.steve_linux.photograin.model.Adjustments
 import io.github.steve_linux.photograin.model.BrushRaster
 import io.github.steve_linux.photograin.model.ColorProfile
@@ -72,7 +72,7 @@ internal class Pipeline {
      */
     fun renderIntermediate(
         sourceTexture: Int,
-        outputToUv: Affine,
+        outputToUv: Homography,
         originX: Float,
         originY: Float,
         width: Int,
@@ -152,7 +152,7 @@ internal class Pipeline {
         output: ColorProfile = ColorProfile.SRGB,
         background: FloatArray = floatArrayOf(0f, 0f, 0f),
         masks: List<LocalAdjustment> = emptyList(),
-        posToSource: Affine = Affine.IDENTITY,
+        posToSource: Homography = Homography.IDENTITY,
         sourceWidth: Int = 1,
         sourceHeight: Int = 1,
         showMask: Int = -1,

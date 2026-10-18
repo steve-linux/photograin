@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package io.github.steve_linux.photograin
 
-import io.github.steve_linux.photograin.math.Affine
+import io.github.steve_linux.photograin.math.Homography
 import io.github.steve_linux.photograin.model.BaseOrientation
 import io.github.steve_linux.photograin.model.BrushRaster
 import io.github.steve_linux.photograin.model.BrushStroke
@@ -98,7 +98,7 @@ class LocalAdjustmentTest {
         assertEquals(0.5f, local.mask.y0, 1e-5f)
         assertEquals((PI / 2).toFloat(), abs(local.mask.angle), 1e-5f)
         assertTrue(local.mask.radiusX > local.mask.radiusY)
-        val linear = LocalAdjustment.create(MaskType.LINEAR, Affine.IDENTITY, 400, 300)
+        val linear = LocalAdjustment.create(MaskType.LINEAR, Homography.IDENTITY, 400, 300)
         assertTrue(linear.mask.y0 < linear.mask.y1)
         assertTrue(linear.exposure < 0f)
     }

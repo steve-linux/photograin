@@ -170,7 +170,7 @@
     <string name="guide_detail_title">Dettaglio ed Effetti</string>
     <string name="guide_detail_body">In Dettaglio regoli nitidezza, chiarezza e foschia, e riduci il rumore delle foto scattate con poca luce. In Effetti aggiungi vignettatura e grana da pellicola.</string>
     <string name="guide_crop_title">Ritaglio</string>
-    <string name="guide_crop_body">Scegli un formato (1:1, 4:3, 16:9…), trascina gli angoli, raddrizza l\'orizzonte, ruota o capovolgi la foto.</string>
+    <string name="guide_crop_body">Scegli un formato (1:1, 4:3, 16:9…), trascina gli angoli, raddrizza l\'orizzonte, ruota o capovolgi la foto. Con la prospettiva raddrizzi palazzi e linee che pendono.</string>
     <string name="guide_copy_title">Stesse modifiche su più foto</string>
     <string name="guide_copy_body">Dal menu dell\'editor copia le regolazioni e incollale su un\'altra foto. Per molte foto insieme tocca «In serie» nella schermata iniziale: applichi le regolazioni copiate o un preset e, se vuoi, le esporti tutte in una volta.</string>
     <string name="guide_export_title">Salva la foto</string>
@@ -207,4 +207,6 @@
     <string name="retouch_hint_select">Tocca un altro punto per correggerlo. Trascina un cerchio per spostare la correzione, o il suo gemello tratteggiato per scegliere da dove prenderla.</string>
     <string name="guide_heal_title">Togliere i difetti</string>
     <string name="guide_heal_body">In Ritocco scegli Correggi e tocca quello che vuoi togliere: una macchia, un granello di polvere, un filo. Photograin lo copre con una zona vicina simile. Trascina il cerchio tratteggiato per scegliere un\'altra zona, e usa Clona per una copia esatta.</string>
+    <string name="perspective_vertical">Prospettiva verticale</string>
+    <string name="perspective_horizontal">Prospettiva orizzontale</string>
 </resources>

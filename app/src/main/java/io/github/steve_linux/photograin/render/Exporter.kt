@@ -12,6 +12,8 @@ import io.github.steve_linux.photograin.data.ExportOptions
 import io.github.steve_linux.photograin.data.RegionSource
 import io.github.steve_linux.photograin.data.Retoucher
 import io.github.steve_linux.photograin.math.Affine
+import io.github.steve_linux.photograin.math.Homography
+import io.github.steve_linux.photograin.math.then
 import io.github.steve_linux.photograin.math.Vec2
 import io.github.steve_linux.photograin.model.BaseOrientation
 import io.github.steve_linux.photograin.model.ColorProfile
@@ -22,6 +24,7 @@ import io.github.steve_linux.photograin.model.PxSize
 import io.github.steve_linux.photograin.model.RetouchSpot
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.max
@@ -126,7 +129,8 @@ object Exporter {
                 var sample = 1
                 while (sample * 2 <= 1.0 / scale) sample *= 2
                 var tile = if (source is AiUpscaleSource) AI_TILE else TILE
-                while (tile > 256 && regionSpan(tile, margin, scale, sample) > maxTex) tile /= 2
+                val stretch = perspectiveStretch(edit)
+                while (tile > 256 && regionSpan(tile, margin, scale, sample) * stretch > maxTex) tile /= 2
 
                 val cols = ceil(out.width / tile.toDouble()).toInt()
                 val rows = ceil(out.height / tile.toDouble()).toInt()
@@ -227,12 +231,19 @@ object Exporter {
         return target
     }
 
+    /** How much perspective correction can enlarge a block of source pixels, at worst. */
+    private fun perspectiveStretch(edit: EditState): Double {
+        val g = edit.geometry
+        val k = (abs(g.vertical) + abs(g.horizontal)) * GeometryMapper.PERSPECTIVE_STRENGTH
+        return 1.0 / max(0.2, 1.0 - k)
+    }
+
     /** Pixel span of the decoded region for a tile, in the worst (45 degree) case. */
     private fun regionSpan(tile: Int, margin: Int, scale: Double, sample: Int): Double =
         (tile + 2.0 * margin) / scale / sample * 1.4143 + 4
 
     /** Source rectangle covering the output block, padded for the filter's reach and clamped. */
-    private fun sourceBounds(m: Affine, x: Int, y: Int, w: Int, h: Int, srcW: Int, srcH: Int): Rect {
+    private fun sourceBounds(m: Homography, x: Int, y: Int, w: Int, h: Int, srcW: Int, srcH: Int): Rect {
         val corners = listOf(
             m.apply(Vec2(x.toDouble(), y.toDouble())),
             m.apply(Vec2((x + w).toDouble(), y.toDouble())),

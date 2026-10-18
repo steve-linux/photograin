@@ -13,7 +13,7 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
-import io.github.steve_linux.photograin.math.Affine
+import io.github.steve_linux.photograin.math.Homography
 import io.github.steve_linux.photograin.model.LocalAdjustment
 import io.github.steve_linux.photograin.model.Mask
 import io.github.steve_linux.photograin.model.MaskType
@@ -35,7 +35,7 @@ enum class MaskHandle { START, END, MOVE, RADIUS_X, RADIUS_Y }
  */
 class MaskSpace(
     private val rect: RectF,
-    private val posToSource: Affine,
+    private val posToSource: Homography,
     sourceWidth: Int,
     sourceHeight: Int,
 ) {

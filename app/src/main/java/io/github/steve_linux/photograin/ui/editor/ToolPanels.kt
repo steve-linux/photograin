@@ -105,12 +105,19 @@ fun CropPanel(
     onAspect: (AspectRatio) -> Unit,
     onStraighten: (Float) -> Unit,
     onStraightenFinished: () -> Unit,
+    onPerspective: (vertical: Float, horizontal: Float) -> Unit,
     onRotate: () -> Unit,
     onFlipH: () -> Unit,
     onFlipV: () -> Unit,
     onReset: () -> Unit,
 ) {
-    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(max = 300.dp)
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+    ) {
         // Wrapped rather than scrolled, so every ratio is in sight.
         FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             for (aspect in AspectRatio.entries) {
@@ -130,6 +137,30 @@ fun CropPanel(
             onChangeFinished = onStraightenFinished,
             onReset = {
                 onStraighten(0f)
+                onStraightenFinished()
+            },
+        )
+        ParamSlider(
+            label = stringResource(R.string.perspective_vertical),
+            value = geometry.vertical,
+            range = -1f..1f,
+            display = signedPercent(geometry.vertical),
+            onChange = { onPerspective(it, geometry.horizontal) },
+            onChangeFinished = onStraightenFinished,
+            onReset = {
+                onPerspective(0f, geometry.horizontal)
+                onStraightenFinished()
+            },
+        )
+        ParamSlider(
+            label = stringResource(R.string.perspective_horizontal),
+            value = geometry.horizontal,
+            range = -1f..1f,
+            display = signedPercent(geometry.horizontal),
+            onChange = { onPerspective(geometry.vertical, it) },
+            onChangeFinished = onStraightenFinished,
+            onReset = {
+                onPerspective(geometry.vertical, 0f)
                 onStraightenFinished()
             },
         )
@@ -156,6 +187,11 @@ fun CropPanel(
             }
         }
     }
+}
+
+private fun signedPercent(v: Float): String {
+    val n = Math.round(v * 100)
+    return if (n > 0) "+$n" else "$n"
 }
 
 private fun formatValue(spec: ParamSpec, value: Float): String {

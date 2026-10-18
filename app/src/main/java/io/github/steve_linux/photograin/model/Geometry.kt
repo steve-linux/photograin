@@ -2,6 +2,8 @@
 package io.github.steve_linux.photograin.model
 
 import io.github.steve_linux.photograin.math.Affine
+import io.github.steve_linux.photograin.math.Homography
+import io.github.steve_linux.photograin.math.then
 import io.github.steve_linux.photograin.math.Vec2
 import kotlinx.serialization.Serializable
 import kotlin.math.PI
@@ -53,7 +55,7 @@ data class BaseOrientation(val mirror: Boolean = false, val quarterTurns: Int = 
     }
 }
 
-/** User-controlled geometry: rotation, mirroring, straightening and crop. */
+/** User-controlled geometry: rotation, mirroring, perspective, straightening and crop. */
 @Serializable
 data class Geometry(
     val quarterTurns: Int = 0,
@@ -61,6 +63,12 @@ data class Geometry(
     val flipV: Boolean = false,
     /** Fine rotation in degrees, -45..45. */
     val straighten: Float = 0f,
+    /**
+     * Perspective correction, -1..1. Positive [vertical] widens the top (for buildings shot
+     * from below); positive [horizontal] widens the left side.
+     */
+    val vertical: Float = 0f,
+    val horizontal: Float = 0f,
     val crop: CropRect = CropRect.FULL,
     val aspect: AspectRatio = AspectRatio.FREE,
 )
@@ -106,8 +114,23 @@ class GeometryMapper(
     private val straighten: Affine =
         Affine.rotateAround(geometry.straighten.toDouble() * PI / 180, frameWidth / 2, frameHeight / 2)
 
+    /**
+     * Keystone correction in the oriented frame, around its center: in coordinates where the
+     * frame spans -1..1, w = 1 + h*x + v*y, so the side with w < 1 grows and the other shrinks.
+     */
+    private val perspective: Homography = run {
+        val hw = frameWidth / 2
+        val hh = frameHeight / 2
+        val toUnit = Affine.translate(-hw, -hh).then(Affine.scale(1 / hw, 1 / hh))
+        val keystone = Homography(
+            g = geometry.horizontal * PERSPECTIVE_STRENGTH,
+            h = geometry.vertical * PERSPECTIVE_STRENGTH,
+        )
+        toUnit.then(keystone).then(toUnit.inverse())
+    }
+
     /** Source pixel -> straightened frame pixel. */
-    val sourceToFrame: Affine = orient.then(straighten)
+    val sourceToFrame: Homography = orient.then(perspective).then(straighten)
 
     /** Output size in pixels at this source resolution. */
     val outputSize: PxSize
@@ -120,7 +143,7 @@ class GeometryMapper(
         }
 
     /** Output pixel -> source pixel, the transform the renderer needs. */
-    fun outputToSource(crop: CropRect = geometry.crop): Affine {
+    fun outputToSource(crop: CropRect = geometry.crop): Homography {
         val frameToOutput = Affine.translate(-crop.left * frameWidth, -crop.top * frameHeight)
         return sourceToFrame.then(frameToOutput).inverse()
     }
@@ -129,7 +152,7 @@ class GeometryMapper(
      * Position in the whole output (0..1) -> position in the source (0..1). The same at any
      * resolution, so masks line up between the preview and the export.
      */
-    fun normalizedOutputToSource(): Affine {
+    fun normalizedOutputToSource(): Homography {
         val c = geometry.crop
         return Affine.scale(c.width * frameWidth, c.height * frameHeight)
             .then(outputToSource())
@@ -183,6 +206,9 @@ class GeometryMapper(
     }
 
     companion object {
+        /** Keystone at a slider value of 1: the near side shrinks to 1 / 1.3 of its size. */
+        const val PERSPECTIVE_STRENGTH = 0.3
+
         /** Clamps a crop to the 0..1 frame and enforces a minimum size. */
         fun clampCrop(c: CropRect, minSize: Float = 0.02f): CropRect {
             val l = c.left.coerceIn(0f, 1f - minSize)
@@ -194,9 +220,11 @@ class GeometryMapper(
     }
 }
 
-/** Rotates the whole edit by a clockwise quarter turn, carrying the crop along. */
+/** Rotates the whole edit by a clockwise quarter turn, carrying the crop and perspective along. */
 fun Geometry.rotatedClockwise(): Geometry = copy(
     quarterTurns = (quarterTurns + 1).mod(4),
+    vertical = horizontal,
+    horizontal = -vertical,
     crop = CropRect(1f - crop.bottom, crop.left, 1f - crop.top, crop.right),
 )
 
@@ -204,6 +232,7 @@ fun Geometry.rotatedClockwise(): Geometry = copy(
 fun Geometry.flippedHorizontally(): Geometry = copy(
     flipH = !flipH,
     straighten = -straighten,
+    horizontal = -horizontal,
     crop = CropRect(1f - crop.right, crop.top, 1f - crop.left, crop.bottom),
 )
 
@@ -211,5 +240,6 @@ fun Geometry.flippedHorizontally(): Geometry = copy(
 fun Geometry.flippedVertically(): Geometry = copy(
     flipV = !flipV,
     straighten = -straighten,
+    vertical = -vertical,
     crop = CropRect(crop.left, 1f - crop.bottom, crop.right, 1f - crop.top),
 )

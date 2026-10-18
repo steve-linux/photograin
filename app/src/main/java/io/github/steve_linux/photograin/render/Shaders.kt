@@ -20,7 +20,7 @@ void main() {
 }
 """
 
-    /** Resamples the source through the geometry transform; vCoord is in output pixels. */
+    /** Resamples the source through the geometry transform (projective); vCoord is in output pixels. */
     const val GEOMETRY = """#version 300 es
 precision highp float;
 uniform sampler2D uTex;
@@ -57,7 +57,8 @@ vec3 catmullRom(vec2 uv) {
 }
 
 void main() {
-    vec2 uv = (uM * vec3(vCoord, 1.0)).xy;
+    vec3 hm = uM * vec3(vCoord, 1.0);
+    vec2 uv = hm.xy / hm.z;
     vec2 inside = step(vec2(-0.0005), uv) * step(uv, vec2(1.0005));
     vec2 st = clamp(uv, 0.0, 1.0);
     vec3 c = uCubic ? catmullRom(st) : texture(uTex, st).rgb;
@@ -280,7 +281,8 @@ vec3 wbGains(float temp, float tint) {
 
 // Same as Mask.weight.
 float maskWeight(int i, vec2 pos) {
-    vec2 q = (uPosToSrc * vec3(pos, 1.0)).xy * uSrcAspect;
+    vec3 hp = uPosToSrc * vec3(pos, 1.0);
+    vec2 q = hp.xy / hp.z * uSrcAspect;
     vec4 g = uMaskGeo[i];
     vec4 o = uMaskOpt[i];
     float w;

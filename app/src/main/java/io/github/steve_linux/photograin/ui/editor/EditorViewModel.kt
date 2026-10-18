@@ -492,6 +492,13 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         e.copy(geometry = g.copy(crop = m.fitCrop(e.geometry.crop)))
     }
 
+    /** Live perspective correction; like straightening, the crop shrinks to keep out empty corners. */
+    fun setPerspective(vertical: Float, horizontal: Float) = updateLive { e ->
+        val g = e.geometry.copy(vertical = vertical.coerceIn(-1f, 1f), horizontal = horizontal.coerceIn(-1f, 1f))
+        val m = mapper(g) ?: return@updateLive e
+        e.copy(geometry = g.copy(crop = m.fitCrop(e.geometry.crop)))
+    }
+
     /** Live crop change from the overlay; rejected if it would include empty corners. */
     fun setCrop(crop: CropRect) = updateLive { e ->
         val clamped = GeometryMapper.clampCrop(crop)

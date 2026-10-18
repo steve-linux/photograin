@@ -255,6 +255,7 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit) {
                         onAspect = viewModel::setAspect,
                         onStraighten = viewModel::setStraighten,
                         onStraightenFinished = viewModel::commit,
+                        onPerspective = viewModel::setPerspective,
                         onRotate = viewModel::rotate,
                         onFlipH = viewModel::flipHorizontal,
                         onFlipV = viewModel::flipVertical,
