@@ -58,6 +58,8 @@ class SettingsStore private constructor(context: Context) {
                 keepLocation = prefs.getBoolean(KEY_LOCATION_TAGS, d.export.keepLocation),
                 colorProfile = enumOf(prefs.getString(KEY_PROFILE, null), d.export.colorProfile),
                 keepMetadata = prefs.getBoolean(KEY_METADATA, d.export.keepMetadata),
+                dropped = prefs.getStringSet(KEY_DROPPED, null).orEmpty()
+                    .mapNotNull { name -> MetadataGroup.entries.firstOrNull { it.name == name } }.toSet(),
             ),
             theme = enumOf(prefs.getString(KEY_THEME, null), d.theme),
         )
@@ -74,6 +76,7 @@ class SettingsStore private constructor(context: Context) {
             .putBoolean(KEY_LOCATION_TAGS, s.export.keepLocation)
             .putString(KEY_PROFILE, s.export.colorProfile.name)
             .putBoolean(KEY_METADATA, s.export.keepMetadata)
+            .putStringSet(KEY_DROPPED, s.export.dropped.map { it.name }.toSet())
             .putString(KEY_THEME, s.theme.name)
             .apply()
     }
@@ -88,6 +91,7 @@ class SettingsStore private constructor(context: Context) {
         private const val KEY_LOCATION_TAGS = "export_keep_location"
         private const val KEY_PROFILE = "export_color_profile"
         private const val KEY_METADATA = "export_keep_metadata"
+        private const val KEY_DROPPED = "export_dropped_metadata"
         private const val KEY_THEME = "theme"
 
         @Volatile private var instance: SettingsStore? = null

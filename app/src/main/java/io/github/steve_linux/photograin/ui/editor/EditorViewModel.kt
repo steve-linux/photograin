@@ -2,6 +2,8 @@
 package io.github.steve_linux.photograin.ui.editor
 
 import android.app.Application
+import android.graphics.Bitmap
+import android.graphics.Rect
 import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
@@ -16,6 +18,7 @@ import io.github.steve_linux.photograin.data.LutEntry
 import io.github.steve_linux.photograin.data.Preferences
 import io.github.steve_linux.photograin.data.RecipeStore
 import io.github.steve_linux.photograin.data.RegionSource
+import io.github.steve_linux.photograin.data.Retoucher
 import io.github.steve_linux.photograin.data.SaveLocation
 import io.github.steve_linux.photograin.data.SettingsStore
 import io.github.steve_linux.photograin.model.Adjustments
@@ -24,18 +27,30 @@ import io.github.steve_linux.photograin.model.CropRect
 import io.github.steve_linux.photograin.model.CubeLut
 import io.github.steve_linux.photograin.model.Curves
 import io.github.steve_linux.photograin.model.EditState
+import io.github.steve_linux.photograin.model.Frame
+import io.github.steve_linux.photograin.model.FrameStyle
+import io.github.steve_linux.photograin.model.ShapeItem
+import io.github.steve_linux.photograin.model.ShapeType
+import io.github.steve_linux.photograin.model.TextItem
 import io.github.steve_linux.photograin.model.Geometry
 import io.github.steve_linux.photograin.model.GeometryMapper
+import io.github.steve_linux.photograin.model.BrushStroke
 import io.github.steve_linux.photograin.model.History
 import io.github.steve_linux.photograin.model.LocalAdjustment
 import io.github.steve_linux.photograin.model.LocalParamSpec
 import io.github.steve_linux.photograin.model.Mask
+import io.github.steve_linux.photograin.model.WhiteBalance
+import io.github.steve_linux.photograin.model.RangeType
+import io.github.steve_linux.photograin.model.MaskRange
 import io.github.steve_linux.photograin.model.MaskType
 import io.github.steve_linux.photograin.model.Hsl
 import io.github.steve_linux.photograin.model.Look
 import io.github.steve_linux.photograin.model.ParamSpec
 import io.github.steve_linux.photograin.model.Preset
 import io.github.steve_linux.photograin.model.PxSize
+import io.github.steve_linux.photograin.model.Retouch
+import io.github.steve_linux.photograin.model.RetouchSpot
+import io.github.steve_linux.photograin.model.RetouchType
 import io.github.steve_linux.photograin.model.ToolGroup
 import io.github.steve_linux.photograin.model.flippedHorizontally
 import io.github.steve_linux.photograin.model.flippedVertically
@@ -86,10 +101,46 @@ data class EditorUiState(
     val showMask: Boolean = false,
     /** A mask handle is being dragged: the mask is shown while it moves. */
     val maskDragging: Boolean = false,
+    val brush: BrushSettings = BrushSettings(),
+    /** The preview with the healing and clone spots drawn in, or null when there are none. */
+    val retouchedPreview: Bitmap? = null,
+    /** In the Retouch tab: false for masks, true for healing and clone. */
+    val retouchMode: Boolean = false,
+    /** The spot being edited, by index in [EditState.retouch]. */
+    val selectedSpot: Int? = null,
+    /** Type and size (0..1, relative to the screen) of the next spot. */
+    val spotType: RetouchType = RetouchType.HEAL,
+    val spotSize: Float = 0.3f,
+    /** In the Effects tab: 0 effects, 1 frame, 2 text, 3 shapes. */
+    val effectsMode: Int = 0,
+    /** The text being edited, by index in [EditState.texts]. */
+    val selectedText: Int? = null,
+    /** The shape being edited, by index in [EditState.shapes]. */
+    val selectedShape: Int? = null,
+    /** A tap on the photo picks a color for this, instead of its usual meaning. */
+    val picker: Picker = Picker.NONE,
 ) {
+    /** [selectedShape] if it still exists. */
+    val activeShape: Int? get() = selectedShape?.takeIf { it in edit.shapes.indices }
+
+    /** [selectedText] if it still exists. */
+    val activeText: Int? get() = selectedText?.takeIf { it in edit.texts.indices }
+
+    /** [selectedSpot] if it still exists. */
+    val activeSpot: Int? get() = selectedSpot?.takeIf { it in edit.retouch.indices }
+
     /** [selectedMask] if it still exists (undo can remove it). */
     val activeMask: Int? get() = selectedMask?.takeIf { it in edit.masks.indices }
 }
+
+/**
+ * The brush used to paint masks. [size] (0..1) sets the radius relative to the screen, so
+ * zooming in paints finer detail; [hardness] (0..1) is the part painted at full strength.
+ */
+data class BrushSettings(val size: Float = 0.35f, val hardness: Float = 0.4f, val erase: Boolean = false)
+
+/** What a tap on the photo picks a color for. */
+enum class Picker { NONE, MASK_COLOR, WHITE_BALANCE }
 
 /** An export waiting for the user to pick where it goes. */
 data class SaveRequest(val options: ExportOptions, val fileName: String)
@@ -114,6 +165,7 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
             val presets = withContext(Dispatchers.IO) { library.userPresets() }
             _state.update { it.copy(luts = luts, userPresets = presets) }
         }
+        watchRetouch()
         // Load the LUT whenever the edit points at a different one (open, undo, paste, preset).
         viewModelScope.launch {
             _state.map { it.edit.adjustments.look.lutId }.distinctUntilChanged().collectLatest { id ->
@@ -154,7 +206,55 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun selectTool(tool: ToolGroup) = _state.update { it.copy(tool = tool) }
+    fun selectTool(tool: ToolGroup) = _state.update { it.copy(tool = tool, picker = Picker.NONE) }
+
+    // --- Eyedropper ----------------------------------------------------------------------------
+
+    fun setPicker(picker: Picker) = _state.update { it.copy(picker = picker) }
+
+    /**
+     * Uses the color at source-normalized ([x], [y]) for the current [Picker]: the hue of the
+     * selected mask's color range, or the white balance that makes it gray.
+     */
+    fun pickAt(x: Float, y: Float) {
+        val s = _state.value
+        val bitmap = s.image?.preview ?: return
+        val (r, g, b) = averageColor(bitmap, x, y)
+        when (s.picker) {
+            Picker.NONE -> return
+            Picker.MASK_COLOR -> {
+                val range = s.activeMask?.let { s.edit.masks[it].mask.range } ?: return
+                updateMask { it.copy(mask = it.mask.copy(range = range.copy(type = RangeType.COLOR, hue = MaskRange.hueOf(r, g, b), saturation = MaskRange.saturationOf(r, g, b)))) }
+            }
+            Picker.WHITE_BALANCE -> {
+                val (temperature, tint) = WhiteBalance.neutralize(r, g, b) ?: return
+                updateLive { e -> e.copy(adjustments = e.adjustments.copy(temperature = temperature, tint = tint)) }
+            }
+        }
+        _state.update { it.copy(picker = Picker.NONE) }
+        commit()
+    }
+
+    /** The mean color (0..1) of a small square of [bitmap] around source-normalized ([x], [y]). */
+    private fun averageColor(bitmap: Bitmap, x: Float, y: Float): Triple<Float, Float, Float> {
+        val cx = (x * bitmap.width).toInt().coerceIn(0, bitmap.width - 1)
+        val cy = (y * bitmap.height).toInt().coerceIn(0, bitmap.height - 1)
+        // About a fingertip on screen, so one odd pixel does not decide the result.
+        val half = maxOf(2, maxOf(bitmap.width, bitmap.height) / 150)
+        var r = 0f
+        var g = 0f
+        var b = 0f
+        var n = 0
+        for (py in (cy - half)..(cy + half)) for (px in (cx - half)..(cx + half)) {
+            if (px !in 0 until bitmap.width || py !in 0 until bitmap.height) continue
+            val c = bitmap.getPixel(px, py)
+            r += (c shr 16 and 0xFF) / 255f
+            g += (c shr 8 and 0xFF) / 255f
+            b += (c and 0xFF) / 255f
+            n++
+        }
+        return Triple(r / n, g / n, b / n)
+    }
 
     // --- Adjustments -------------------------------------------------------------------------
 
@@ -282,7 +382,7 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         commit()
     }
 
-    fun selectMask(index: Int?) = _state.update { it.copy(selectedMask = index) }
+    fun selectMask(index: Int?) = _state.update { it.copy(selectedMask = index, picker = Picker.NONE) }
 
     fun deleteMask(index: Int) {
         if (index !in _state.value.edit.masks.indices) return
@@ -307,6 +407,32 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         commit()
     }
 
+    fun setBrush(brush: BrushSettings) = _state.update { it.copy(brush = brush) }
+
+    /** Starts a stroke on the selected brush mask at source-normalized ([x], [y]). */
+    fun beginStroke(x: Float, y: Float, radius: Float) {
+        val b = _state.value.brush
+        val stroke = BrushStroke(listOf(x, y), radius, b.hardness, b.erase)
+        _state.update { it.copy(maskDragging = true) }
+        updateMask { it.copy(mask = it.mask.copy(strokes = it.mask.strokes + stroke)) }
+    }
+
+    /** Extends the stroke being painted, skipping points too close to the last one. */
+    fun extendStroke(x: Float, y: Float) = updateMask { local ->
+        val strokes = local.mask.strokes
+        val last = strokes.lastOrNull() ?: return@updateMask local
+        val n = last.points.size
+        val dx = x - last.points[n - 2]
+        val dy = y - last.points[n - 1]
+        // A fifth of the radius between points; the radius is in long-edge units, close enough here.
+        val step = last.radius * 0.2f
+        if (dx * dx + dy * dy < step * step) return@updateMask local
+        val grown = last.copy(points = last.points + listOf(x, y))
+        local.copy(mask = local.mask.copy(strokes = strokes.dropLast(1) + grown))
+    }
+
+    fun endStroke() = setMaskDragging(false)
+
     fun setShowMask(show: Boolean) = _state.update { it.copy(showMask = show) }
 
     fun setMaskDragging(dragging: Boolean) {
@@ -317,6 +443,167 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
     private fun updateMask(transform: (LocalAdjustment) -> LocalAdjustment) {
         val index = _state.value.activeMask ?: return
         updateLive { e -> e.copy(masks = e.masks.mapIndexed { i, l -> if (i == index) transform(l) else l }) }
+    }
+
+    // --- Healing and clone ---------------------------------------------------------------------
+
+    fun setRetouchMode(on: Boolean) = _state.update { it.copy(retouchMode = on) }
+
+    /**
+     * Adds a spot at source-normalized ([x], [y]) of [radius] long-edge units, taking its
+     * source from the best matching nearby area, and selects it.
+     */
+    fun addSpot(x: Float, y: Float, radius: Float) {
+        val s = _state.value
+        val image = s.image ?: return
+        if (s.edit.retouch.size >= Retouch.MAX_SPOTS) return
+        val type = s.spotType
+        viewModelScope.launch {
+            val bitmap = s.retouchedPreview ?: image.preview
+            val (sx, sy) = withContext(Dispatchers.Default) {
+                val w = bitmap.width
+                val h = bitmap.height
+                val pixels = IntArray(w * h)
+                bitmap.getPixels(pixels, 0, w, 0, 0, w, h)
+                val rPx = radius * maxOf(w, h).toDouble()
+                Retouch.findSource(w, h, x * w.toDouble(), y * h.toDouble(), rPx, type == RetouchType.HEAL) { px, py ->
+                    val c = pixels[py * w + px]
+                    floatArrayOf(((c shr 16) and 0xFF).toFloat(), ((c shr 8) and 0xFF).toFloat(), (c and 0xFF).toFloat())
+                }.let { (a, b) -> (a / w).toFloat() to (b / h).toFloat() }
+            }
+            val spot = RetouchSpot(type, x, y, sx, sy, radius)
+            updateLive { it.copy(retouch = it.retouch + spot) }
+            _state.update { it.copy(selectedSpot = it.edit.retouch.lastIndex) }
+            commit()
+        }
+    }
+
+    fun selectSpot(index: Int?) = _state.update { it.copy(selectedSpot = index) }
+
+    /** Live change of the selected spot, from dragging it or the panel; [commit] when done. */
+    fun setSpot(spot: RetouchSpot) {
+        val index = _state.value.activeSpot ?: return
+        updateLive { e -> e.copy(retouch = e.retouch.mapIndexed { i, old -> if (i == index) spot else old }) }
+    }
+
+    fun deleteSpot(index: Int) {
+        if (index !in _state.value.edit.retouch.indices) return
+        updateLive { e -> e.copy(retouch = e.retouch.filterIndexed { i, _ -> i != index }) }
+        _state.update { it.copy(selectedSpot = null) }
+        commit()
+    }
+
+    /** Type of the selected spot (if any) and of the next ones. */
+    fun setSpotType(type: RetouchType) {
+        _state.update { it.copy(spotType = type) }
+        val index = _state.value.activeSpot ?: return
+        setSpot(_state.value.edit.retouch[index].copy(type = type))
+        commit()
+    }
+
+    fun setSpotSize(size: Float) = _state.update { it.copy(spotSize = size) }
+
+    /** Keeps [EditorUiState.retouchedPreview] in step with the spots, reusing unchanged ones. */
+    private fun watchRetouch() {
+        val patches = java.util.concurrent.ConcurrentHashMap<RetouchSpot, Retoucher.Patch>()
+        var patchesFor: Bitmap? = null
+        viewModelScope.launch {
+            _state.map { it.image?.preview to it.edit.retouch }.distinctUntilChanged().collectLatest { (preview, spots) ->
+                if (preview == null || spots.isEmpty()) {
+                    _state.update { it.copy(retouchedPreview = null) }
+                    return@collectLatest
+                }
+                if (patchesFor !== preview) {
+                    patches.clear()
+                    patchesFor = preview
+                }
+                val result = withContext(Dispatchers.Default) {
+                    val w = preview.width
+                    val h = preview.height
+                    val copy = preview.copy(Bitmap.Config.ARGB_8888, true)
+                    Retoucher.apply(copy, Rect(0, 0, w, h), 1, w, h, spots, patches) { r, _ ->
+                        val part = Bitmap.createBitmap(preview, r.left, r.top, r.width(), r.height())
+                        if (part === preview) preview.copy(Bitmap.Config.ARGB_8888, false) else part
+                    }
+                    patches.keys.retainAll(spots.toSet())
+                    copy
+                }
+                _state.update { if (it.image?.preview === preview) it.copy(retouchedPreview = result) else it }
+            }
+        }
+    }
+
+    // --- Frame and text ------------------------------------------------------------------------
+
+    fun setEffectsMode(mode: Int) = _state.update { it.copy(effectsMode = mode) }
+
+    /** Live frame change; [commit] when a slider is released. */
+    fun setFrame(frame: Frame) = updateLive { it.copy(frame = frame) }
+
+    /** Adds [text] and selects it: on a polaroid's bottom border if it has no caption yet, else in the middle. */
+    fun addText(text: String) {
+        val e = _state.value.edit
+        if (text.isBlank() || e.texts.size >= TextItem.MAX_ITEMS) return
+        val image = mapper()?.outputSize
+        // Each new text a little lower than the last, so they do not land on top of each other.
+        var item = TextItem(text.trim(), y = 0.5f + 0.08f * (e.texts.size % 4))
+        if (image != null && e.frame.style == FrameStyle.POLAROID && e.texts.isEmpty()) {
+            val layout = e.frame.layout(image)
+            val bottomTop = layout.imageTop + image.height
+            val y = (bottomTop + layout.size.height) / 2f / layout.size.height
+            // A caption on the polaroid's bottom border: dark on a light border, white on a dark one.
+            val c = e.frame.color
+            val light = 0.299 * (c shr 16 and 0xFF) + 0.587 * (c shr 8 and 0xFF) + 0.114 * (c and 0xFF) > 140
+            item = item.copy(y = y, color = if (light) 0xFF333333.toInt() else Frame.WHITE, shadow = false)
+        }
+        updateLive { it.copy(texts = it.texts + item) }
+        _state.update { it.copy(selectedText = it.edit.texts.lastIndex) }
+        commit()
+    }
+
+    fun selectText(index: Int?) = _state.update { it.copy(selectedText = index) }
+
+    /** Live change of the selected text; [commit] when done. */
+    fun setText(item: TextItem) {
+        val index = _state.value.activeText ?: return
+        updateLive { e -> e.copy(texts = e.texts.mapIndexed { i, old -> if (i == index) item else old }) }
+    }
+
+    fun deleteText(index: Int) {
+        if (index !in _state.value.edit.texts.indices) return
+        updateLive { e -> e.copy(texts = e.texts.filterIndexed { i, _ -> i != index }) }
+        _state.update { it.copy(selectedText = null) }
+        commit()
+    }
+
+    /** Adds a shape of [type] in the middle of the output and selects it; each one a bit lower. */
+    fun addShape(type: ShapeType) {
+        val e = _state.value.edit
+        if (e.shapes.size >= ShapeItem.MAX_ITEMS) return
+        val dy = 0.06f * (e.shapes.size % 4)
+        val shape = when (type) {
+            // Lines and arrows lie flat; boxes keep the photo's proportions.
+            ShapeType.LINE, ShapeType.ARROW -> ShapeItem(type, 0.3f, 0.5f + dy, 0.7f, 0.5f + dy)
+            else -> ShapeItem(type, 0.35f, 0.35f + dy, 0.65f, 0.65f + dy)
+        }
+        updateLive { it.copy(shapes = it.shapes + shape) }
+        _state.update { it.copy(selectedShape = it.edit.shapes.lastIndex) }
+        commit()
+    }
+
+    fun selectShape(index: Int?) = _state.update { it.copy(selectedShape = index) }
+
+    /** Live change of the selected shape; [commit] when done. */
+    fun setShape(shape: ShapeItem) {
+        val index = _state.value.activeShape ?: return
+        updateLive { e -> e.copy(shapes = e.shapes.mapIndexed { i, old -> if (i == index) shape else old }) }
+    }
+
+    fun deleteShape(index: Int) {
+        if (index !in _state.value.edit.shapes.indices) return
+        updateLive { e -> e.copy(shapes = e.shapes.filterIndexed { i, _ -> i != index }) }
+        _state.update { it.copy(selectedShape = null) }
+        commit()
     }
 
     // --- Before / after ----------------------------------------------------------------------
@@ -347,6 +634,13 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
     /** Live straighten; the crop shrinks as needed so no empty corners appear. */
     fun setStraighten(degrees: Float) = updateLive { e ->
         val g = e.geometry.copy(straighten = degrees.coerceIn(-45f, 45f))
+        val m = mapper(g) ?: return@updateLive e
+        e.copy(geometry = g.copy(crop = m.fitCrop(e.geometry.crop)))
+    }
+
+    /** Live perspective correction; like straightening, the crop shrinks to keep out empty corners. */
+    fun setPerspective(vertical: Float, horizontal: Float) = updateLive { e ->
+        val g = e.geometry.copy(vertical = vertical.coerceIn(-1f, 1f), horizontal = horizontal.coerceIn(-1f, 1f))
         val m = mapper(g) ?: return@updateLive e
         e.copy(geometry = g.copy(crop = m.fitCrop(e.geometry.crop)))
     }
@@ -431,7 +725,7 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
                 try {
                     val (source, render) = Exporter.prepare(app, RegionSource.open(app, image.uri), image.base, edit, options)
                     val bitmap = source.use {
-                        Exporter.render(it, image.base, edit, lut, render.maxLongEdge, render.colorProfile, render.upscale) { p ->
+                        Exporter.render(it, image.base, edit, lut, render.maxLongEdge, render.colorProfile, render.upscale, render.format.deep) { p ->
                             _state.update { s -> s.copy(exportProgress = p) }
                         }
                     }

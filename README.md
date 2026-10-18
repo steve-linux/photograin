@@ -10,7 +10,7 @@ Editor fotografico non distruttivo per Android, libero (GPL-3.0-or-later) e pens
   salvata nello spazio dell'app, con annulla/ripeti illimitati.
 - **Luce**: esposizione, contrasto, luci, ombre, bianchi, neri.
 - **Colore**: temperatura, tinta, vividezza, saturazione.
-- **Dettaglio**: nitidezza, chiarezza, rimozione foschia.
+- **Dettagli**: nitidezza, chiarezza, rimozione foschia.
 - **Effetti**: vignettatura, grana pellicola.
 - **Stili**: preset pronti (Vivace, Caldo, Freddo, Morbido, Pellicola, B/N…) e preset personali
   salvabili; importazione di LUT `.cube` (3D e 1D) applicati sulla GPU con intensità regolabile.
@@ -20,7 +20,9 @@ Editor fotografico non distruttivo per Android, libero (GPL-3.0-or-later) e pens
 - **Confronto prima/dopo**: tieni premuto sulla foto, oppure vista divisa con cursore.
 - **Copia/incolla** delle regolazioni tra foto.
 - **Esportazione a piena risoluzione**, elaborata a tasselli per foto più grandi del limite della GPU;
-  JPEG, PNG, WebP, AVIF, JPEG XL; i dati EXIF utili vengono mantenuti, il GPS rimosso per impostazione predefinita.
+  JPEG, PNG, WebP, AVIF, JPEG XL e TIFF a 16 bit per canale; scegli quali dati EXIF mantenere
+  (data, fotocamera, impostazioni, autore, posizione), con il GPS rimosso per impostazione predefinita.
+- **Informazioni foto**: dal menu ⋮ dell'editor vedi dimensioni, data, fotocamera, obiettivo ed esposizione dell'originale.
 - **AVIF e JPEG XL**: esportazione in entrambi i formati (JPEG XL anche senza perdita, a qualità 100),
   con EXIF e profilo colore; i file `.jxl` si possono anche aprire e modificare.
 - **Profili colore**: le foto con profilo ICC ad ampia gamma (Display P3, Adobe RGB…) e i RAW si

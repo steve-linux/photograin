@@ -11,15 +11,26 @@ import io.github.steve_linux.photograin.model.ColorProfile
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.IOException
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.util.zip.Inflater
 
-enum class ExportFormat(val mimeType: String, val extension: String, val label: String, val lossy: Boolean) {
+enum class ExportFormat(
+    val mimeType: String,
+    val extension: String,
+    val label: String,
+    val lossy: Boolean,
+    /** Rendered and stored with 16 bits per channel instead of 8. */
+    val deep: Boolean = false,
+) {
     JPEG("image/jpeg", "jpg", "JPEG", lossy = true),
     PNG("image/png", "png", "PNG", lossy = false),
     WEBP("image/webp", "webp", "WebP", lossy = true),
     AVIF("image/avif", "avif", "AVIF", lossy = true),
     /** At quality 100 JPEG XL is mathematically lossless. */
     JXL("image/jxl", "jxl", "JPEG XL", lossy = true),
+    /** 16 bits per channel, for further editing or printing: large files, no rounding to 8 bits. */
+    TIFF("image/tiff", "tif", "TIFF 16 bit", lossy = false, deep = true),
 }
 
 data class ExportOptions(
@@ -37,40 +48,25 @@ data class ExportOptions(
     val colorProfile: ColorProfile = ColorProfile.SRGB,
     /** Camera, lens, exposure and date tags; off strips everything but what viewers need to show the pixels. */
     val keepMetadata: Boolean = true,
-)
+    /** Kinds of metadata left out even when [keepMetadata] is on; location follows [keepLocation]. */
+    val dropped: Set<MetadataGroup> = emptySet(),
+) {
+    /** The kinds of metadata this export carries. */
+    val keptGroups: List<MetadataGroup>
+        get() = if (!keepMetadata) {
+            emptyList()
+        } else {
+            MetadataGroup.entries.filter { it !in dropped && (it != MetadataGroup.LOCATION || keepLocation) }
+        }
+}
 
 /** Encodes a rendered bitmap, carries over useful metadata and writes it to a user-chosen document. */
 object ExportWriter {
-    private val COPIED_TAGS = listOf(
-        ExifInterface.TAG_DATETIME_ORIGINAL,
-        ExifInterface.TAG_OFFSET_TIME_ORIGINAL,
-        ExifInterface.TAG_DATETIME_DIGITIZED,
-        ExifInterface.TAG_MAKE,
-        ExifInterface.TAG_MODEL,
-        ExifInterface.TAG_LENS_MAKE,
-        ExifInterface.TAG_LENS_MODEL,
-        ExifInterface.TAG_F_NUMBER,
-        ExifInterface.TAG_EXPOSURE_TIME,
-        ExifInterface.TAG_PHOTOGRAPHIC_SENSITIVITY,
-        ExifInterface.TAG_FOCAL_LENGTH,
-        ExifInterface.TAG_FOCAL_LENGTH_IN_35MM_FILM,
-        ExifInterface.TAG_FLASH,
-        ExifInterface.TAG_ARTIST,
-        ExifInterface.TAG_COPYRIGHT,
-    )
-
-    private val LOCATION_TAGS = listOf(
-        ExifInterface.TAG_GPS_LATITUDE,
-        ExifInterface.TAG_GPS_LATITUDE_REF,
-        ExifInterface.TAG_GPS_LONGITUDE,
-        ExifInterface.TAG_GPS_LONGITUDE_REF,
-        ExifInterface.TAG_GPS_ALTITUDE,
-        ExifInterface.TAG_GPS_ALTITUDE_REF,
-        ExifInterface.TAG_GPS_TIMESTAMP,
-        ExifInterface.TAG_GPS_DATESTAMP,
-    )
-
     fun write(context: Context, bitmap: Bitmap, original: Uri, destination: Uri, options: ExportOptions) {
+        if (options.format == ExportFormat.TIFF) {
+            writeTiff(context, bitmap, original, destination, options)
+            return
+        }
         if (options.format == ExportFormat.AVIF || options.format == ExportFormat.JXL) {
             val exif = runCatching { exifPayload(context, original, options) }.getOrNull()
             // AVIF names sRGB and Display P3 with CICP codes; Adobe RGB needs its ICC profile.
@@ -102,11 +98,7 @@ object ExportWriter {
     private fun copyMetadata(context: Context, original: Uri, file: File, options: ExportOptions) {
         val source = context.contentResolver.openInputStream(original)?.use { ExifInterface(it) } ?: return
         val target = ExifInterface(file)
-        val tags = when {
-            !options.keepMetadata -> emptyList()
-            options.keepLocation -> COPIED_TAGS + LOCATION_TAGS
-            else -> COPIED_TAGS
-        }
+        val tags = options.keptGroups.flatMap { it.tags }
         for (tag in tags) source.getAttribute(tag)?.let { target.setAttribute(tag, it) }
         target.setAttribute(ExifInterface.TAG_SOFTWARE, "Photograin")
         // EXIF can only name sRGB; anything else is "uncalibrated" and described by the embedded ICC profile.
@@ -118,6 +110,56 @@ object ExportWriter {
         // Pixels are already rotated, so viewers must not rotate them again.
         target.setAttribute(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL.toString())
         target.saveAttributes()
+    }
+
+    /**
+     * Writes [bitmap] as a 16-bit TIFF. A half-float bitmap keeps the precision of the render;
+     * an 8-bit one (no half-float rendering on this GPU) is widened.
+     */
+    private fun writeTiff(context: Context, bitmap: Bitmap, original: Uri, destination: Uri, options: ExportOptions) {
+        val exif = runCatching { exifPayload(context, original, options) }.getOrNull()
+        val icc = bitmap.colorSpace?.let(::iccProfile)
+        val w = bitmap.width
+        val deep = bitmap.config == Bitmap.Config.RGBA_F16
+        // Rows are copied out a band at a time: a full copy of a large half-float photo would double its memory.
+        val band = maxOf(1, (4 shl 20) / (w * 8))
+        var bandTop = -1
+        var bandRows = 0
+        val buffer = ByteBuffer.allocateDirect(w * band * (if (deep) 8 else 4)).order(ByteOrder.nativeOrder())
+        var halves = buffer.asShortBuffer()
+        val tmp = File.createTempFile("export", ".tif", context.cacheDir)
+        try {
+            TiffWriter.write(tmp, w, bitmap.height, icc, exif, "Photograin") { y, samples ->
+                if (bandTop < 0 || y >= bandTop + bandRows) {
+                    bandTop = y
+                    bandRows = minOf(band, bitmap.height - y)
+                    val part = Bitmap.createBitmap(bitmap, 0, y, w, bandRows)
+                    buffer.clear()
+                    part.copyPixelsToBuffer(buffer)
+                    if (part !== bitmap) part.recycle()
+                    // The copy leaves the position at the end, and a view starts at the position.
+                    buffer.rewind()
+                    halves = buffer.asShortBuffer()
+                }
+                val r = y - bandTop
+                if (deep) {
+                    for (x in 0 until w) for (c in 0 until 3) {
+                        val v = HalfFloats.toFloat(halves.get((r * w + x) * 4 + c))
+                        samples[x * 3 + c] = (v.coerceIn(0f, 1f) * 65535f + 0.5f).toInt().toShort()
+                    }
+                } else {
+                    for (x in 0 until w) for (c in 0 until 3) {
+                        val v = buffer.get((r * w + x) * 4 + c).toInt() and 0xFF
+                        samples[x * 3 + c] = (v * 257).toShort()
+                    }
+                }
+            }
+            val out = context.contentResolver.openOutputStream(destination, "wt")
+                ?: throw IOException("Cannot write $destination")
+            out.use { stream -> tmp.inputStream().use { it.copyTo(stream) } }
+        } finally {
+            tmp.delete()
+        }
     }
 
     /**
@@ -155,8 +197,39 @@ object ExportWriter {
         return null
     }
 
-    /** ICC profile bytes for [space], as Android embeds them: taken from a 1x1 PNG's iCCP chunk. */
-    private fun iccProfile(space: ColorSpace): ByteArray? = runCatching {
+    /**
+     * ICC profile bytes for [space], as Android embeds them: taken from a 1x1 PNG's iCCP chunk, or
+     * for sRGB, which PNG names with a chunk of its own instead, from a 1x1 JPEG.
+     */
+    private fun iccProfile(space: ColorSpace): ByteArray? = pngIcc(space) ?: runCatching {
+        val pixel = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888, false, space)
+        val jpeg = ByteArrayOutputStream().also { pixel.compress(Bitmap.CompressFormat.JPEG, 90, it) }.toByteArray()
+        pixel.recycle()
+        jpegIcc(jpeg)
+    }.getOrNull()
+
+    /** The ICC profile in a JPEG's "ICC_PROFILE" APP2 segments, joined in order. */
+    internal fun jpegIcc(jpeg: ByteArray): ByteArray? {
+        val chunks = sortedMapOf<Int, ByteArray>()
+        var i = 2
+        while (i + 4 <= jpeg.size && jpeg[i] == 0xFF.toByte()) {
+            val marker = jpeg[i + 1].toInt() and 0xFF
+            if (marker == 0xDA || marker == 0xD9) break
+            val length = ((jpeg[i + 2].toInt() and 0xFF) shl 8) or (jpeg[i + 3].toInt() and 0xFF)
+            val start = i + 4
+            val end = i + 2 + length
+            if (end > jpeg.size) break
+            // "ICC_PROFILE\0", then the chunk's number and the chunk count.
+            if (marker == 0xE2 && end - start > 14 && String(jpeg, start, 12, Charsets.ISO_8859_1) == "ICC_PROFILE\u0000") {
+                chunks[jpeg[start + 12].toInt() and 0xFF] = jpeg.copyOfRange(start + 14, end)
+            }
+            i = end
+        }
+        if (chunks.isEmpty()) return null
+        return chunks.values.reduce { acc, b -> acc + b }
+    }
+
+    private fun pngIcc(space: ColorSpace): ByteArray? = runCatching {
         val pixel = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888, false, space)
         val png = ByteArrayOutputStream().also { pixel.compress(Bitmap.CompressFormat.PNG, 100, it) }.toByteArray()
         pixel.recycle()
@@ -194,6 +267,6 @@ object ExportWriter {
             @Suppress("DEPRECATION")
             Bitmap.CompressFormat.WEBP
         }
-        ExportFormat.AVIF, ExportFormat.JXL -> throw IllegalArgumentException("$format is encoded natively")
+        ExportFormat.AVIF, ExportFormat.JXL, ExportFormat.TIFF -> throw IllegalArgumentException("$format is encoded natively")
     }
 }

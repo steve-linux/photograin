@@ -2,13 +2,16 @@
 package io.github.steve_linux.photograin
 
 import io.github.steve_linux.photograin.math.Affine
+import io.github.steve_linux.photograin.math.Homography
 import io.github.steve_linux.photograin.math.Vec2
+import io.github.steve_linux.photograin.math.toHomography
 import io.github.steve_linux.photograin.model.BaseOrientation
 import io.github.steve_linux.photograin.model.CropRect
 import io.github.steve_linux.photograin.model.Geometry
 import io.github.steve_linux.photograin.model.GeometryMapper
 import io.github.steve_linux.photograin.model.PxSize
 import io.github.steve_linux.photograin.model.flippedHorizontally
+import io.github.steve_linux.photograin.model.flippedVertically
 import io.github.steve_linux.photograin.model.rotatedClockwise
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -108,5 +111,48 @@ class GeometryTest {
         val m = GeometryMapper(400, 300, BaseOrientation(), Geometry())
         val c = m.centeredCrop(1f)
         assertEquals(c.width * 400, c.height * 300, 0.5f)
+    }
+
+    @Test
+    fun homographyInverseAndAffineAgree() {
+        val h = Homography(1.2, 0.1, 5.0, -0.2, 0.9, 3.0, 0.001, -0.002, 1.0)
+        val p = Vec2(40.0, 70.0)
+        assertPoint(p, h.inverse().apply(h.apply(p)))
+        val a = Affine.rotateAround(0.4, 3.0, 4.0).then(Affine.translate(2.0, -1.0))
+        assertPoint(a.apply(p), a.toHomography().apply(p))
+        assertPoint(h.apply(a.apply(p)), a.toHomography().then(h).apply(p))
+    }
+
+    @Test
+    fun verticalPerspectiveWidensTheTop() {
+        val m = GeometryMapper(400, 300, BaseOrientation(), Geometry(vertical = 1f))
+        val toFrame = m.sourceToFrame
+        val topWidth = toFrame.apply(Vec2(400.0, 0.0)).x - toFrame.apply(Vec2(0.0, 0.0)).x
+        val bottomWidth = toFrame.apply(Vec2(400.0, 300.0)).x - toFrame.apply(Vec2(0.0, 300.0)).x
+        assertTrue(topWidth > 400)
+        assertTrue(bottomWidth < 400)
+        // The center stays put.
+        assertPoint(Vec2(200.0, 150.0), toFrame.apply(Vec2(200.0, 150.0)))
+        // Empty corners at the bottom: the full crop is no longer valid, and fitting fixes it.
+        assertFalse(m.isCropValid(CropRect.FULL))
+        assertTrue(m.isCropValid(m.fitCrop(CropRect.FULL)))
+    }
+
+    @Test
+    fun rotatingAndFlippingCarryThePerspective() {
+        val g = Geometry(vertical = 0.6f, horizontal = -0.3f)
+        val src = Vec2(50.0, 40.0)
+        fun framePoint(geo: Geometry) = GeometryMapper(400, 300, BaseOrientation(), geo).let {
+            val f = it.sourceToFrame.apply(src)
+            Vec2(f.x / it.frameWidth, f.y / it.frameHeight)
+        }
+        val before = framePoint(g)
+        // A clockwise turn moves the normalized point (x, y) to (1 - y, x).
+        val turned = framePoint(g.rotatedClockwise())
+        assertPoint(Vec2(1 - before.y, before.x), turned)
+        val mirrored = framePoint(g.flippedHorizontally())
+        assertPoint(Vec2(1 - before.x, before.y), mirrored)
+        val flipped = framePoint(g.flippedVertically())
+        assertPoint(Vec2(before.x, 1 - before.y), flipped)
     }
 }

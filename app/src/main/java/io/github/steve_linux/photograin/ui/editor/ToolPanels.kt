@@ -8,12 +8,16 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Colorize
 import androidx.compose.material.icons.outlined.Flip
 import androidx.compose.material.icons.outlined.RestartAlt
 import androidx.compose.material.icons.outlined.Rotate90DegreesCw
@@ -68,6 +72,29 @@ fun AdjustmentPanel(
     }
 }
 
+/** The white balance eyedropper: on, the next tap on the photo makes that spot neutral. */
+@Composable
+fun WhiteBalancePicker(picking: Boolean, onPicking: (Boolean) -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+        FilterChip(
+            selected = picking,
+            onClick = { onPicking(!picking) },
+            label = { Text(stringResource(R.string.wb_pick_label)) },
+            leadingIcon = {
+                Icon(Icons.Outlined.Colorize, contentDescription = stringResource(R.string.wb_pick), Modifier.size(18.dp))
+            },
+        )
+        if (picking) {
+            Spacer(Modifier.width(12.dp))
+            Text(
+                stringResource(R.string.wb_pick_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
 @Composable
 internal fun ParamSlider(
     label: String,
@@ -105,12 +132,19 @@ fun CropPanel(
     onAspect: (AspectRatio) -> Unit,
     onStraighten: (Float) -> Unit,
     onStraightenFinished: () -> Unit,
+    onPerspective: (vertical: Float, horizontal: Float) -> Unit,
     onRotate: () -> Unit,
     onFlipH: () -> Unit,
     onFlipV: () -> Unit,
     onReset: () -> Unit,
 ) {
-    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(max = 300.dp)
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+    ) {
         // Wrapped rather than scrolled, so every ratio is in sight.
         FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             for (aspect in AspectRatio.entries) {
@@ -130,6 +164,30 @@ fun CropPanel(
             onChangeFinished = onStraightenFinished,
             onReset = {
                 onStraighten(0f)
+                onStraightenFinished()
+            },
+        )
+        ParamSlider(
+            label = stringResource(R.string.perspective_vertical),
+            value = geometry.vertical,
+            range = -1f..1f,
+            display = signedPercent(geometry.vertical),
+            onChange = { onPerspective(it, geometry.horizontal) },
+            onChangeFinished = onStraightenFinished,
+            onReset = {
+                onPerspective(0f, geometry.horizontal)
+                onStraightenFinished()
+            },
+        )
+        ParamSlider(
+            label = stringResource(R.string.perspective_horizontal),
+            value = geometry.horizontal,
+            range = -1f..1f,
+            display = signedPercent(geometry.horizontal),
+            onChange = { onPerspective(geometry.vertical, it) },
+            onChangeFinished = onStraightenFinished,
+            onReset = {
+                onPerspective(geometry.vertical, 0f)
                 onStraightenFinished()
             },
         )
@@ -156,6 +214,11 @@ fun CropPanel(
             }
         }
     }
+}
+
+private fun signedPercent(v: Float): String {
+    val n = Math.round(v * 100)
+    return if (n > 0) "+$n" else "$n"
 }
 
 private fun formatValue(spec: ParamSpec, value: Float): String {
