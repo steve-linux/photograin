@@ -62,6 +62,11 @@ set(CONFIG_PIC 1 CACHE STRING "" FORCE)
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86|amd64|AMD64" AND ANDROID)
     # Emulators only: plain C avoids needing nasm on the build machine.
     set(AOM_TARGET_CPU generic CACHE STRING "" FORCE)
+elseif(ANDROID)
+    # libaom assembles its Arm code with a bare "as", which F-Droid's build server does not have;
+    # the NDK's clang assembles it instead.
+    set(CMAKE_ASM_COMPILER ${CMAKE_C_COMPILER} CACHE FILEPATH "" FORCE)
+    set(AS_EXECUTABLE ${CMAKE_C_COMPILER} CACHE FILEPATH "" FORCE)
 endif()
 add_subdirectory(aom EXCLUDE_FROM_ALL)
 target_include_directories(aom INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/aom>)
