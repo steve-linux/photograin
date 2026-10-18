@@ -29,6 +29,8 @@ import io.github.steve_linux.photograin.model.Curves
 import io.github.steve_linux.photograin.model.EditState
 import io.github.steve_linux.photograin.model.Frame
 import io.github.steve_linux.photograin.model.FrameStyle
+import io.github.steve_linux.photograin.model.ShapeItem
+import io.github.steve_linux.photograin.model.ShapeType
 import io.github.steve_linux.photograin.model.TextItem
 import io.github.steve_linux.photograin.model.Geometry
 import io.github.steve_linux.photograin.model.GeometryMapper
@@ -37,6 +39,9 @@ import io.github.steve_linux.photograin.model.History
 import io.github.steve_linux.photograin.model.LocalAdjustment
 import io.github.steve_linux.photograin.model.LocalParamSpec
 import io.github.steve_linux.photograin.model.Mask
+import io.github.steve_linux.photograin.model.WhiteBalance
+import io.github.steve_linux.photograin.model.RangeType
+import io.github.steve_linux.photograin.model.MaskRange
 import io.github.steve_linux.photograin.model.MaskType
 import io.github.steve_linux.photograin.model.Hsl
 import io.github.steve_linux.photograin.model.Look
@@ -106,11 +111,18 @@ data class EditorUiState(
     /** Type and size (0..1, relative to the screen) of the next spot. */
     val spotType: RetouchType = RetouchType.HEAL,
     val spotSize: Float = 0.3f,
-    /** In the Effects tab: 0 effects, 1 frame, 2 text. */
+    /** In the Effects tab: 0 effects, 1 frame, 2 text, 3 shapes. */
     val effectsMode: Int = 0,
     /** The text being edited, by index in [EditState.texts]. */
     val selectedText: Int? = null,
+    /** The shape being edited, by index in [EditState.shapes]. */
+    val selectedShape: Int? = null,
+    /** A tap on the photo picks a color for this, instead of its usual meaning. */
+    val picker: Picker = Picker.NONE,
 ) {
+    /** [selectedShape] if it still exists. */
+    val activeShape: Int? get() = selectedShape?.takeIf { it in edit.shapes.indices }
+
     /** [selectedText] if it still exists. */
     val activeText: Int? get() = selectedText?.takeIf { it in edit.texts.indices }
 
@@ -126,6 +138,9 @@ data class EditorUiState(
  * zooming in paints finer detail; [hardness] (0..1) is the part painted at full strength.
  */
 data class BrushSettings(val size: Float = 0.35f, val hardness: Float = 0.4f, val erase: Boolean = false)
+
+/** What a tap on the photo picks a color for. */
+enum class Picker { NONE, MASK_COLOR, WHITE_BALANCE }
 
 /** An export waiting for the user to pick where it goes. */
 data class SaveRequest(val options: ExportOptions, val fileName: String)
@@ -191,7 +206,55 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun selectTool(tool: ToolGroup) = _state.update { it.copy(tool = tool) }
+    fun selectTool(tool: ToolGroup) = _state.update { it.copy(tool = tool, picker = Picker.NONE) }
+
+    // --- Eyedropper ----------------------------------------------------------------------------
+
+    fun setPicker(picker: Picker) = _state.update { it.copy(picker = picker) }
+
+    /**
+     * Uses the color at source-normalized ([x], [y]) for the current [Picker]: the hue of the
+     * selected mask's color range, or the white balance that makes it gray.
+     */
+    fun pickAt(x: Float, y: Float) {
+        val s = _state.value
+        val bitmap = s.image?.preview ?: return
+        val (r, g, b) = averageColor(bitmap, x, y)
+        when (s.picker) {
+            Picker.NONE -> return
+            Picker.MASK_COLOR -> {
+                val range = s.activeMask?.let { s.edit.masks[it].mask.range } ?: return
+                updateMask { it.copy(mask = it.mask.copy(range = range.copy(type = RangeType.COLOR, hue = MaskRange.hueOf(r, g, b), saturation = MaskRange.saturationOf(r, g, b)))) }
+            }
+            Picker.WHITE_BALANCE -> {
+                val (temperature, tint) = WhiteBalance.neutralize(r, g, b) ?: return
+                updateLive { e -> e.copy(adjustments = e.adjustments.copy(temperature = temperature, tint = tint)) }
+            }
+        }
+        _state.update { it.copy(picker = Picker.NONE) }
+        commit()
+    }
+
+    /** The mean color (0..1) of a small square of [bitmap] around source-normalized ([x], [y]). */
+    private fun averageColor(bitmap: Bitmap, x: Float, y: Float): Triple<Float, Float, Float> {
+        val cx = (x * bitmap.width).toInt().coerceIn(0, bitmap.width - 1)
+        val cy = (y * bitmap.height).toInt().coerceIn(0, bitmap.height - 1)
+        // About a fingertip on screen, so one odd pixel does not decide the result.
+        val half = maxOf(2, maxOf(bitmap.width, bitmap.height) / 150)
+        var r = 0f
+        var g = 0f
+        var b = 0f
+        var n = 0
+        for (py in (cy - half)..(cy + half)) for (px in (cx - half)..(cx + half)) {
+            if (px !in 0 until bitmap.width || py !in 0 until bitmap.height) continue
+            val c = bitmap.getPixel(px, py)
+            r += (c shr 16 and 0xFF) / 255f
+            g += (c shr 8 and 0xFF) / 255f
+            b += (c and 0xFF) / 255f
+            n++
+        }
+        return Triple(r / n, g / n, b / n)
+    }
 
     // --- Adjustments -------------------------------------------------------------------------
 
@@ -319,7 +382,7 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         commit()
     }
 
-    fun selectMask(index: Int?) = _state.update { it.copy(selectedMask = index) }
+    fun selectMask(index: Int?) = _state.update { it.copy(selectedMask = index, picker = Picker.NONE) }
 
     fun deleteMask(index: Int) {
         if (index !in _state.value.edit.masks.indices) return
@@ -482,12 +545,16 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         val e = _state.value.edit
         if (text.isBlank() || e.texts.size >= TextItem.MAX_ITEMS) return
         val image = mapper()?.outputSize
-        var item = TextItem(text.trim())
+        // Each new text a little lower than the last, so they do not land on top of each other.
+        var item = TextItem(text.trim(), y = 0.5f + 0.08f * (e.texts.size % 4))
         if (image != null && e.frame.style == FrameStyle.POLAROID && e.texts.isEmpty()) {
             val layout = e.frame.layout(image)
             val bottomTop = layout.imageTop + image.height
             val y = (bottomTop + layout.size.height) / 2f / layout.size.height
-            item = item.copy(y = y, color = 0xFF333333.toInt(), shadow = false)
+            // A caption on the polaroid's bottom border: dark on a light border, white on a dark one.
+            val c = e.frame.color
+            val light = 0.299 * (c shr 16 and 0xFF) + 0.587 * (c shr 8 and 0xFF) + 0.114 * (c and 0xFF) > 140
+            item = item.copy(y = y, color = if (light) 0xFF333333.toInt() else Frame.WHITE, shadow = false)
         }
         updateLive { it.copy(texts = it.texts + item) }
         _state.update { it.copy(selectedText = it.edit.texts.lastIndex) }
@@ -506,6 +573,36 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         if (index !in _state.value.edit.texts.indices) return
         updateLive { e -> e.copy(texts = e.texts.filterIndexed { i, _ -> i != index }) }
         _state.update { it.copy(selectedText = null) }
+        commit()
+    }
+
+    /** Adds a shape of [type] in the middle of the output and selects it; each one a bit lower. */
+    fun addShape(type: ShapeType) {
+        val e = _state.value.edit
+        if (e.shapes.size >= ShapeItem.MAX_ITEMS) return
+        val dy = 0.06f * (e.shapes.size % 4)
+        val shape = when (type) {
+            // Lines and arrows lie flat; boxes keep the photo's proportions.
+            ShapeType.LINE, ShapeType.ARROW -> ShapeItem(type, 0.3f, 0.5f + dy, 0.7f, 0.5f + dy)
+            else -> ShapeItem(type, 0.35f, 0.35f + dy, 0.65f, 0.65f + dy)
+        }
+        updateLive { it.copy(shapes = it.shapes + shape) }
+        _state.update { it.copy(selectedShape = it.edit.shapes.lastIndex) }
+        commit()
+    }
+
+    fun selectShape(index: Int?) = _state.update { it.copy(selectedShape = index) }
+
+    /** Live change of the selected shape; [commit] when done. */
+    fun setShape(shape: ShapeItem) {
+        val index = _state.value.activeShape ?: return
+        updateLive { e -> e.copy(shapes = e.shapes.mapIndexed { i, old -> if (i == index) shape else old }) }
+    }
+
+    fun deleteShape(index: Int) {
+        if (index !in _state.value.edit.shapes.indices) return
+        updateLive { e -> e.copy(shapes = e.shapes.filterIndexed { i, _ -> i != index }) }
+        _state.update { it.copy(selectedShape = null) }
         commit()
     }
 

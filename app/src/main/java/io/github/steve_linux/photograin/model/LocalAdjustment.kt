@@ -4,6 +4,7 @@ package io.github.steve_linux.photograin.model
 import io.github.steve_linux.photograin.math.Homography
 import io.github.steve_linux.photograin.math.Vec2
 import kotlinx.serialization.Serializable
+import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.hypot
@@ -12,7 +13,89 @@ import kotlin.math.min
 import kotlin.math.sin
 
 @Serializable
-enum class MaskType { LINEAR, RADIAL, BRUSH }
+enum class MaskType { LINEAR, RADIAL, BRUSH, FULL }
+
+@Serializable
+enum class RangeType { NONE, LUMINANCE, COLOR }
+
+/**
+ * Narrows a mask to the pixels of a brightness or color range, judged on the photo before any
+ * adjustment, so moving a slider does not change what the mask covers.
+ *
+ * Luminance: from [low] to [high] (0..1), fading over [smooth] on either side.
+ * Color: pixels whose hue is near [hue] (0..1) and, when [saturation] is known (not
+ * negative), whose saturation is near it too; [tolerance] (0..1) widens the match. Grays have
+ * no hue and are left out.
+ */
+@Serializable
+data class MaskRange(
+    val type: RangeType = RangeType.NONE,
+    val low: Float = 0.5f,
+    val high: Float = 1f,
+    val smooth: Float = 0.3f,
+    val hue: Float = 0f,
+    val tolerance: Float = 0.4f,
+    val saturation: Float = -1f,
+) {
+    /** Strength 0..1 for a pixel of encoded [r], [g], [b] (0..1). Mirrors rangeWeight() in the shader. */
+    fun weight(r: Float, g: Float, b: Float): Float = when (type) {
+        RangeType.NONE -> 1f
+        RangeType.LUMINANCE -> {
+            val l = 0.2126f * r + 0.7152f * g + 0.0722f * b
+            val s = max(smooth, 0.001f) * 0.25f
+            smoothstep(low - s, low + s, l) * (1f - smoothstep(high - s, high + s, l))
+        }
+        RangeType.COLOR -> {
+            val mx = max(r, max(g, b))
+            val mn = min(r, min(g, b))
+            val sat = if (mx > 0f) (mx - mn) / mx else 0f
+            val d = abs(hueOf(r, g, b) - hue)
+            val dist = min(d, 1f - d)
+            val t = hueTolerance(tolerance)
+            val satMatch = if (saturation < 0f) {
+                1f
+            } else {
+                val ts = saturationTolerance(tolerance)
+                1f - smoothstep(ts, ts + 0.1f, abs(sat - saturation))
+            }
+            (1f - smoothstep(t, t + 0.04f, dist)) * smoothstep(0.06f, 0.18f, sat) * satMatch
+        }
+    }
+
+    companion object {
+        /** Half-width of the hue match, as a fraction of the color wheel. */
+        fun hueTolerance(tolerance: Float) = 0.01f + 0.15f * tolerance.coerceIn(0f, 1f)
+
+        /** How far the saturation may differ from the picked one. */
+        fun saturationTolerance(tolerance: Float) = 0.05f + 0.6f * tolerance.coerceIn(0f, 1f)
+
+        /** Saturation 0..1 of an RGB color, as in HSV. */
+        fun saturationOf(r: Float, g: Float, b: Float): Float {
+            val mx = max(r, max(g, b))
+            return if (mx > 0f) (mx - min(r, min(g, b))) / mx else 0f
+        }
+
+        /** Hue 0..1 of an RGB color (0 for grays). */
+        fun hueOf(r: Float, g: Float, b: Float): Float {
+            val mx = max(r, max(g, b))
+            val mn = min(r, min(g, b))
+            val c = mx - mn
+            if (c <= 0f) return 0f
+            val h = when (mx) {
+                r -> ((g - b) / c).mod(6f)
+                g -> (b - r) / c + 2f
+                else -> (r - g) / c + 4f
+            }
+            return h / 6f
+        }
+    }
+}
+
+private fun smoothstep(e0: Float, e1: Float, x: Float): Float {
+    if (e1 <= e0) return if (x < e0) 0f else 1f
+    val t = ((x - e0) / (e1 - e0)).coerceIn(0f, 1f)
+    return t * t * (3f - 2f * t)
+}
 
 /**
  * One brush stroke of a [MaskType.BRUSH] mask: [points] are x, y pairs in source-normalized
@@ -37,6 +120,7 @@ data class BrushStroke(
  * Linear: full effect on the (x0, y0) side, fading out towards (x1, y1).
  * Radial: an ellipse centered on (x0, y0), turned by [angle] radians (clockwise on screen).
  * Brush: painted with [strokes], rasterized by [BrushRaster].
+ * Full: the whole photo, useful with a [range].
  */
 @Serializable
 data class Mask(
@@ -52,6 +136,7 @@ data class Mask(
     val feather: Float = 0.5f,
     val invert: Boolean = false,
     val strokes: List<BrushStroke> = emptyList(),
+    val range: MaskRange = MaskRange(),
 ) {
     /**
      * Strength 0..1 at source-normalized ([x], [y]) for a source of width / long edge [aspectX]
@@ -80,13 +165,9 @@ data class Mask(
                 1f - smoothstep(1f - max(feather, 0.001f), 1f, hypot(u, v))
             }
             MaskType.BRUSH -> 0f
+            MaskType.FULL -> 1f
         }
         return if (invert) 1f - w else w
-    }
-
-    private fun smoothstep(e0: Float, e1: Float, x: Float): Float {
-        val t = ((x - e0) / (e1 - e0)).coerceIn(0f, 1f)
-        return t * t * (3f - 2f * t)
     }
 }
 
@@ -127,6 +208,10 @@ data class LocalAdjustment(
             val viewW = hypot(wx, wy)
             val viewH = hypot((ey.x - o.x) * ax, (ey.y - o.y) * ay)
             if (type == MaskType.BRUSH) return LocalAdjustment(mask = Mask(MaskType.BRUSH), exposure = 0.5f)
+            // The whole photo only makes sense narrowed to a range: start with the highlights.
+            if (type == MaskType.FULL) {
+                return LocalAdjustment(mask = Mask(MaskType.FULL, range = MaskRange(RangeType.LUMINANCE)), exposure = -0.5f)
+            }
             val mask = when (type) {
                 MaskType.LINEAR -> {
                     val a = at(0.5, 0.15)

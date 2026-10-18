@@ -12,6 +12,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.unit.dp
 import io.github.steve_linux.photograin.math.Homography
 import io.github.steve_linux.photograin.model.LocalAdjustment
@@ -34,7 +35,7 @@ enum class MaskHandle { START, END, MOVE, RADIUS_X, RADIUS_Y }
  * [sourceHeight]. Mask math happens in long-edge units, where circles are round.
  */
 class MaskSpace(
-    private val rect: RectF,
+    val rect: RectF,
     private val posToSource: Homography,
     sourceWidth: Int,
     sourceHeight: Int,
@@ -66,7 +67,7 @@ class MaskSpace(
     }
 
     fun handles(m: Mask): Map<MaskHandle, Offset> = when (m.type) {
-        MaskType.BRUSH -> emptyMap()
+        MaskType.BRUSH, MaskType.FULL -> emptyMap()
         MaskType.LINEAR -> mapOf(
             MaskHandle.START to toScreen(m.x0.toDouble(), m.y0.toDouble()),
             MaskHandle.END to toScreen(m.x1.toDouble(), m.y1.toDouble()),
@@ -85,9 +86,13 @@ class MaskSpace(
         }
     }
 
-    /** Where to grab an unselected mask: its center, or where a brush mask was first painted. */
+    /** Where to grab an unselected mask: its center, or the middle of a brush mask's first stroke. */
     fun pin(m: Mask): Offset? = when (m.type) {
-        MaskType.BRUSH -> m.strokes.firstOrNull()?.let { toScreen(it.points[0].toDouble(), it.points[1].toDouble()) }
+        MaskType.BRUSH -> m.strokes.firstOrNull { !it.erase }?.let {
+            val mid = it.pointCount / 2
+            toScreen(it.points[2 * mid].toDouble(), it.points[2 * mid + 1].toDouble())
+        }
+        MaskType.FULL -> null
         else -> handles(m).getValue(MaskHandle.MOVE)
     }
 
@@ -177,8 +182,14 @@ fun MaskOverlay(
     brushRadius: Float,
 ) {
     Canvas(Modifier.fillMaxSize()) {
+        // While painting, the other masks' pins would only be in the way.
+        val painting = selected?.let { masks.getOrNull(it) }?.mask?.type == MaskType.BRUSH
         masks.forEachIndexed { i, local ->
-            if (i == selected) drawSelected(local.mask, space, dragging) else space.pin(local.mask)?.let { drawPin(it) }
+            if (i == selected) {
+                drawSelected(local.mask, space, dragging)
+            } else if (!painting) {
+                space.pin(local.mask)?.let { drawPin(it) }
+            }
         }
         brushCursor?.let {
             drawCircle(Color.Black.copy(alpha = 0.4f), radius = brushRadius, center = it, style = Stroke(3.dp.toPx()))
@@ -192,26 +203,30 @@ private fun DrawScope.drawSelected(m: Mask, space: MaskSpace, dragging: Boolean)
     val width = 1.5.dp.toPx()
     val dashed = PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 5.dp.toPx()))
     val handles = space.handles(m)
-    when (m.type) {
-        MaskType.LINEAR -> {
-            val a = handles.getValue(MaskHandle.START)
-            val b = handles.getValue(MaskHandle.END)
-            val dx = b.x - a.x
-            val dy = b.y - a.y
-            val len = max(hypot(dx, dy), 1f)
-            // Lines across the whole view, perpendicular to the direction of the fade.
-            val reach = hypot(size.width, size.height)
-            val perp = Offset(-dy / len * reach, dx / len * reach)
-            drawLine(line, a - perp, a + perp, strokeWidth = width)
-            drawLine(line, b - perp, b + perp, strokeWidth = width)
-            val mid = handles.getValue(MaskHandle.MOVE)
-            drawLine(line, mid - perp, mid + perp, strokeWidth = width, pathEffect = dashed)
-        }
-        MaskType.BRUSH -> Unit
-        MaskType.RADIAL -> {
-            drawPath(path(space.ellipse(m, 1.0)), line, style = Stroke(width))
-            if (m.feather > 0.02f) {
-                drawPath(path(space.ellipse(m, 1.0 - m.feather)), line, style = Stroke(width, pathEffect = dashed))
+    val photo = space.rect
+    // The guides stay on the photo; the handles may sit just outside it and remain grabbable.
+    clipRect(photo.left, photo.top, photo.right, photo.bottom) {
+        when (m.type) {
+            MaskType.LINEAR -> {
+                val a = handles.getValue(MaskHandle.START)
+                val b = handles.getValue(MaskHandle.END)
+                val dx = b.x - a.x
+                val dy = b.y - a.y
+                val len = max(hypot(dx, dy), 1f)
+                // Lines across the whole photo, perpendicular to the direction of the fade.
+                val reach = hypot(size.width, size.height)
+                val perp = Offset(-dy / len * reach, dx / len * reach)
+                drawLine(line, a - perp, a + perp, strokeWidth = width)
+                drawLine(line, b - perp, b + perp, strokeWidth = width)
+                val mid = handles.getValue(MaskHandle.MOVE)
+                drawLine(line, mid - perp, mid + perp, strokeWidth = width, pathEffect = dashed)
+            }
+            MaskType.BRUSH, MaskType.FULL -> Unit
+            MaskType.RADIAL -> {
+                drawPath(path(space.ellipse(m, 1.0)), line, style = Stroke(width))
+                if (m.feather > 0.02f) {
+                    drawPath(path(space.ellipse(m, 1.0 - m.feather)), line, style = Stroke(width, pathEffect = dashed))
+                }
             }
         }
     }

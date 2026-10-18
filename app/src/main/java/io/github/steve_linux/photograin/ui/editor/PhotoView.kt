@@ -62,6 +62,8 @@ fun PhotoView(
     val localMode = state.tool == ToolGroup.LOCAL
     val retouchMode = localMode && state.retouchMode
     val maskMode = localMode && !state.retouchMode
+    // An eyedropper is on: a tap picks a color instead of its usual meaning.
+    val picking = state.picker != Picker.NONE && !cropMode
     val geometry = state.edit.geometry
     val displayGeometry = if (cropMode) geometry.copy(crop = CropRect.FULL) else geometry
     val mapper = viewModel.mapper(displayGeometry) ?: return
@@ -70,6 +72,7 @@ fun PhotoView(
     val decorFrame = if (cropMode) Frame() else state.edit.frame
     val layout = decorFrame.layout(content)
     val textMode = state.tool == ToolGroup.EFFECTS && state.effectsMode == 2
+    val shapeMode = state.tool == ToolGroup.EFFECTS && state.effectsMode == 3
 
     val renderer = remember { PreviewRenderer() }
     var zoom by remember { mutableFloatStateOf(1f) }
@@ -149,7 +152,11 @@ fun PhotoView(
         )
 
         if (!cropMode) {
-            DecorOverlay(decorFrame, frameRect, rect, total, state.edit.texts, if (textMode) state.activeText else null)
+            DecorOverlay(
+                decorFrame, frameRect, rect, total,
+                state.edit.texts, if (textMode) state.activeText else null,
+                state.edit.shapes, if (shapeMode) state.activeShape else null,
+            )
         }
 
         if (cropMode) {
@@ -164,7 +171,7 @@ fun PhotoView(
             )
         } else {
             val currentRect by rememberUpdatedState(rect)
-            val space = if (localMode) {
+            val space = if (localMode || picking) {
                 MaskSpace(rect, mapper.normalizedOutputToSource(), image.preview.width, image.preview.height)
             } else {
                 null
@@ -176,6 +183,8 @@ fun PhotoView(
             var handleHeld by remember { mutableStateOf(false) }
             val currentBrush by rememberUpdatedState(state.brush)
             var brushCursor by remember { mutableStateOf<Offset?>(null) }
+            val currentShapes by rememberUpdatedState(state.edit.shapes)
+            val currentShape by rememberUpdatedState(state.activeShape)
             val currentTexts by rememberUpdatedState(state.edit.texts)
             val currentText by rememberUpdatedState(state.activeText)
             val currentFrameRect by rememberUpdatedState(frameRect)
@@ -263,6 +272,32 @@ fun PhotoView(
                             }
                         }
                     }
+                    .pointerInput(shapeMode) {
+                        if (!shapeMode) return@pointerInput
+                        val reach = 16.dp.toPx()
+                        awaitEachGesture {
+                            val down = awaitFirstDown(requireUnconsumed = false)
+                            val shapes = currentShapes
+                            val box = currentFrameRect
+                            val (index, part) = hitShape(shapes, currentShape, box, down.position, reach)
+                                ?: return@awaitEachGesture
+                            down.consume()
+                            handleHeld = true
+                            if (index != currentShape) viewModel.selectShape(index)
+                            val start = shapes[index]
+                            var moved = false
+                            try {
+                                drag(down.id) { change ->
+                                    moved = true
+                                    viewModel.setShape(dragShape(start, part, box, down.position, change.position))
+                                    change.consume()
+                                }
+                            } finally {
+                                handleHeld = false
+                                if (moved) viewModel.commit()
+                            }
+                        }
+                    }
                     .pointerInput(retouchMode) {
                         if (!retouchMode) return@pointerInput
                         val reach = 24.dp.toPx()
@@ -309,8 +344,8 @@ fun PhotoView(
                             }
                         }
                     }
-                    .pointerInput(maskMode) {
-                        if (!maskMode) return@pointerInput
+                    .pointerInput(maskMode, picking) {
+                        if (!maskMode || picking) return@pointerInput
                         val reach = 28.dp.toPx()
                         awaitEachGesture {
                             val down = awaitFirstDown(requireUnconsumed = false)
@@ -365,6 +400,25 @@ fun PhotoView(
                             } finally {
                                 handleHeld = false
                                 viewModel.setMaskDragging(false)
+                            }
+                        }
+                    }
+                    .pointerInput(picking) {
+                        if (!picking) return@pointerInput
+                        awaitEachGesture {
+                            val down = awaitFirstDown(requireUnconsumed = false)
+                            val sp = currentSpace ?: return@awaitEachGesture
+                            // A tap picks the color under it; anything else is zoom or pan.
+                            while (true) {
+                                val event = awaitPointerEvent()
+                                if (event.changes.count { it.pressed } > 1) return@awaitEachGesture
+                                val c = event.changes.firstOrNull { it.id == down.id } ?: return@awaitEachGesture
+                                if ((c.position - down.position).getDistance() > viewConfiguration.touchSlop) return@awaitEachGesture
+                                if (!c.pressed) {
+                                    val (x, y) = sp.toSource(down.position)
+                                    if (x in 0.0..1.0 && y in 0.0..1.0) viewModel.pickAt(x.toFloat(), y.toFloat())
+                                    return@awaitEachGesture
+                                }
                             }
                         }
                     },

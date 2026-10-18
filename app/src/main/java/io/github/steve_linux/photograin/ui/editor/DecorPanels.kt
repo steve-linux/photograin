@@ -38,6 +38,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,15 +46,21 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.steve_linux.photograin.R
 import io.github.steve_linux.photograin.model.Frame
 import io.github.steve_linux.photograin.model.FrameStyle
+import io.github.steve_linux.photograin.model.ShapeItem
+import io.github.steve_linux.photograin.model.ShapeType
 import io.github.steve_linux.photograin.model.TextFont
 import io.github.steve_linux.photograin.model.TextItem
+import kotlinx.coroutines.delay
 
 /** Colors offered for frames and text, ARGB in sRGB. */
 private val SWATCHES = listOf(
@@ -64,7 +71,7 @@ private val SWATCHES = listOf(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EffectsModeSelector(mode: Int, onSelect: (Int) -> Unit) {
-    val labels = listOf(R.string.mode_effects, R.string.mode_frame, R.string.mode_text)
+    val labels = listOf(R.string.mode_effects, R.string.mode_frame, R.string.mode_text, R.string.mode_shapes)
     SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
         labels.forEachIndexed { i, label ->
             SegmentedButton(
@@ -191,6 +198,43 @@ fun TextPanel(
                     onChangeFinished()
                 },
             )
+            ParamSlider(
+                label = stringResource(R.string.text_opacity),
+                value = item.opacity,
+                range = 0.05f..1f,
+                display = "${Math.round(item.opacity * 100)}",
+                onChange = { onChange(item.copy(opacity = it)) },
+                onChangeFinished = onChangeFinished,
+                onReset = {
+                    onChange(item.copy(opacity = 1f))
+                    onChangeFinished()
+                },
+            )
+            ParamSlider(
+                label = stringResource(R.string.text_angle),
+                value = item.angle,
+                range = -180f..180f,
+                display = "${Math.round(item.angle)}°",
+                onChange = { onChange(item.copy(angle = it)) },
+                onChangeFinished = onChangeFinished,
+                onReset = {
+                    onChange(item.copy(angle = 0f))
+                    onChangeFinished()
+                },
+            )
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Switch(
+                    checked = item.tiled,
+                    onCheckedChange = { tiled ->
+                        // A watermark starts see-through and slanted, as watermarks usually are.
+                        val start = if (tiled && item.opacity == 1f && item.angle == 0f) item.copy(opacity = 0.35f, angle = -30f) else item
+                        onChange(start.copy(tiled = tiled))
+                        onChangeFinished()
+                    },
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.text_tiled), style = MaterialTheme.typography.labelLarge)
+            }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 for (font in TextFont.entries) {
                     FilterChip(
@@ -224,14 +268,114 @@ fun TextPanel(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun ShapesPanel(
+    shapes: List<ShapeItem>,
+    selected: Int?,
+    onAdd: (ShapeType) -> Unit,
+    onSelect: (Int?) -> Unit,
+    onChange: (ShapeItem) -> Unit,
+    onDelete: (Int) -> Unit,
+    onChangeFinished: () -> Unit,
+) {
+    val index = selected?.takeIf { it in shapes.indices }
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(max = 300.dp)
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+    ) {
+        FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            shapes.forEachIndexed { i, shape ->
+                FilterChip(
+                    selected = i == index,
+                    onClick = { onSelect(if (i == index) null else i) },
+                    label = { Text(stringResource(shapeName(shape.type), i + 1)) },
+                )
+            }
+            for (type in ShapeType.entries) {
+                AssistChip(
+                    enabled = shapes.size < ShapeItem.MAX_ITEMS,
+                    onClick = { onAdd(type) },
+                    label = { Text(stringResource(shapeLabel(type))) },
+                    leadingIcon = { Icon(Icons.Outlined.Add, contentDescription = null, Modifier.size(18.dp)) },
+                )
+            }
+        }
+        if (index == null) {
+            Text(
+                stringResource(if (shapes.isEmpty()) R.string.shape_hint_empty else R.string.shape_hint_select),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(vertical = 8.dp),
+            )
+            return@Column
+        }
+        val shape = shapes[index]
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            if (shape.isBox) {
+                Switch(checked = shape.fill, onCheckedChange = { onChange(shape.copy(fill = it)); onChangeFinished() })
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.shape_fill), style = MaterialTheme.typography.labelLarge)
+            }
+            Spacer(Modifier.weight(1f))
+            IconButton(onClick = { onDelete(index) }) {
+                Icon(Icons.Outlined.Delete, contentDescription = stringResource(R.string.shape_delete))
+            }
+        }
+        if (!(shape.isBox && shape.fill)) {
+            ParamSlider(
+                label = stringResource(R.string.shape_width),
+                value = shape.width,
+                range = 0f..1f,
+                display = "${Math.round(shape.width * 100)}",
+                onChange = { onChange(shape.copy(width = it)) },
+                onChangeFinished = onChangeFinished,
+                onReset = {
+                    onChange(shape.copy(width = ShapeItem(shape.type).width))
+                    onChangeFinished()
+                },
+            )
+        }
+        ColorRow(shape.color) {
+            onChange(shape.copy(color = it))
+            onChangeFinished()
+        }
+    }
+}
+
+private fun shapeName(t: ShapeType): Int = when (t) {
+    ShapeType.LINE -> R.string.shape_line_n
+    ShapeType.ARROW -> R.string.shape_arrow_n
+    ShapeType.RECT -> R.string.shape_rect_n
+    ShapeType.ELLIPSE -> R.string.shape_ellipse_n
+}
+
+private fun shapeLabel(t: ShapeType): Int = when (t) {
+    ShapeType.LINE -> R.string.shape_line
+    ShapeType.ARROW -> R.string.shape_arrow
+    ShapeType.RECT -> R.string.shape_rect
+    ShapeType.ELLIPSE -> R.string.shape_ellipse
+}
+
 @Composable
 private fun TextDialog(initial: String, onDismiss: () -> Unit, onDone: (String) -> Unit) {
     var text by remember { mutableStateOf(initial) }
+    val focus = remember { FocusRequester() }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.text_dialog_title)) },
         text = {
-            OutlinedTextField(value = text, onValueChange = { text = it }, minLines = 1, maxLines = 4)
+            val keyboard = LocalSoftwareKeyboardController.current
+            OutlinedTextField(value = text, onValueChange = { text = it }, minLines = 1, maxLines = 4, modifier = Modifier.focusRequester(focus))
+            // Open with the keyboard up, ready to type: wait for the dialog's window to take focus first.
+            LaunchedEffect(Unit) {
+                delay(150)
+                focus.requestFocus()
+                keyboard?.show()
+            }
         },
         confirmButton = {
             TextButton(enabled = text.isNotBlank(), onClick = { onDone(text.trim()) }) {

@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Redo
@@ -37,6 +39,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconToggleButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -63,6 +66,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.steve_linux.photograin.R
 import io.github.steve_linux.photograin.data.ExportOptions
@@ -172,14 +176,15 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit) {
                         selected = state.tool == tool,
                         onClick = { viewModel.selectTool(tool) },
                         icon = { Icon(toolIcon(tool), contentDescription = null) },
-                        // Seven tabs share the width: keep each label on one line, even with large fonts.
+                        // Seven tabs share the width: keep each label on one line, shrinking a long one to fit.
                         label = {
-                            Text(
+                            val style = MaterialTheme.typography.labelSmall
+                            BasicText(
                                 stringResource(toolLabel(tool)),
-                                style = MaterialTheme.typography.labelSmall,
+                                style = style.copy(color = LocalContentColor.current),
                                 maxLines = 1,
                                 softWrap = false,
-                                overflow = TextOverflow.Ellipsis,
+                                autoSize = TextAutoSize.StepBased(minFontSize = 8.sp, maxFontSize = style.fontSize),
                             )
                         },
                     )
@@ -216,6 +221,15 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit) {
                     EffectsModeSelector(state.effectsMode, viewModel::setEffectsMode)
                     when (state.effectsMode) {
                         1 -> FramePanel(state.edit.frame, viewModel::setFrame, viewModel::commit)
+                        3 -> ShapesPanel(
+                            shapes = state.edit.shapes,
+                            selected = state.activeShape,
+                            onAdd = viewModel::addShape,
+                            onSelect = viewModel::selectShape,
+                            onChange = viewModel::setShape,
+                            onDelete = viewModel::deleteShape,
+                            onChangeFinished = viewModel::commit,
+                        )
                         2 -> TextPanel(
                             texts = state.edit.texts,
                             selected = state.activeText,
@@ -268,6 +282,8 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit) {
                             onChangeFinished = viewModel::commit,
                             brush = state.brush,
                             onBrush = viewModel::setBrush,
+                            picking = state.picker == Picker.MASK_COLOR,
+                            onPicking = { viewModel.setPicker(if (it) Picker.MASK_COLOR else Picker.NONE) },
                         )
                     }
                 } else if (state.tool == ToolGroup.CROP) {
@@ -304,13 +320,21 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit) {
                             onChange = viewModel::setHsl,
                             onChangeFinished = viewModel::commit,
                         )
-                        else -> AdjustmentPanel(
-                            group = state.tool,
-                            adjustments = state.edit.adjustments,
-                            onChange = viewModel::setParam,
-                            onChangeFinished = viewModel::commit,
-                            onReset = viewModel::resetParam,
-                        )
+                        else -> {
+                            if (state.tool == ToolGroup.COLOR) {
+                                WhiteBalancePicker(
+                                    picking = state.picker == Picker.WHITE_BALANCE,
+                                    onPicking = { viewModel.setPicker(if (it) Picker.WHITE_BALANCE else Picker.NONE) },
+                                )
+                            }
+                            AdjustmentPanel(
+                                group = state.tool,
+                                adjustments = state.edit.adjustments,
+                                onChange = viewModel::setParam,
+                                onChangeFinished = viewModel::commit,
+                                onReset = viewModel::resetParam,
+                            )
+                        }
                     }
                 }
             }
