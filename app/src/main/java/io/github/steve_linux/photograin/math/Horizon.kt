@@ -24,6 +24,9 @@ object Horizon {
 
     private const val MAX_POINTS = 40_000
 
+    /** How far above the typical angle's score the best one must be to count. */
+    private const val PROMINENCE = 1.25
+
     /**
      * The straighten angle in degrees (as [io.github.steve_linux.photograin.model.Geometry.straighten])
      * that levels the [width] x [height] luminance image [lum], or null when it has no lines
@@ -34,18 +37,26 @@ object Horizon {
         val edges = edgePoints(lum, width, height) ?: return null
         val diag = hypot(width.toDouble(), height.toDouble())
         val bins = DoubleArray(2 * diag.toInt() + 4)
-        fun score(degrees: Double) = score(edges, degrees * PI / 180, bins, diag)
+        fun score(degrees: Double) = score(edges, degrees * PI / 180, bins, diag, 0) + score(edges, degrees * PI / 180, bins, diag, 1)
 
         // Coarse, then fine around the best coarse angle.
         val steps = (MAX_TILT * 2).roundToInt()
-        val coarse = DoubleArray(2 * steps + 1) { score((it - steps) * 0.5) }
+        val rows = DoubleArray(2 * steps + 1) { score(edges, (it - steps) * 0.5 * PI / 180, bins, diag, 0) }
+        val columns = DoubleArray(2 * steps + 1) { score(edges, (it - steps) * 0.5 * PI / 180, bins, diag, 1) }
+        // A real tilt turns horizontal and vertical lines alike. When both have a clear favourite
+        // angle and they disagree, the lines are slanted on purpose or by perspective (a box shot
+        // from above, a tiled floor), and turning the photo to either would not level it.
+        val rowBest = rows.indices.maxBy { rows[it] }
+        val columnBest = columns.indices.maxBy { columns[it] }
+        if (stands(rows, columns) && stands(columns, rows) && abs(rowBest - columnBest) > 2) return null
+        val coarse = DoubleArray(rows.size) { rows[it] + columns[it] }
         val best = (coarse.indices.maxBy { coarse[it] } - steps) * 0.5
         val fine = DoubleArray(21) { score(best - 0.5 + it * 0.05) }
         val k = fine.indices.maxBy { fine[it] }
         // A tilt only counts when it stands out from the typical angle: in noise or texture
         // every angle scores about the same.
         val typical = coarse.sorted()[coarse.size / 2]
-        if (fine[k] < typical * 1.25) return null
+        if (fine[k] < typical * PROMINENCE) return null
         // Between fine steps, the vertex of the parabola through the best one and its neighbours.
         var tilt = best - 0.5 + k * 0.05
         if (k in 1..19) {
@@ -92,14 +103,28 @@ object Horizon {
     }
 
     /**
-     * How sharply the edges fall into rows and columns once turned back by [radians]: each
-     * point adds the part of its gradient across the row (or column) to that row's total.
+     * Whether [scores] have a favourite angle of their own: a peak inside the range (lines off
+     * the axis score higher the further they are turned, so a lone horizon makes the columns
+     * climb towards an end), standing out from the typical angle, and with a fair share of the
+     * edges compared with the [other] axis.
      */
-    private fun score(edges: FloatArray, radians: Double, bins: DoubleArray, diag: Double): Double {
+    private fun stands(scores: DoubleArray, other: DoubleArray): Boolean {
+        val best = scores.indices.maxBy { scores[it] }
+        val max = scores[best]
+        return best in 2 until scores.size - 2 &&
+            max >= scores.sorted()[scores.size / 2] * PROMINENCE &&
+            max >= other.max() * 0.2
+    }
+
+    /**
+     * How sharply the edges fall into rows ([axis] 0) or columns (1) once turned back by
+     * [radians]: each point adds the part of its gradient across the row to that row's total.
+     */
+    private fun score(edges: FloatArray, radians: Double, bins: DoubleArray, diag: Double, axis: Int): Double {
         val c = cos(radians)
         val s = sin(radians)
         var total = 0.0
-        for (axis in 0..1) {
+        run {
             bins.fill(0.0)
             var p = 0
             while (p < edges.size) {

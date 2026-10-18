@@ -155,6 +155,26 @@ class PerspectivePointsTest {
     }
 
     @Test
+    fun disagreeingLinesAreLeftAlone() {
+        // Rows leaning one way and columns the other, as on a box shot at an angle: no single
+        // turn levels both, so nothing is suggested.
+        val w = 400
+        val h = 300
+        val rows = 6.0 * PI / 180
+        val columns = -6.0 * PI / 180
+        fun stripes(across: Double): Float {
+            val phase = ((across % 60) + 60) % 60
+            return (minOf(phase, 60 - phase) - 15).coerceIn(-1.0, 1.0).toFloat()
+        }
+        val img = FloatArray(w * h) { i ->
+            val x = i % w - w / 2.0
+            val y = i / w - h / 2.0
+            0.5f + 0.12f * stripes(-x * sin(rows) + y * cos(rows)) + 0.12f * stripes(x * cos(columns) + y * sin(columns))
+        }
+        assertNull(Horizon.straightenAngle(img, w, h))
+    }
+
+    @Test
     fun noiseHasNoHorizon() {
         val r = Random(7)
         val img = FloatArray(200 * 200) { r.nextFloat() }
