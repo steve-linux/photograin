@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package io.github.steve_linux.photograin.ui.editor
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -54,27 +55,32 @@ fun RetouchPanel(
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             val current = spot?.type ?: type
-            FilterChip(
-                selected = current == RetouchType.HEAL,
-                onClick = { onType(RetouchType.HEAL) },
-                label = { Text(stringResource(R.string.retouch_heal)) },
-                leadingIcon = { Icon(Icons.Outlined.Healing, contentDescription = null, Modifier.size(18.dp)) },
-            )
-            Spacer(Modifier.size(8.dp))
-            FilterChip(
-                selected = current == RetouchType.CLONE,
-                onClick = { onType(RetouchType.CLONE) },
-                label = { Text(stringResource(R.string.retouch_clone)) },
-                leadingIcon = { Icon(Icons.Outlined.ContentCopy, contentDescription = null, Modifier.size(18.dp)) },
-            )
-            Spacer(Modifier.size(8.dp))
-            FilterChip(
-                selected = current == RetouchType.RED_EYE,
-                onClick = { onType(RetouchType.RED_EYE) },
-                label = { Text(stringResource(R.string.retouch_red_eye)) },
-                leadingIcon = { Icon(Icons.Outlined.RemoveRedEye, contentDescription = null, Modifier.size(18.dp)) },
-            )
-            Spacer(Modifier.weight(1f))
+            // The chips scroll on narrow screens, so the delete button always keeps its place.
+            Row(
+                Modifier.weight(1f).horizontalScroll(rememberScrollState()),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                FilterChip(
+                    selected = current == RetouchType.HEAL,
+                    onClick = { onType(RetouchType.HEAL) },
+                    label = { Text(stringResource(R.string.retouch_heal)) },
+                    leadingIcon = { Icon(Icons.Outlined.Healing, contentDescription = null, Modifier.size(18.dp)) },
+                )
+                Spacer(Modifier.size(8.dp))
+                FilterChip(
+                    selected = current == RetouchType.CLONE,
+                    onClick = { onType(RetouchType.CLONE) },
+                    label = { Text(stringResource(R.string.retouch_clone)) },
+                    leadingIcon = { Icon(Icons.Outlined.ContentCopy, contentDescription = null, Modifier.size(18.dp)) },
+                )
+                Spacer(Modifier.size(8.dp))
+                FilterChip(
+                    selected = current == RetouchType.RED_EYE,
+                    onClick = { onType(RetouchType.RED_EYE) },
+                    label = { Text(stringResource(R.string.retouch_red_eye)) },
+                    leadingIcon = { Icon(Icons.Outlined.RemoveRedEye, contentDescription = null, Modifier.size(18.dp)) },
+                )
+            }
             if (index != null) {
                 IconButton(onClick = { onDelete(index) }) {
                     Icon(Icons.Outlined.Delete, contentDescription = stringResource(R.string.retouch_delete))
