@@ -151,7 +151,8 @@ uniform vec2 uSrcAspect;
 uniform vec4 uMaskGeo[8];
 // Type (0 linear, 1 radial, 2 brush, 3 whole photo), angle (brush: layer of uBrush), feather, invert.
 uniform vec4 uMaskOpt[8];
-// Range: type (0 none, 1 luminance, 2 color), then low, high, smooth or hue, hue tolerance.
+// Range: type (0 none, 1 luminance, 2 color), then low, high, smooth or hue, hue tolerance,
+// saturation (negative: any).
 uniform vec4 uMaskRange[8];
 // Painted brush masks over the whole source, one layer per mask (see BrushRaster).
 uniform mediump sampler2DArray uBrush;
@@ -302,7 +303,13 @@ float rangeWeight(vec4 r, vec3 s) {
     }
     float d = abs(h - r.y);
     d = min(d, 1.0 - d);
-    return (1.0 - smoothstep(r.z, r.z + 0.06, d)) * smoothstep(0.06, 0.18, sat);
+    float satMatch = 1.0;
+    if (r.w >= 0.0) {
+        // Same as MaskRange.saturationTolerance, from the hue tolerance.
+        float ts = 0.05 + 0.6 * (r.z - 0.01) / 0.15;
+        satMatch = 1.0 - smoothstep(ts, ts + 0.1, abs(sat - r.w));
+    }
+    return (1.0 - smoothstep(r.z, r.z + 0.04, d)) * smoothstep(0.06, 0.18, sat) * satMatch;
 }
 
 // Same as Mask.weight, narrowed by the mask's range on the pixel [s].

@@ -19,6 +19,8 @@ import org.junit.Test
 import kotlin.math.pow
 
 class MaskRangeTest {
+    private val lenient = Json { ignoreUnknownKeys = true }
+
     @Test
     fun noRangeCoversEverything() {
         val r = MaskRange()
@@ -45,6 +47,14 @@ class MaskRangeTest {
     }
 
     @Test
+    fun pickedSaturationNarrowsTheMatch() {
+        val r = MaskRange(RangeType.COLOR, hue = MaskRange.hueOf(0.9f, 0.8f, 0.1f), tolerance = 0.1f, saturation = 0.9f)
+        // Same hue, as saturated: in. Same hue, much paler: out.
+        assertEquals(1f, r.weight(0.9f, 0.8f, 0.1f), 1e-4f)
+        assertEquals(0f, r.weight(0.9f, 0.85f, 0.6f), 1e-4f)
+    }
+
+    @Test
     fun hueWrapsAroundRed() {
         val r = MaskRange(RangeType.COLOR, hue = 0.99f, tolerance = 0.3f)
         assertEquals(1f, r.weight(0.9f, 0.1f, 0.12f), 1e-4f)
@@ -65,7 +75,7 @@ class MaskRangeTest {
     @Test
     fun oldRecipesReadWithoutARange() {
         val json = """{"type":"RADIAL","x0":0.4}"""
-        val m = Json { ignoreUnknownKeys = true }.decodeFromString(Mask.serializer(), json)
+        val m = lenient.decodeFromString(Mask.serializer(), json)
         assertEquals(RangeType.NONE, m.range.type)
     }
 

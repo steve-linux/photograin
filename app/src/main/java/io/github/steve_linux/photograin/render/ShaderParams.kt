@@ -109,6 +109,7 @@ object ShaderParams {
                 }
                 RangeType.COLOR -> {
                     range[k] = 2f; range[k + 1] = r.hue; range[k + 2] = MaskRange.hueTolerance(r.tolerance)
+                    range[k + 3] = r.saturation
                 }
             }
             locA[k] = l.exposure; locA[k + 1] = l.contrast; locA[k + 2] = l.highlights; locA[k + 3] = l.shadows

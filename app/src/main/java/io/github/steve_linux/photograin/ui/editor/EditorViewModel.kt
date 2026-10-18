@@ -217,7 +217,7 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
             Picker.NONE -> return
             Picker.MASK_COLOR -> {
                 val range = s.activeMask?.let { s.edit.masks[it].mask.range } ?: return
-                updateMask { it.copy(mask = it.mask.copy(range = range.copy(type = RangeType.COLOR, hue = MaskRange.hueOf(r, g, b)))) }
+                updateMask { it.copy(mask = it.mask.copy(range = range.copy(type = RangeType.COLOR, hue = MaskRange.hueOf(r, g, b), saturation = MaskRange.saturationOf(r, g, b)))) }
             }
             Picker.WHITE_BALANCE -> {
                 val (temperature, tint) = WhiteBalance.neutralize(r, g, b) ?: return
@@ -232,7 +232,8 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
     private fun averageColor(bitmap: Bitmap, x: Float, y: Float): Triple<Float, Float, Float> {
         val cx = (x * bitmap.width).toInt().coerceIn(0, bitmap.width - 1)
         val cy = (y * bitmap.height).toInt().coerceIn(0, bitmap.height - 1)
-        val half = maxOf(1, maxOf(bitmap.width, bitmap.height) / 400)
+        // About a fingertip on screen, so one odd pixel does not decide the result.
+        val half = maxOf(2, maxOf(bitmap.width, bitmap.height) / 150)
         var r = 0f
         var g = 0f
         var b = 0f

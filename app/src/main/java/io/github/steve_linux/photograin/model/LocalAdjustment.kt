@@ -23,8 +23,9 @@ enum class RangeType { NONE, LUMINANCE, COLOR }
  * adjustment, so moving a slider does not change what the mask covers.
  *
  * Luminance: from [low] to [high] (0..1), fading over [smooth] on either side.
- * Color: pixels whose hue is near [hue] (0..1); [tolerance] (0..1) widens the match. Grays
- * have no hue and are left out.
+ * Color: pixels whose hue is near [hue] (0..1) and, when [saturation] is known (not
+ * negative), whose saturation is near it too; [tolerance] (0..1) widens the match. Grays have
+ * no hue and are left out.
  */
 @Serializable
 data class MaskRange(
@@ -34,6 +35,7 @@ data class MaskRange(
     val smooth: Float = 0.3f,
     val hue: Float = 0f,
     val tolerance: Float = 0.4f,
+    val saturation: Float = -1f,
 ) {
     /** Strength 0..1 for a pixel of encoded [r], [g], [b] (0..1). Mirrors rangeWeight() in the shader. */
     fun weight(r: Float, g: Float, b: Float): Float = when (type) {
@@ -50,13 +52,28 @@ data class MaskRange(
             val d = abs(hueOf(r, g, b) - hue)
             val dist = min(d, 1f - d)
             val t = hueTolerance(tolerance)
-            (1f - smoothstep(t, t + 0.06f, dist)) * smoothstep(0.06f, 0.18f, sat)
+            val satMatch = if (saturation < 0f) {
+                1f
+            } else {
+                val ts = saturationTolerance(tolerance)
+                1f - smoothstep(ts, ts + 0.1f, abs(sat - saturation))
+            }
+            (1f - smoothstep(t, t + 0.04f, dist)) * smoothstep(0.06f, 0.18f, sat) * satMatch
         }
     }
 
     companion object {
         /** Half-width of the hue match, as a fraction of the color wheel. */
-        fun hueTolerance(tolerance: Float) = 0.02f + 0.16f * tolerance.coerceIn(0f, 1f)
+        fun hueTolerance(tolerance: Float) = 0.01f + 0.15f * tolerance.coerceIn(0f, 1f)
+
+        /** How far the saturation may differ from the picked one. */
+        fun saturationTolerance(tolerance: Float) = 0.05f + 0.6f * tolerance.coerceIn(0f, 1f)
+
+        /** Saturation 0..1 of an RGB color, as in HSV. */
+        fun saturationOf(r: Float, g: Float, b: Float): Float {
+            val mx = max(r, max(g, b))
+            return if (mx > 0f) (mx - min(r, min(g, b))) / mx else 0f
+        }
 
         /** Hue 0..1 of an RGB color (0 for grays). */
         fun hueOf(r: Float, g: Float, b: Float): Float {
