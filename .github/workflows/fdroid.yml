@@ -25,6 +25,10 @@ jobs:
       COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.COMMIT }}
+          fetch-depth: 0
+          persist-credentials: false
       - name: Build like F-Droid
         shell: bash
         run: |
@@ -44,15 +48,18 @@ jobs:
           sed "s/^    commit: .*/    commit: $COMMIT/" "fdroid/$APPID.yml" > "$home_vagrant/metadata/$APPID.yml"
           vercode=$(sed -n 's/^    versionCode: //p' "fdroid/$APPID.yml" | tail -1)
           for d in logs tmp unsigned build .android .gradle; do mkdir -p "$home_vagrant/$d"; done
+          # While the repository is private, fdroid cannot clone it from GitHub (it forces
+          # anonymous access), so it starts from a clone of this checkout instead.
+          git config --system --add safe.directory '*'
+          git clone "$GITHUB_WORKSPACE" "$home_vagrant/build/$APPID"
           chown -R vagrant "$home_vagrant"
 
           cd "$home_vagrant"
           # Runs as vagrant like the build server; `fdroid build --on-server` removes sudo after
-          # the build, and expects fetch_repo to have checked out the source first.
+          # the build, and expects the source in build/ already.
           fdroid="sudo --preserve-env --user vagrant
             env PATH=$fdroidserver:$PATH PYTHONPATH=$fdroidserver:$fdroidserver/examples
             PYTHONUNBUFFERED=true HOME=$home_vagrant GRADLE_USER_HOME=$home_vagrant/.gradle fdroid"
-          $fdroid fetch_repo "$APPID:$vercode" --verbose
           $fdroid build --verbose --test --refresh-scanner --on-server --no-tarball "$APPID:$vercode"
           ls -l tmp/
           cp tmp/*.apk "$GITHUB_WORKSPACE/"
