@@ -52,6 +52,8 @@ jobs:
           # anonymous access), so it starts from a clone of this checkout instead.
           git config --system --add safe.directory '*'
           git clone "$GITHUB_WORKSPACE" "$home_vagrant/build/$APPID"
+          repo=$(sed -n 's/^Repo: //p' "fdroid/$APPID.yml")
+          echo "git $repo" > "$home_vagrant/build/.fdroidvcs-$APPID"
           chown -R vagrant "$home_vagrant"
 
           cd "$home_vagrant"
