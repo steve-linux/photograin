@@ -23,6 +23,7 @@ import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.ContentPaste
 import androidx.compose.material.icons.outlined.Crop
 import androidx.compose.material.icons.outlined.Details
+import androidx.compose.material.icons.outlined.Gradient
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.RestartAlt
@@ -171,7 +172,7 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit) {
                         selected = state.tool == tool,
                         onClick = { viewModel.selectTool(tool) },
                         icon = { Icon(toolIcon(tool), contentDescription = null) },
-                        // Six tabs share the width: keep each label on one line, even with large fonts.
+                        // Seven tabs share the width: keep each label on one line, even with large fonts.
                         label = {
                             Text(
                                 stringResource(toolLabel(tool)),
@@ -210,6 +211,21 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit) {
                         onDeleteLut = viewModel::deleteLut,
                         onAmount = viewModel::setLookAmount,
                         onAmountFinished = viewModel::commit,
+                    )
+                } else if (state.tool == ToolGroup.LOCAL) {
+                    LocalPanel(
+                        masks = state.edit.masks,
+                        selected = state.activeMask,
+                        showMask = state.showMask,
+                        onAdd = viewModel::addMask,
+                        onSelect = viewModel::selectMask,
+                        onDelete = viewModel::deleteMask,
+                        onParam = viewModel::setMaskParam,
+                        onResetParam = viewModel::resetMaskParam,
+                        onShape = viewModel::setMaskShape,
+                        onInvert = viewModel::setMaskInvert,
+                        onShowMask = viewModel::setShowMask,
+                        onChangeFinished = viewModel::commit,
                     )
                 } else if (state.tool == ToolGroup.CROP) {
                     CropPanel(
@@ -296,6 +312,7 @@ private fun toolIcon(tool: ToolGroup): ImageVector = when (tool) {
     ToolGroup.COLOR -> Icons.Outlined.Palette
     ToolGroup.DETAIL -> Icons.Outlined.Details
     ToolGroup.EFFECTS -> Icons.Outlined.AutoAwesome
+    ToolGroup.LOCAL -> Icons.Outlined.Gradient
     ToolGroup.CROP -> Icons.Outlined.Crop
 }
 

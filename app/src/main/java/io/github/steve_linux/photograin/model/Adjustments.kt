@@ -50,7 +50,7 @@ data class Look(
     val isActive get() = lutId != null && amount > 0f
 }
 
-enum class ToolGroup { LOOK, LIGHT, COLOR, DETAIL, EFFECTS, CROP }
+enum class ToolGroup { LOOK, LIGHT, COLOR, DETAIL, EFFECTS, LOCAL, CROP }
 
 /** Describes one slider: its range, default and how it reads/writes [Adjustments]. */
 class ParamSpec(

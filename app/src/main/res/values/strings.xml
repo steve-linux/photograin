@@ -190,4 +190,17 @@
     <string name="guide_export_body">Tap {icon} to save a copy. Choose format, quality and size: you can also enlarge the photo 2× or 4×, with AI to restore detail. The sRGB color profile is right for sharing; Display P3 and Adobe RGB keep more color for printing.</string>
     <string name="guide_settings_title">Settings</string>
     <string name="guide_settings_body">With {icon} you choose where to save (Pictures/Photograin to begin with), how files are named, the default format, whether to remove the GPS location, and a light or dark theme.</string>
+    <string name="tool_local">Masks</string>
+    <string name="local_add_linear">Linear</string>
+    <string name="local_add_radial">Radial</string>
+    <string name="local_linear_n">Linear %1$d</string>
+    <string name="local_radial_n">Radial %1$d</string>
+    <string name="local_hint_empty">Add a gradient to adjust only part of the photo: linear for a sky or a foreground, radial for a subject.</string>
+    <string name="local_hint_select">Tap a mask to edit it, or drag its point on the photo.</string>
+    <string name="local_invert">Invert</string>
+    <string name="local_show_mask">Show mask</string>
+    <string name="local_delete">Delete mask</string>
+    <string name="local_feather">Feather</string>
+    <string name="guide_local_title">Masks</string>
+    <string name="guide_local_body">Adjust only part of the photo. A linear gradient darkens a bright sky or lightens a foreground; a radial one brings out a subject. Drag the points on the photo to move and shape it, use {icon} to see where it applies, and Invert to change everything else instead.</string>
 </resources>

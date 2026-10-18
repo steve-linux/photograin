@@ -3,6 +3,8 @@ package io.github.steve_linux.photograin.render
 
 import io.github.steve_linux.photograin.model.Adjustments
 import io.github.steve_linux.photograin.model.HslBand
+import io.github.steve_linux.photograin.model.LocalAdjustment
+import io.github.steve_linux.photograin.model.MaskType
 import kotlin.math.ceil
 import kotlin.math.log2
 import kotlin.math.max
@@ -59,5 +61,33 @@ object ShaderParams {
             out[i * 3 + 2] = a.hsl.luminance.getOrElse(i) { 0f }
         }
         return out
+    }
+
+    /** Local adjustments packed as four vec4 arrays; see the mask uniforms in the color shader. */
+    class MaskUniforms(val count: Int, val geo: FloatArray, val opt: FloatArray, val locA: FloatArray, val locB: FloatArray)
+
+    fun maskUniforms(masks: List<LocalAdjustment>): MaskUniforms {
+        val n = minOf(masks.size, LocalAdjustment.MAX)
+        val geo = FloatArray(LocalAdjustment.MAX * 4)
+        val opt = FloatArray(LocalAdjustment.MAX * 4)
+        val locA = FloatArray(LocalAdjustment.MAX * 4)
+        val locB = FloatArray(LocalAdjustment.MAX * 4)
+        for (i in 0 until n) {
+            val l = masks[i]
+            val m = l.mask
+            val k = i * 4
+            if (m.type == MaskType.LINEAR) {
+                geo[k] = m.x0; geo[k + 1] = m.y0; geo[k + 2] = m.x1; geo[k + 3] = m.y1
+            } else {
+                geo[k] = m.x0; geo[k + 1] = m.y0; geo[k + 2] = m.radiusX; geo[k + 3] = m.radiusY
+            }
+            opt[k] = if (m.type == MaskType.LINEAR) 0f else 1f
+            opt[k + 1] = m.angle
+            opt[k + 2] = m.feather
+            opt[k + 3] = if (m.invert) 1f else 0f
+            locA[k] = l.exposure; locA[k + 1] = l.contrast; locA[k + 2] = l.highlights; locA[k + 3] = l.shadows
+            locB[k] = l.temperature; locB[k + 1] = l.tint; locB[k + 2] = l.saturation; locB[k + 3] = l.clarity
+        }
+        return MaskUniforms(n, geo, opt, locA, locB)
     }
 }

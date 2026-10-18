@@ -12,6 +12,7 @@ import io.github.steve_linux.photograin.model.BaseOrientation
 import io.github.steve_linux.photograin.model.ColorProfile
 import io.github.steve_linux.photograin.model.CubeLut
 import io.github.steve_linux.photograin.model.Geometry
+import io.github.steve_linux.photograin.model.LocalAdjustment
 import io.github.steve_linux.photograin.model.GeometryMapper
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
@@ -31,6 +32,9 @@ data class PreviewFrame(
     val background: FloatArray,
     /** Color space of [bitmap]; the screen is treated as sRGB. */
     val profile: ColorProfile = ColorProfile.SRGB,
+    val masks: List<LocalAdjustment> = emptyList(),
+    /** Index of the mask to tint red, or -1. */
+    val showMask: Int = -1,
 )
 
 /** Renders [PreviewFrame]s into a [GLSurfaceView] on demand. */
@@ -118,6 +122,11 @@ class PreviewRenderer : GLSurfaceView.Renderer {
             composite = true,
             working = frame.profile,
             background = frame.background,
+            masks = frame.masks,
+            posToSource = mapper.normalizedOutputToSource(),
+            sourceWidth = bitmap.width,
+            sourceHeight = bitmap.height,
+            showMask = frame.showMask,
         )
     }
 

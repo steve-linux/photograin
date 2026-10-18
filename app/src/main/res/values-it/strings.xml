@@ -177,4 +177,17 @@
     <string name="guide_export_body">Tocca {icon} per salvare una copia. Scegli formato, qualità e dimensione: puoi anche ingrandire la foto 2× o 4×, con l\'IA per recuperare i dettagli. Il profilo colore sRGB va bene per condividere; Display P3 e Adobe RGB conservano più colori per la stampa.</string>
     <string name="guide_settings_title">Impostazioni</string>
     <string name="guide_settings_body">Con {icon} scegli dove salvare (per iniziare in Immagini/Photograin), come chiamare i file, il formato predefinito, se togliere la posizione GPS e il tema chiaro o scuro.</string>
+    <string name="tool_local">Maschere</string>
+    <string name="local_add_linear">Lineare</string>
+    <string name="local_add_radial">Circolare</string>
+    <string name="local_linear_n">Lineare %1$d</string>
+    <string name="local_radial_n">Circolare %1$d</string>
+    <string name="local_hint_empty">Aggiungi una sfumatura per regolare solo una parte della foto: lineare per un cielo o un primo piano, circolare per un soggetto.</string>
+    <string name="local_hint_select">Tocca una maschera per modificarla, o trascina il suo punto sulla foto.</string>
+    <string name="local_invert">Inverti</string>
+    <string name="local_show_mask">Mostra maschera</string>
+    <string name="local_delete">Elimina maschera</string>
+    <string name="local_feather">Sfumatura</string>
+    <string name="guide_local_title">Maschere</string>
+    <string name="guide_local_body">Regola solo una parte della foto. Una sfumatura lineare scurisce un cielo troppo chiaro o schiarisce il primo piano; una circolare fa risaltare un soggetto. Trascina i punti sulla foto per spostarla e darle forma, usa {icon} per vedere dove agisce e Inverti per cambiare tutto il resto.</string>
 </resources>
