@@ -243,7 +243,7 @@
     <string name="font_mono">Mono</string>
     <string name="font_handwriting">Handwriting</string>
     <string name="guide_decor_title">Frames and text</string>
-    <string name="guide_decor_body">In Effects, Frame adds a border around the photo, or a polaroid with room for a caption. Text adds captions, dates or a signature: drag them on the photo to place them, and pick size, font and color.</string>
+    <string name="guide_decor_body">In Effects, Frame adds a border around the photo, or a polaroid with room for a caption. Text adds captions, dates or a signature: drag them on the photo to place them, and pick size, font and color. In Shapes you add lines, arrows, rectangles and ellipses. A text with Repeat as watermark covers the whole photo, see-through and slanted.</string>
     <string name="local_add_full">Whole photo</string>
     <string name="local_full_n">Whole photo %1$d</string>
     <string name="range_title">Range</string>
@@ -260,4 +260,21 @@
     <string name="wb_pick">White balance eyedropper</string>
     <string name="wb_pick_hint">Tap something that should be white or gray.</string>
     <string name="wb_pick_label">Eyedropper</string>
+    <string name="mode_shapes">Shapes</string>
+    <string name="text_opacity">Opacity</string>
+    <string name="text_angle">Rotation</string>
+    <string name="text_tiled">Repeat as watermark</string>
+    <string name="shape_line">Line</string>
+    <string name="shape_arrow">Arrow</string>
+    <string name="shape_rect">Rectangle</string>
+    <string name="shape_ellipse">Ellipse</string>
+    <string name="shape_line_n">Line %1$d</string>
+    <string name="shape_arrow_n">Arrow %1$d</string>
+    <string name="shape_rect_n">Rectangle %1$d</string>
+    <string name="shape_ellipse_n">Ellipse %1$d</string>
+    <string name="shape_hint_empty">Add a line, an arrow or a box to point something out in the photo.</string>
+    <string name="shape_hint_select">Tap a shape to edit it, or drag it on the photo.</string>
+    <string name="shape_fill">Filled</string>
+    <string name="shape_width">Thickness</string>
+    <string name="shape_delete">Delete shape</string>
 </resources>

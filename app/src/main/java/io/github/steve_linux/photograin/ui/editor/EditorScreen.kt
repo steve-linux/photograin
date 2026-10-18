@@ -221,6 +221,15 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit) {
                     EffectsModeSelector(state.effectsMode, viewModel::setEffectsMode)
                     when (state.effectsMode) {
                         1 -> FramePanel(state.edit.frame, viewModel::setFrame, viewModel::commit)
+                        3 -> ShapesPanel(
+                            shapes = state.edit.shapes,
+                            selected = state.activeShape,
+                            onAdd = viewModel::addShape,
+                            onSelect = viewModel::selectShape,
+                            onChange = viewModel::setShape,
+                            onDelete = viewModel::deleteShape,
+                            onChangeFinished = viewModel::commit,
+                        )
                         2 -> TextPanel(
                             texts = state.edit.texts,
                             selected = state.activeText,
