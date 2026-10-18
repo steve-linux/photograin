@@ -92,12 +92,12 @@ object Metadata {
         )
         add(MetadataGroup.AUTHOR, R.string.metadata_artist, exif.getAttribute(ExifInterface.TAG_ARTIST))
         add(MetadataGroup.AUTHOR, R.string.metadata_copyright, exif.getAttribute(ExifInterface.TAG_COPYRIGHT))
+        // Some cameras write a GPS block of zeros without a position: its altitude means nothing either.
         exif.latLong?.let { (lat, lon) ->
             add(MetadataGroup.LOCATION, R.string.metadata_coordinates, String.format(Locale.ROOT, "%.5f, %.5f", lat, lon))
-        }
-        // Some phones leave an empty GPS block whose reference tags alone make the altitude read as 0.
-        exif.getAltitude(Double.NaN).takeIf { !it.isNaN() && exif.getAttribute(ExifInterface.TAG_GPS_ALTITUDE) != null }?.let {
-            add(MetadataGroup.LOCATION, R.string.metadata_altitude, "${it.roundToInt()} m")
+            exif.getAltitude(Double.NaN).takeIf { !it.isNaN() && exif.getAttribute(ExifInterface.TAG_GPS_ALTITUDE) != null }?.let {
+                add(MetadataGroup.LOCATION, R.string.metadata_altitude, "${it.roundToInt()} m")
+            }
         }
         return out
     }
