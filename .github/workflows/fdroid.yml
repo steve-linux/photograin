@@ -47,11 +47,13 @@ jobs:
           chown -R vagrant "$home_vagrant"
 
           cd "$home_vagrant"
-          # `fdroid build --on-server` runs as vagrant and removes sudo after the build.
-          sudo --preserve-env --user vagrant \
-            env PATH="$fdroidserver:$PATH" PYTHONPATH="$fdroidserver:$fdroidserver/examples" \
-            PYTHONUNBUFFERED=true HOME="$home_vagrant" GRADLE_USER_HOME="$home_vagrant/.gradle" \
-            fdroid build --verbose --test --refresh-scanner --on-server --no-tarball "$APPID:$vercode"
+          # Runs as vagrant like the build server; `fdroid build --on-server` removes sudo after
+          # the build, and expects fetch_repo to have checked out the source first.
+          fdroid="sudo --preserve-env --user vagrant
+            env PATH=$fdroidserver:$PATH PYTHONPATH=$fdroidserver:$fdroidserver/examples
+            PYTHONUNBUFFERED=true HOME=$home_vagrant GRADLE_USER_HOME=$home_vagrant/.gradle fdroid"
+          $fdroid fetch_repo "$APPID:$vercode" --verbose
+          $fdroid build --verbose --test --refresh-scanner --on-server --no-tarball "$APPID:$vercode"
           ls -l tmp/
           cp tmp/*.apk "$GITHUB_WORKSPACE/"
       - uses: actions/upload-artifact@v4
