@@ -1,1 +1,1 @@
-First release: real-time global adjustments, crop and straighten, non-destructive history, before/after comparison, full-resolution tiled export.
+First release: real-time adjustments, styles and LUTs, crop with auto straighten and 4-point perspective, heal, clone and red eye, RAW and wide-gamut color, batch editing, export to JPEG, PNG, WebP, AVIF, JPEG XL and 16-bit TIFF with EXIF control and optional AI upscaling.

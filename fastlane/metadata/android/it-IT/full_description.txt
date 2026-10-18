@@ -8,13 +8,25 @@ Le modifiche sono salvate come una "ricetta" a parte, non impresse nella foto. P
 • Colore: temperatura, tinta, vividezza, saturazione
 • Dettaglio: nitidezza, chiarezza, rimozione foschia
 • Effetti: vignettatura, grana pellicola realistica
-• Ritaglio con proporzioni predefinite, raddrizzamento, rotazione e specchio
+• Stili: preset pronti, preset personali e LUT .cube con intensità regolabile
+
+<b>Ritaglio e geometria</b>
+Proporzioni predefinite, rotazione e specchio, raddrizzamento a mano o automatico dalle linee della foto, e correzione della prospettiva con i cursori o segnando quattro angoli di qualcosa di rettangolare.
+
+<b>Ritocco</b>
+Correttivo e clona per togliere macchie, polvere e piccoli oggetti, e occhi rossi corretti con un tocco per pupilla.
+
+<b>RAW e colori ad ampia gamma</b>
+Apre DNG, CR2, CR3, NEF, ARW, RAF, ORF, RW2 e altri file RAW con LibRaw, mantenendo 16 bit per canale fino alla GPU. Le foto con profili ad ampia gamma (Display P3, Adobe RGB) conservano i colori più saturi.
+
+<b>Modifica in serie</b>
+Applica un preset o le regolazioni copiate a più foto insieme ed esportale tutte in una cartella.
+
+<b>Esportazione a piena qualità</b>
+Le esportazioni sono elaborate a tasselli alla massima risoluzione, in JPEG, PNG, WebP, AVIF, JPEG XL o TIFF a 16 bit, in sRGB, Display P3 o Adobe RGB. Scegli quali dati EXIF mantenere; la posizione viene rimossa per impostazione predefinita. Ingrandimento 2× o 4× facoltativo, bicubico o con l'IA (Real-ESRGAN, eseguito sul telefono).
 
 <b>Confronto</b>
 Tieni premuto sulla foto per vedere l'originale, oppure usa la vista divisa.
 
-<b>Esportazione a piena qualità</b>
-Le esportazioni sono elaborate a tasselli alla massima risoluzione, in JPEG, PNG o WebP. I dati di posizione vengono rimossi per impostazione predefinita.
-
 <b>Privacy prima di tutto</b>
-Nessun permesso, nessun accesso alla rete, nessuna pubblicità, nessun tracciamento. Le foto si aprono e si salvano tramite le finestre di sistema.
+Nessun permesso, nessun accesso alla rete, nessuna pubblicità, nessun tracciamento. Le foto si aprono e si salvano tramite le finestre di sistema, e il modello di IA è incluso nell'app.
