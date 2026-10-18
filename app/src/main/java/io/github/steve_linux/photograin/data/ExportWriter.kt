@@ -126,6 +126,7 @@ object ExportWriter {
         var bandTop = -1
         var bandRows = 0
         val buffer = ByteBuffer.allocateDirect(w * band * (if (deep) 8 else 4)).order(ByteOrder.nativeOrder())
+        var halves = buffer.asShortBuffer()
         val tmp = File.createTempFile("export", ".tif", context.cacheDir)
         try {
             TiffWriter.write(tmp, w, bitmap.height, icc, exif, "Photograin") { y, samples ->
@@ -136,10 +137,12 @@ object ExportWriter {
                     buffer.clear()
                     part.copyPixelsToBuffer(buffer)
                     if (part !== bitmap) part.recycle()
+                    // The copy leaves the position at the end, and a view starts at the position.
+                    buffer.rewind()
+                    halves = buffer.asShortBuffer()
                 }
                 val r = y - bandTop
                 if (deep) {
-                    val halves = buffer.asShortBuffer()
                     for (x in 0 until w) for (c in 0 until 3) {
                         val v = HalfFloats.toFloat(halves.get((r * w + x) * 4 + c))
                         samples[x * 3 + c] = (v.coerceIn(0f, 1f) * 65535f + 0.5f).toInt().toShort()

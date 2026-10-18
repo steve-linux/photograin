@@ -128,6 +128,8 @@ fun DecorOverlay(
                 native.save()
                 native.translate(frameRect.left, frameRect.top)
                 native.scale(s, s)
+                // A tiled watermark covers the whole output: keep it inside the framed photo.
+                native.clipRect(0f, 0f, total.width.toFloat(), total.height.toFloat())
                 DecorPainter.drawShapes(native, total, shapes)
                 DecorPainter.drawTexts(native, total, texts)
                 native.restore()
