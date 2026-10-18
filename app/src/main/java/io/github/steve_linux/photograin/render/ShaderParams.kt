@@ -4,7 +4,9 @@ package io.github.steve_linux.photograin.render
 import io.github.steve_linux.photograin.model.Adjustments
 import io.github.steve_linux.photograin.model.HslBand
 import io.github.steve_linux.photograin.model.LocalAdjustment
+import io.github.steve_linux.photograin.model.MaskRange
 import io.github.steve_linux.photograin.model.MaskType
+import io.github.steve_linux.photograin.model.RangeType
 import kotlin.math.ceil
 import kotlin.math.log2
 import kotlin.math.max
@@ -64,12 +66,20 @@ object ShaderParams {
     }
 
     /** Local adjustments packed as four vec4 arrays; see the mask uniforms in the color shader. */
-    class MaskUniforms(val count: Int, val geo: FloatArray, val opt: FloatArray, val locA: FloatArray, val locB: FloatArray)
+    class MaskUniforms(
+        val count: Int,
+        val geo: FloatArray,
+        val opt: FloatArray,
+        val range: FloatArray,
+        val locA: FloatArray,
+        val locB: FloatArray,
+    )
 
     fun maskUniforms(masks: List<LocalAdjustment>): MaskUniforms {
         val n = minOf(masks.size, LocalAdjustment.MAX)
         val geo = FloatArray(LocalAdjustment.MAX * 4)
         val opt = FloatArray(LocalAdjustment.MAX * 4)
+        val range = FloatArray(LocalAdjustment.MAX * 4)
         val locA = FloatArray(LocalAdjustment.MAX * 4)
         val locB = FloatArray(LocalAdjustment.MAX * 4)
         for (i in 0 until n) {
@@ -85,14 +95,26 @@ object ShaderParams {
                 MaskType.LINEAR -> 0f
                 MaskType.RADIAL -> 1f
                 MaskType.BRUSH -> 2f
+                MaskType.FULL -> 3f
             }
             // A brush mask is drawn into the layer of the brush texture matching its index.
             opt[k + 1] = if (m.type == MaskType.BRUSH) i.toFloat() else m.angle
             opt[k + 2] = m.feather
             opt[k + 3] = if (m.invert) 1f else 0f
+            val r = m.range
+            when (r.type) {
+                RangeType.NONE -> Unit
+                RangeType.LUMINANCE -> {
+                    range[k] = 1f; range[k + 1] = r.low; range[k + 2] = r.high; range[k + 3] = r.smooth
+                }
+                RangeType.COLOR -> {
+                    range[k] = 2f; range[k + 1] = r.hue; range[k + 2] = MaskRange.hueTolerance(r.tolerance)
+                    range[k + 3] = r.saturation
+                }
+            }
             locA[k] = l.exposure; locA[k + 1] = l.contrast; locA[k + 2] = l.highlights; locA[k + 3] = l.shadows
             locB[k] = l.temperature; locB[k + 1] = l.tint; locB[k + 2] = l.saturation; locB[k + 3] = l.clarity
         }
-        return MaskUniforms(n, geo, opt, locA, locB)
+        return MaskUniforms(n, geo, opt, range, locA, locB)
     }
 }

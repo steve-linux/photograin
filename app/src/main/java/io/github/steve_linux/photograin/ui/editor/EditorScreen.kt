@@ -273,6 +273,8 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit) {
                             onChangeFinished = viewModel::commit,
                             brush = state.brush,
                             onBrush = viewModel::setBrush,
+                            picking = state.picker == Picker.MASK_COLOR,
+                            onPicking = { viewModel.setPicker(if (it) Picker.MASK_COLOR else Picker.NONE) },
                         )
                     }
                 } else if (state.tool == ToolGroup.CROP) {
@@ -309,13 +311,21 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit) {
                             onChange = viewModel::setHsl,
                             onChangeFinished = viewModel::commit,
                         )
-                        else -> AdjustmentPanel(
-                            group = state.tool,
-                            adjustments = state.edit.adjustments,
-                            onChange = viewModel::setParam,
-                            onChangeFinished = viewModel::commit,
-                            onReset = viewModel::resetParam,
-                        )
+                        else -> {
+                            if (state.tool == ToolGroup.COLOR) {
+                                WhiteBalancePicker(
+                                    picking = state.picker == Picker.WHITE_BALANCE,
+                                    onPicking = { viewModel.setPicker(if (it) Picker.WHITE_BALANCE else Picker.NONE) },
+                                )
+                            }
+                            AdjustmentPanel(
+                                group = state.tool,
+                                adjustments = state.edit.adjustments,
+                                onChange = viewModel::setParam,
+                                onChangeFinished = viewModel::commit,
+                                onReset = viewModel::resetParam,
+                            )
+                        }
                     }
                 }
             }

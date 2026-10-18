@@ -67,7 +67,7 @@ class MaskSpace(
     }
 
     fun handles(m: Mask): Map<MaskHandle, Offset> = when (m.type) {
-        MaskType.BRUSH -> emptyMap()
+        MaskType.BRUSH, MaskType.FULL -> emptyMap()
         MaskType.LINEAR -> mapOf(
             MaskHandle.START to toScreen(m.x0.toDouble(), m.y0.toDouble()),
             MaskHandle.END to toScreen(m.x1.toDouble(), m.y1.toDouble()),
@@ -92,6 +92,7 @@ class MaskSpace(
             val mid = it.pointCount / 2
             toScreen(it.points[2 * mid].toDouble(), it.points[2 * mid + 1].toDouble())
         }
+        MaskType.FULL -> null
         else -> handles(m).getValue(MaskHandle.MOVE)
     }
 
@@ -220,7 +221,7 @@ private fun DrawScope.drawSelected(m: Mask, space: MaskSpace, dragging: Boolean)
                 val mid = handles.getValue(MaskHandle.MOVE)
                 drawLine(line, mid - perp, mid + perp, strokeWidth = width, pathEffect = dashed)
             }
-            MaskType.BRUSH -> Unit
+            MaskType.BRUSH, MaskType.FULL -> Unit
             MaskType.RADIAL -> {
                 drawPath(path(space.ellipse(m, 1.0)), line, style = Stroke(width))
                 if (m.feather > 0.02f) {

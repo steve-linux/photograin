@@ -233,6 +233,7 @@ internal class Pipeline {
             p.vec2("uSrcAspect", sourceWidth / srcLong, sourceHeight / srcLong)
             p.vec4Array("uMaskGeo", mu.geo)
             p.vec4Array("uMaskOpt", mu.opt)
+            p.vec4Array("uMaskRange", mu.range)
             p.vec4Array("uLocA", mu.locA)
             p.vec4Array("uLocB", mu.locB)
         }

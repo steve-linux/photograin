@@ -149,8 +149,11 @@ uniform mat3 uPosToSrc;
 uniform vec2 uSrcAspect;
 // Linear: start xy, end zw. Radial: center xy, radii zw (in long-edge units).
 uniform vec4 uMaskGeo[8];
-// Type (0 linear, 1 radial, 2 brush), angle (brush: layer of uBrush), feather, invert.
+// Type (0 linear, 1 radial, 2 brush, 3 whole photo), angle (brush: layer of uBrush), feather, invert.
 uniform vec4 uMaskOpt[8];
+// Range: type (0 none, 1 luminance, 2 color), then low, high, smooth or hue, hue tolerance,
+// saturation (negative: any).
+uniform vec4 uMaskRange[8];
 // Painted brush masks over the whole source, one layer per mask (see BrushRaster).
 uniform mediump sampler2DArray uBrush;
 // Exposure, contrast, highlights, shadows.
@@ -279,14 +282,46 @@ vec3 wbGains(float temp, float tint) {
     return g / dot(g, vec3(0.2126, 0.7152, 0.0722));
 }
 
-// Same as Mask.weight.
-float maskWeight(int i, vec2 pos) {
+// Same as MaskRange.weight, on the pixel before any adjustment.
+float rangeWeight(vec4 r, vec3 s) {
+    if (r.x < 0.5) return 1.0;
+    if (r.x < 1.5) {
+        float l = dot(s, LUMA);
+        float e = max(r.w, 0.001) * 0.25;
+        return smoothstep(r.y - e, r.y + e, l) * (1.0 - smoothstep(r.z - e, r.z + e, l));
+    }
+    float mx = max(s.r, max(s.g, s.b));
+    float mn = min(s.r, min(s.g, s.b));
+    float c = mx - mn;
+    float sat = mx > 0.0 ? c / mx : 0.0;
+    float h = 0.0;
+    if (c > 0.0) {
+        if (mx == s.r) h = mod((s.g - s.b) / c, 6.0);
+        else if (mx == s.g) h = (s.b - s.r) / c + 2.0;
+        else h = (s.r - s.g) / c + 4.0;
+        h /= 6.0;
+    }
+    float d = abs(h - r.y);
+    d = min(d, 1.0 - d);
+    float satMatch = 1.0;
+    if (r.w >= 0.0) {
+        // Same as MaskRange.saturationTolerance, from the hue tolerance.
+        float ts = 0.05 + 0.6 * (r.z - 0.01) / 0.15;
+        satMatch = 1.0 - smoothstep(ts, ts + 0.1, abs(sat - r.w));
+    }
+    return (1.0 - smoothstep(r.z, r.z + 0.04, d)) * smoothstep(0.06, 0.18, sat) * satMatch;
+}
+
+// Same as Mask.weight, narrowed by the mask's range on the pixel [s].
+float maskWeight(int i, vec2 pos, vec3 s) {
     vec3 hp = uPosToSrc * vec3(pos, 1.0);
     vec2 q = hp.xy / hp.z * uSrcAspect;
     vec4 g = uMaskGeo[i];
     vec4 o = uMaskOpt[i];
     float w;
-    if (o.x > 1.5) {
+    if (o.x > 2.5) {
+        w = 1.0;
+    } else if (o.x > 1.5) {
         vec2 src = clamp(q / uSrcAspect, 0.0, 1.0);
         w = textureLod(uBrush, vec3(src, o.y), 0.0).r;
     } else if (o.x < 0.5) {
@@ -301,7 +336,8 @@ float maskWeight(int i, vec2 pos) {
         vec2 r = vec2(cs * d.x + sn * d.y, -sn * d.x + cs * d.y) / max(g.zw, vec2(1e-5));
         w = 1.0 - smoothstep(1.0 - max(o.z, 0.001), 1.0, length(r));
     }
-    return o.w > 0.5 ? 1.0 - w : w;
+    w = o.w > 0.5 ? 1.0 - w : w;
+    return w * rangeWeight(uMaskRange[i], s);
 }
 
 vec3 process(vec3 s, vec2 pos) {
@@ -309,7 +345,7 @@ vec3 process(vec3 s, vec2 pos) {
     vec4 lb = vec4(0.0);
     for (int i = 0; i < 8; i++) {
         if (i >= uMaskCount) break;
-        float w = maskWeight(i, pos);
+        float w = maskWeight(i, pos, s);
         la += w * uLocA[i];
         lb += w * uLocB[i];
     }
@@ -419,7 +455,7 @@ void main() {
     vec4 src = texture(uGeo, vCoord);
     vec2 pos = uImgMap.xy + vCoord * uImgMap.zw;
     vec3 rgb = pos.x < uCompare ? src.rgb : process(src.rgb, pos);
-    if (uShowMask >= 0) rgb = mix(rgb, vec3(1.0, 0.1, 0.1), 0.6 * maskWeight(uShowMask, pos));
+    if (uShowMask >= 0) rgb = mix(rgb, vec3(1.0, 0.1, 0.1), 0.6 * maskWeight(uShowMask, pos, src.rgb));
     if (uOutConvert > 0.5) rgb = toOutput(rgb);
     if (uComposite > 0.5) {
         oColor = vec4(mix(uBg, rgb, src.a), 1.0);
