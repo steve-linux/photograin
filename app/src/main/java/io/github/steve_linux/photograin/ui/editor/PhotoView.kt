@@ -65,7 +65,13 @@ fun PhotoView(
     // An eyedropper is on: a tap picks a color instead of its usual meaning.
     val picking = state.picker != Picker.NONE && !cropMode
     val geometry = state.edit.geometry
-    val displayGeometry = if (cropMode) geometry.copy(crop = CropRect.FULL) else geometry
+    // Placing the four points: the photo as shot, so they go on its real edges.
+    val quadDraft = state.quadDraft.takeIf { cropMode }
+    val displayGeometry = when {
+        quadDraft != null -> geometry.copy(crop = CropRect.FULL, straighten = 0f, vertical = 0f, horizontal = 0f, quad = null)
+        cropMode -> geometry.copy(crop = CropRect.FULL)
+        else -> geometry
+    }
     val mapper = viewModel.mapper(displayGeometry) ?: return
     val content = mapper.outputSize
     // The frame is left out while cropping, so the crop handles sit on the photo's edges.
@@ -159,7 +165,9 @@ fun PhotoView(
             )
         }
 
-        if (cropMode) {
+        if (quadDraft != null) {
+            QuadOverlay(quadDraft, rect, viewModel::setQuadDraft)
+        } else if (cropMode) {
             CropOverlay(
                 crop = geometry.crop,
                 imageRect = rect,

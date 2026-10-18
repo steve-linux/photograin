@@ -16,7 +16,8 @@ Editor fotografico non distruttivo per Android, libero (GPL-3.0-or-later) e pens
   salvabili; importazione di LUT `.cube` (3D e 1D) applicati sulla GPU con intensità regolabile.
 - **Modifica in serie**: scegli più foto e applica a tutte un preset o le regolazioni copiate;
   ogni foto mantiene il suo ritaglio, e puoi esportarle tutte in una cartella.
-- **Ritaglio**: proporzioni predefinite, raddrizzamento ±45°, rotazione, specchio.
+- **Ritaglio**: proporzioni predefinite, raddrizzamento ±45° anche automatico (dalle linee della foto),
+  rotazione, specchio, prospettiva con cursori o a 4 punti (segni qualcosa di rettangolare e viene squadrato).
 - **Confronto prima/dopo**: tieni premuto sulla foto, oppure vista divisa con cursore.
 - **Copia/incolla** delle regolazioni tra foto.
 - **Esportazione a piena risoluzione**, elaborata a tasselli per foto più grandi del limite della GPU;
