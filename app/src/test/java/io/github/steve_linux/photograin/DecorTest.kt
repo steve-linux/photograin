@@ -5,6 +5,8 @@ import io.github.steve_linux.photograin.model.EditState
 import io.github.steve_linux.photograin.model.Frame
 import io.github.steve_linux.photograin.model.FrameStyle
 import io.github.steve_linux.photograin.model.PxSize
+import io.github.steve_linux.photograin.model.ShapeItem
+import io.github.steve_linux.photograin.model.ShapeType
 import io.github.steve_linux.photograin.model.TextFont
 import io.github.steve_linux.photograin.model.TextItem
 import org.junit.Assert.assertEquals
@@ -43,5 +45,35 @@ class DecorTest {
             texts = listOf(TextItem("Roma 2026\nciao", 0.5f, 0.92f, 0.2f, font = TextFont.HANDWRITING, bold = true)),
         )
         assertEquals(state, EditState.fromJson(state.toJson()))
+    }
+
+    @Test
+    fun recipeKeepsShapesAndWatermark() {
+        val state = EditState(
+            texts = listOf(TextItem("© Stefano", opacity = 0.35f, angle = -30f, tiled = true)),
+            shapes = listOf(
+                ShapeItem(ShapeType.ARROW, 0.1f, 0.2f, 0.6f, 0.7f, width = 0.5f),
+                ShapeItem(ShapeType.ELLIPSE, fill = true, color = 0xFF1565C0.toInt()),
+            ),
+        )
+        assertEquals(state, EditState.fromJson(state.toJson()))
+    }
+
+    @Test
+    fun oldRecipesHaveNoShapesAndPlainText() {
+        val old = EditState.fromJson("""{"version":1,"edit":{"texts":[{"text":"ciao"}]}}""")!!
+        assertTrue(old.shapes.isEmpty())
+        val t = old.texts.single()
+        assertEquals(1f, t.opacity, 0f)
+        assertEquals(0f, t.angle, 0f)
+        assertTrue(!t.tiled)
+    }
+
+    @Test
+    fun strokeScalesWithTheOutput() {
+        val s = ShapeItem(ShapeType.LINE, width = 1f)
+        assertEquals(2 * s.strokePx(1000), s.strokePx(2000), 1e-3f)
+        assertTrue(ShapeItem(ShapeType.RECT).isBox)
+        assertTrue(!ShapeItem(ShapeType.ARROW).isBox)
     }
 }

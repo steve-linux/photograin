@@ -214,6 +214,7 @@ object Exporter {
                 GlUtil.deleteTexture(sourceTexture)
                 target.release()
                 patches.values.forEach { it.bitmap.recycle() }
+                DecorPainter.drawShapes(canvas, layout.size, edit.shapes)
                 DecorPainter.drawTexts(canvas, layout.size, edit.texts)
                 tileBitmaps.values.forEach(Bitmap::recycle)
             } finally {
