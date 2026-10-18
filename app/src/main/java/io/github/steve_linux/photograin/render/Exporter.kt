@@ -10,6 +10,7 @@ import io.github.steve_linux.photograin.data.AiUpscaleSource
 import io.github.steve_linux.photograin.data.ColorSpaces
 import io.github.steve_linux.photograin.data.ExportOptions
 import io.github.steve_linux.photograin.data.RegionSource
+import io.github.steve_linux.photograin.data.Retoucher
 import io.github.steve_linux.photograin.math.Affine
 import io.github.steve_linux.photograin.math.Vec2
 import io.github.steve_linux.photograin.model.BaseOrientation
@@ -18,6 +19,7 @@ import io.github.steve_linux.photograin.model.CubeLut
 import io.github.steve_linux.photograin.model.EditState
 import io.github.steve_linux.photograin.model.GeometryMapper
 import io.github.steve_linux.photograin.model.PxSize
+import io.github.steve_linux.photograin.model.RetouchSpot
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.ceil
@@ -132,6 +134,8 @@ object Exporter {
                 val pixels = ByteBuffer.allocateDirect(tile * tile * 4).order(ByteOrder.nativeOrder())
                 var sourceTexture = 0
                 val target = RenderTargetHolder()
+                // Spots crossing several tiles are worked out once.
+                val patches = HashMap<RetouchSpot, Retoucher.Patch>()
 
                 for (row in 0 until rows) for (col in 0 until cols) {
                     val tx = col * tile
@@ -144,7 +148,7 @@ object Exporter {
                     val gh = th + 2 * margin
 
                     val region = sourceBounds(outToSource, gx, gy, gw, gh, source.width, source.height)
-                    val bitmap = source.decode(region, sample)
+                    val bitmap = retouched(source.decode(region, sample), region, sample, source, edit, patches)
                     sourceTexture = GlUtil.uploadBitmap(bitmap, sourceTexture)
                     val coveredW = bitmap.width * sample.toDouble()
                     val coveredH = bitmap.height * sample.toDouble()
@@ -197,12 +201,30 @@ object Exporter {
                 }
                 GlUtil.deleteTexture(sourceTexture)
                 target.release()
+                patches.values.forEach { it.bitmap.recycle() }
                 tileBitmaps.values.forEach(Bitmap::recycle)
             } finally {
                 pipeline.release()
             }
         }
         return result
+    }
+
+    /** [bitmap] of the source [region] with the edit's healing and clone spots drawn in. */
+    private fun retouched(
+        bitmap: Bitmap,
+        region: Rect,
+        sample: Int,
+        source: RegionSource,
+        edit: EditState,
+        patches: MutableMap<RetouchSpot, Retoucher.Patch>,
+    ): Bitmap {
+        if (edit.retouch.isEmpty()) return bitmap
+        val target = if (bitmap.isMutable) bitmap else bitmap.copy(Bitmap.Config.ARGB_8888, true).also { bitmap.recycle() }
+        Retoucher.apply(target, region, sample, source.width, source.height, edit.retouch, patches) { rect, s ->
+            source.decode(rect, s)
+        }
+        return target
     }
 
     /** Pixel span of the decoded region for a tile, in the worst (45 degree) case. */

@@ -59,6 +59,8 @@ fun PhotoView(
     val image = state.image ?: return
     val cropMode = state.tool == ToolGroup.CROP
     val localMode = state.tool == ToolGroup.LOCAL
+    val retouchMode = localMode && state.retouchMode
+    val maskMode = localMode && !state.retouchMode
     val geometry = state.edit.geometry
     val displayGeometry = if (cropMode) geometry.copy(crop = CropRect.FULL) else geometry
     val mapper = viewModel.mapper(displayGeometry) ?: return
@@ -92,7 +94,8 @@ fun PhotoView(
             else -> -1f
         }
         val frame = PreviewFrame(
-            bitmap = image.preview,
+            // Holding the photo shows it untouched, spots included.
+            bitmap = if (state.showOriginal) image.preview else state.retouchedPreview ?: image.preview,
             base = image.base,
             geometry = displayGeometry,
             adjustments = state.edit.adjustments,
@@ -102,7 +105,7 @@ fun PhotoView(
             background = floatArrayOf(background.red, background.green, background.blue),
             profile = image.profile,
             masks = state.edit.masks,
-            showMask = if (localMode && (state.showMask || state.maskDragging)) state.activeMask ?: -1 else -1,
+            showMask = if (maskMode && (state.showMask || state.maskDragging)) state.activeMask ?: -1 else -1,
         )
 
         val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -161,7 +164,11 @@ fun PhotoView(
             var handleHeld by remember { mutableStateOf(false) }
             val currentBrush by rememberUpdatedState(state.brush)
             var brushCursor by remember { mutableStateOf<Offset?>(null) }
-            if (space != null) {
+            val currentSpots by rememberUpdatedState(state.edit.retouch)
+            val currentSpot by rememberUpdatedState(state.activeSpot)
+            val currentSpotSize by rememberUpdatedState(state.spotSize)
+            if (space != null && retouchMode) RetouchOverlay(state.edit.retouch, state.activeSpot, space)
+            if (space != null && maskMode) {
                 MaskOverlay(
                     state.edit.masks, state.activeMask, space, state.maskDragging,
                     brushCursor, brushRadiusPx(state.brush.size, density),
@@ -208,8 +215,54 @@ fun PhotoView(
                     }
                     // Last in the chain, so it sees each touch before the gestures above and can
                     // claim the ones that start on a mask handle.
-                    .pointerInput(localMode) {
-                        if (!localMode) return@pointerInput
+                    .pointerInput(retouchMode) {
+                        if (!retouchMode) return@pointerInput
+                        val reach = 24.dp.toPx()
+                        awaitEachGesture {
+                            val down = awaitFirstDown(requireUnconsumed = false)
+                            val sp = currentSpace ?: return@awaitEachGesture
+                            val spots = currentSpots
+                            val hit = hitSpot(sp, spots, currentSpot, down.position, reach)
+                            if (hit != null) {
+                                val (index, part) = hit
+                                down.consume()
+                                handleHeld = true
+                                if (index != currentSpot) viewModel.selectSpot(index)
+                                val start = spots[index]
+                                var moved = false
+                                try {
+                                    drag(down.id) { change ->
+                                        moved = true
+                                        viewModel.setSpot(dragSpot(sp, start, part, down.position, change.position))
+                                        change.consume()
+                                    }
+                                } finally {
+                                    handleHeld = false
+                                    if (moved) viewModel.commit()
+                                }
+                                return@awaitEachGesture
+                            }
+                            // A tap on the photo fixes the spot under it; anything else is zoom or pan.
+                            while (true) {
+                                val event = awaitPointerEvent()
+                                if (event.changes.count { it.pressed } > 1) return@awaitEachGesture
+                                val c = event.changes.firstOrNull { it.id == down.id } ?: return@awaitEachGesture
+                                if ((c.position - down.position).getDistance() > viewConfiguration.touchSlop) return@awaitEachGesture
+                                if (!c.pressed) {
+                                    if (c.uptimeMillis - down.uptimeMillis > viewConfiguration.longPressTimeoutMillis) {
+                                        return@awaitEachGesture
+                                    }
+                                    val (x, y) = sp.toSource(down.position)
+                                    if (x !in 0.0..1.0 || y !in 0.0..1.0) return@awaitEachGesture
+                                    val radiusPx = brushRadiusPx(currentSpotSize, this)
+                                    viewModel.addSpot(x.toFloat(), y.toFloat(), sp.unitsFor(down.position, radiusPx).toFloat())
+                                    return@awaitEachGesture
+                                }
+                            }
+                        }
+                    }
+                    .pointerInput(maskMode) {
+                        if (!maskMode) return@pointerInput
                         val reach = 28.dp.toPx()
                         awaitEachGesture {
                             val down = awaitFirstDown(requireUnconsumed = false)
