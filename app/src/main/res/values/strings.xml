@@ -206,7 +206,7 @@
     <string name="guide_detail_title">Detail and Effects</string>
     <string name="guide_detail_body">In Detail you set sharpness, clarity and haze, and reduce the noise of shots taken in low light. Effects adds a vignette and film grain.</string>
     <string name="guide_crop_title">Crop</string>
-    <string name="guide_crop_body">Choose a ratio (1:1, 4:3, 16:9…), drag the corners, straighten the horizon, rotate or flip the photo. The perspective sliders straighten buildings and lines that lean. Auto straighten levels the photo from its lines; with 4-point perspective you mark something rectangular and it is squared up.</string>
+    <string name="guide_crop_body">Choose a ratio (1:1, 4:3, 16:9…), drag the corners, straighten the horizon, rotate or flip the photo. The perspective sliders straighten buildings and lines that lean. Auto straighten levels the photo from its lines; for something shot at an angle, use 4-point perspective: mark something rectangular and it is squared up.</string>
     <string name="guide_copy_title">Same edits on many photos</string>
     <string name="guide_copy_body">From the editor menu, copy the adjustments and paste them onto another photo. For many photos at once, tap “Batch” on the home screen: apply the copied adjustments or a preset and, if you like, export them all in one go.</string>
     <string name="guide_export_title">Save the photo</string>

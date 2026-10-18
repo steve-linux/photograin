@@ -193,7 +193,7 @@
     <string name="guide_detail_title">Dettagli ed Effetti</string>
     <string name="guide_detail_body">In Dettagli regoli nitidezza, chiarezza e foschia, e riduci il rumore delle foto scattate con poca luce. In Effetti aggiungi vignettatura e grana da pellicola.</string>
     <string name="guide_crop_title">Ritaglio</string>
-    <string name="guide_crop_body">Scegli un formato (1:1, 4:3, 16:9…), trascina gli angoli, raddrizza l\'orizzonte, ruota o capovolgi la foto. Con la prospettiva raddrizzi palazzi e linee che pendono. Raddrizza automaticamente livella la foto dalle sue linee; con la prospettiva a 4 punti segni qualcosa di rettangolare e viene squadrato.</string>
+    <string name="guide_crop_body">Scegli un formato (1:1, 4:3, 16:9…), trascina gli angoli, raddrizza l\'orizzonte, ruota o capovolgi la foto. Con la prospettiva raddrizzi palazzi e linee che pendono. Raddrizza automaticamente livella la foto dalle sue linee; per un oggetto fotografato di sbieco usa la prospettiva a 4 punti: segni qualcosa di rettangolare e viene squadrato.</string>
     <string name="guide_copy_title">Stesse modifiche su più foto</string>
     <string name="guide_copy_body">Dal menu dell\'editor copia le regolazioni e incollale su un\'altra foto. Per molte foto insieme tocca «In serie» nella schermata iniziale: applichi le regolazioni copiate o un preset e, se vuoi, le esporti tutte in una volta.</string>
     <string name="guide_export_title">Salva la foto</string>

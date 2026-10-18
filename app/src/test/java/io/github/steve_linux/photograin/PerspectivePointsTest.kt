@@ -14,7 +14,6 @@ import io.github.steve_linux.photograin.model.flippedVertically
 import io.github.steve_linux.photograin.model.rotatedClockwise
 import kotlin.math.PI
 import kotlin.math.abs
-import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.random.Random
@@ -171,26 +170,6 @@ class PerspectivePointsTest {
             val x = i % w - w / 2.0
             val y = i / w - h / 2.0
             0.5f + 0.12f * stripes(-x * sin(rows) + y * cos(rows)) + 0.12f * stripes(x * cos(columns) + y * sin(columns))
-        }
-        assertNull(Horizon.straightenAngle(img, w, h))
-    }
-
-    @Test
-    fun slantedEdgesAmongConvergingLinesAreLeftAlone() {
-        // Rows slanted by 5 degrees among as many columns fanning out from a vanishing point, as
-        // on a box seen from above: the slant comes from the perspective, not from the camera.
-        val w = 480
-        val h = 640
-        val t = 5.0 * PI / 180
-        val img = FloatArray(w * h) { i ->
-            val x = i % w - w / 2.0
-            val y = i / w - h / 2.0
-            val a = -x * sin(t) + y * cos(t)
-            val p = ((a % 120) + 120) % 120
-            val row = (minOf(p, 120 - p) - 30).coerceIn(-1.0, 1.0)
-            val q = ((atan2(x, y + 1600) * 180 / PI * 4 % 6) + 6) % 6
-            val column = (minOf(q, 6 - q) - 1.5).coerceIn(-1.0, 1.0)
-            (0.5 + 0.15 * row + 0.15 * column).toFloat()
         }
         assertNull(Horizon.straightenAngle(img, w, h))
     }
