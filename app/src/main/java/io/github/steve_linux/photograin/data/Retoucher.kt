@@ -6,6 +6,7 @@ import android.graphics.Canvas
 import android.graphics.Rect
 import io.github.steve_linux.photograin.model.Retouch
 import io.github.steve_linux.photograin.model.RetouchSpot
+import io.github.steve_linux.photograin.model.RetouchType
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.ceil
@@ -87,14 +88,15 @@ object Retoucher {
         if (src.width() <= 0 || src.height() <= 0) return null
 
         val dstBitmap = decode(dest, sample)
-        val srcBitmap = decode(src, sample)
-        val pw = min(dstBitmap.width, srcBitmap.width)
-        val ph = min(dstBitmap.height, srcBitmap.height)
+        // Red eye works on the spot alone.
+        val srcBitmap = if (spot.type == RetouchType.RED_EYE) null else decode(src, sample)
+        val pw = min(dstBitmap.width, srcBitmap?.width ?: dstBitmap.width)
+        val ph = min(dstBitmap.height, srcBitmap?.height ?: dstBitmap.height)
         val dstPixels = rgb(dstBitmap, pw, ph)
-        val srcPixels = rgb(srcBitmap, pw, ph)
+        val srcPixels = srcBitmap?.let { rgb(it, pw, ph) } ?: dstPixels
         val colorSpace = dstBitmap.colorSpace
         dstBitmap.recycle()
-        srcBitmap.recycle()
+        srcBitmap?.recycle()
 
         val cx = (spot.x * w - dest.left) / sample
         val cy = (spot.y * h - dest.top) / sample

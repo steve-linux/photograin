@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Healing
+import androidx.compose.material.icons.outlined.RemoveRedEye
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -29,7 +30,7 @@ import io.github.steve_linux.photograin.R
 import io.github.steve_linux.photograin.model.RetouchSpot
 import io.github.steve_linux.photograin.model.RetouchType
 
-/** Healing and clone: the type and size of the next spot, and the selected spot's settings. */
+/** Healing, clone and red eye: the type and size of the next spot, and the selected spot's settings. */
 @Composable
 fun RetouchPanel(
     spots: List<RetouchSpot>,
@@ -66,6 +67,13 @@ fun RetouchPanel(
                 label = { Text(stringResource(R.string.retouch_clone)) },
                 leadingIcon = { Icon(Icons.Outlined.ContentCopy, contentDescription = null, Modifier.size(18.dp)) },
             )
+            Spacer(Modifier.size(8.dp))
+            FilterChip(
+                selected = current == RetouchType.RED_EYE,
+                onClick = { onType(RetouchType.RED_EYE) },
+                label = { Text(stringResource(R.string.retouch_red_eye)) },
+                leadingIcon = { Icon(Icons.Outlined.RemoveRedEye, contentDescription = null, Modifier.size(18.dp)) },
+            )
             Spacer(Modifier.weight(1f))
             if (index != null) {
                 IconButton(onClick = { onDelete(index) }) {
@@ -75,7 +83,13 @@ fun RetouchPanel(
         }
         if (spot == null) {
             Text(
-                stringResource(if (spots.isEmpty()) R.string.retouch_hint_empty else R.string.retouch_hint_select),
+                stringResource(
+                    when {
+                        type == RetouchType.RED_EYE -> R.string.retouch_hint_red_eye
+                        spots.isEmpty() -> R.string.retouch_hint_empty
+                        else -> R.string.retouch_hint_select
+                    },
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(vertical = 4.dp),

@@ -60,4 +60,53 @@ class RetouchTest {
         val state = EditState(retouch = listOf(RetouchSpot(RetouchType.CLONE, 0.1f, 0.2f, 0.3f, 0.4f, 0.02f, opacity = 0.7f)))
         assertEquals(state, EditState.fromJson(state.toJson()))
     }
+
+    /** A face-like patch: skin around a red pupil of radius 6 at (20, 20), with a white catchlight. */
+    private fun redEyePatch(): FloatArray {
+        val out = FloatArray(w * h * 3)
+        for (y in 0 until h) for (x in 0 until w) {
+            val i = (y * w + x) * 3
+            val d = Math.hypot(x - 20.0, y - 20.0)
+            val rgb = when {
+                d < 1.5 -> floatArrayOf(250f, 245f, 245f)
+                d < 6 -> floatArrayOf(200f, 40f, 45f)
+                else -> floatArrayOf(215f, 165f, 140f)
+            }
+            rgb.copyInto(out, i)
+        }
+        return out
+    }
+
+    @Test
+    fun redEyeDarkensThePupilAndLeavesSkinAndCatchlight() {
+        val p = redEyePatch()
+        val spot = RetouchSpot(RetouchType.RED_EYE, 0.5f, 0.5f, 0.5f, 0.5f, 0.01f, feather = 0.3f)
+        val out = Retouch.apply(p, p, w, h, 20.0, 20.0, 9.0, spot)
+        val i = (20 * w + 24) * 3
+        assertEquals(42.5f, out[i], 1f)
+        assertEquals(40f, out[i + 1], 0.01f)
+        // Skin inside the circle stays: it is not red enough.
+        val skin = (20 * w + 27) * 3
+        assertEquals(215f, out[skin], 0.01f)
+        // The catchlight is white, not red.
+        assertEquals(250f, out[(20 * w + 20) * 3], 0.01f)
+    }
+
+    @Test
+    fun redEyeIsFoundAndFittedFromANearbyTap() {
+        val p = redEyePatch()
+        val found = Retouch.findRedEye(w, h, 23.0, 17.0, 15.0) { x, y -> p.copyOfRange((y * w + x) * 3, (y * w + x) * 3 + 3) }
+        assertTrue(found != null)
+        val (cx, cy, r) = found!!
+        assertEquals(20.5, cx, 0.6)
+        assertEquals(20.5, cy, 0.6)
+        // Covers the pupil (radius 6) without reaching far into the skin.
+        assertTrue("radius $r", r in 6.0..10.0)
+    }
+
+    @Test
+    fun noRedEyeOnSkin() {
+        val p = patch { _, _ -> 0f }.also { for (i in 0 until w * h) floatArrayOf(215f, 165f, 140f).copyInto(it, i * 3) }
+        assertEquals(null, Retouch.findRedEye(w, h, 20.0, 20.0, 15.0) { x, y -> p.copyOfRange((y * w + x) * 3, (y * w + x) * 3 + 3) })
+    }
 }

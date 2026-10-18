@@ -13,7 +13,7 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 
 @Serializable
-enum class RetouchType { HEAL, CLONE }
+enum class RetouchType { HEAL, CLONE, RED_EYE }
 
 /**
  * A circle of the photo replaced by another part of it. Positions are source-normalized
@@ -21,7 +21,9 @@ enum class RetouchType { HEAL, CLONE }
  * spot being fixed, (sourceX, sourceY) where its replacement comes from.
  *
  * [RetouchType.CLONE] copies the source as it is; [RetouchType.HEAL] also carries over the
- * brightness and color around the spot, so the patch blends in.
+ * brightness and color around the spot, so the patch blends in. [RetouchType.RED_EYE] takes
+ * nothing from elsewhere (its source is the spot itself): it turns the red of a flash-lit pupil
+ * back to dark.
  */
 @Serializable
 data class RetouchSpot(
@@ -59,7 +61,11 @@ object Retouch {
         r: Double,
         spot: RetouchSpot,
     ): FloatArray {
-        val replacement = if (spot.type == RetouchType.HEAL) heal(dst, src, w, h, cx, cy, r) else src
+        val replacement = when (spot.type) {
+            RetouchType.HEAL -> heal(dst, src, w, h, cx, cy, r)
+            RetouchType.CLONE -> src
+            RetouchType.RED_EYE -> redEye(dst)
+        }
         val out = FloatArray(dst.size)
         val inner = r * (1 - spot.feather.coerceIn(0f, 1f))
         val opacity = spot.opacity.coerceIn(0f, 1f)
@@ -143,6 +149,96 @@ object Retouch {
             }
         }
         return out
+    }
+
+    /**
+     * [pixels] with red pupils made dark: in each pixel that is clearly red, the red falls to
+     * the mean of green and blue, which stay as they are, so the pupil keeps its catchlight
+     * and shading. Skin and lips are much less saturated and are left alone.
+     */
+    fun redEye(pixels: FloatArray): FloatArray {
+        val out = pixels.copyOf()
+        for (i in 0 until pixels.size / 3) {
+            val t = redness(pixels[i * 3], pixels[i * 3 + 1], pixels[i * 3 + 2])
+            if (t <= 0.0) continue
+            val r = pixels[i * 3]
+            val target = (pixels[i * 3 + 1] + pixels[i * 3 + 2]) / 2
+            out[i * 3] = r + (target - r) * t.toFloat()
+        }
+        return out
+    }
+
+    /**
+     * How much the pixel looks like a flash-lit pupil, 0..1: red well above both green and blue,
+     * and bright enough for the red to be the flash rather than a dark tone.
+     */
+    fun redness(r: Float, g: Float, b: Float): Double {
+        val ratio = r / ((g + b) / 2 + 8)
+        return smoothstep(1.5, 2.2, ratio.toDouble()) * smoothstep(40.0, 80.0, r.toDouble())
+    }
+
+    /**
+     * The red pupil near pixel (cx, cy) of an image read through [pixel] (x, y -> RGB 0..255) of
+     * [width] x [height], looked for within [reach] pixels: the red patch nearest the tap, as
+     * a center and a radius that covers it with a little margin. Null when there is no red
+     * there.
+     */
+    fun findRedEye(
+        width: Int,
+        height: Int,
+        cx: Double,
+        cy: Double,
+        reach: Double,
+        pixel: (Int, Int) -> FloatArray,
+    ): Triple<Double, Double, Double>? {
+        val x0 = max(0, floor(cx - reach).toInt())
+        val y0 = max(0, floor(cy - reach).toInt())
+        val x1 = min(width, ceil(cx + reach).toInt())
+        val y1 = min(height, ceil(cy + reach).toInt())
+        val w = x1 - x0
+        val h = y1 - y0
+        if (w <= 0 || h <= 0) return null
+        val red = BooleanArray(w * h)
+        var seed = -1
+        var seedDistance = Double.MAX_VALUE
+        for (y in 0 until h) for (x in 0 until w) {
+            val p = pixel(x0 + x, y0 + y)
+            if (redness(p[0], p[1], p[2]) < 0.5) continue
+            red[y * w + x] = true
+            val d = hypot(x0 + x + 0.5 - cx, y0 + y + 0.5 - cy)
+            if (d < seedDistance) {
+                seedDistance = d
+                seed = y * w + x
+            }
+        }
+        if (seed < 0) return null
+        // The connected red patch around the reddest pixel nearest the tap.
+        val seen = BooleanArray(w * h)
+        val stack = ArrayDeque<Int>()
+        stack.addLast(seed)
+        seen[seed] = true
+        var n = 0
+        var sx = 0.0
+        var sy = 0.0
+        while (stack.isNotEmpty()) {
+            val i = stack.removeLast()
+            val x = i % w
+            val y = i / w
+            n++
+            sx += x
+            sy += y
+            for ((nx, ny) in arrayOf(x - 1 to y, x + 1 to y, x to y - 1, x to y + 1)) {
+                if (nx !in 0 until w || ny !in 0 until h) continue
+                val j = ny * w + nx
+                if (!red[j] || seen[j]) continue
+                seen[j] = true
+                stack.addLast(j)
+            }
+        }
+        if (n < 4) return null
+        // A disc of the same area, a little larger so the soft edge of the pupil is covered too.
+        val radius = sqrt(n / PI) * 1.3 + 1
+        return Triple(x0 + sx / n + 0.5, y0 + sy / n + 0.5, min(radius, reach))
     }
 
     /**
