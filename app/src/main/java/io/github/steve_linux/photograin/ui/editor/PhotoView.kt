@@ -67,8 +67,8 @@ fun PhotoView(
     val mapper = viewModel.mapper(displayGeometry) ?: return
     val content = mapper.outputSize
     // The frame is left out while cropping, so the crop handles sit on the photo's edges.
-    val frame = if (cropMode) Frame() else state.edit.frame
-    val layout = frame.layout(content)
+    val decorFrame = if (cropMode) Frame() else state.edit.frame
+    val layout = decorFrame.layout(content)
     val textMode = state.tool == ToolGroup.EFFECTS && state.effectsMode == 2
 
     val renderer = remember { PreviewRenderer() }
@@ -149,7 +149,7 @@ fun PhotoView(
         )
 
         if (!cropMode) {
-            DecorOverlay(frame, frameRect, rect, total, state.edit.texts, if (textMode) state.activeText else null)
+            DecorOverlay(decorFrame, frameRect, rect, total, state.edit.texts, if (textMode) state.activeText else null)
         }
 
         if (cropMode) {
