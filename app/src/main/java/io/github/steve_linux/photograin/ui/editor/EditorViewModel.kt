@@ -37,6 +37,9 @@ import io.github.steve_linux.photograin.model.History
 import io.github.steve_linux.photograin.model.LocalAdjustment
 import io.github.steve_linux.photograin.model.LocalParamSpec
 import io.github.steve_linux.photograin.model.Mask
+import io.github.steve_linux.photograin.model.WhiteBalance
+import io.github.steve_linux.photograin.model.RangeType
+import io.github.steve_linux.photograin.model.MaskRange
 import io.github.steve_linux.photograin.model.MaskType
 import io.github.steve_linux.photograin.model.Hsl
 import io.github.steve_linux.photograin.model.Look
@@ -110,6 +113,8 @@ data class EditorUiState(
     val effectsMode: Int = 0,
     /** The text being edited, by index in [EditState.texts]. */
     val selectedText: Int? = null,
+    /** A tap on the photo picks a color for this, instead of its usual meaning. */
+    val picker: Picker = Picker.NONE,
 ) {
     /** [selectedText] if it still exists. */
     val activeText: Int? get() = selectedText?.takeIf { it in edit.texts.indices }
@@ -126,6 +131,9 @@ data class EditorUiState(
  * zooming in paints finer detail; [hardness] (0..1) is the part painted at full strength.
  */
 data class BrushSettings(val size: Float = 0.35f, val hardness: Float = 0.4f, val erase: Boolean = false)
+
+/** What a tap on the photo picks a color for. */
+enum class Picker { NONE, MASK_COLOR, WHITE_BALANCE }
 
 /** An export waiting for the user to pick where it goes. */
 data class SaveRequest(val options: ExportOptions, val fileName: String)
@@ -191,7 +199,54 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun selectTool(tool: ToolGroup) = _state.update { it.copy(tool = tool) }
+    fun selectTool(tool: ToolGroup) = _state.update { it.copy(tool = tool, picker = Picker.NONE) }
+
+    // --- Eyedropper ----------------------------------------------------------------------------
+
+    fun setPicker(picker: Picker) = _state.update { it.copy(picker = picker) }
+
+    /**
+     * Uses the color at source-normalized ([x], [y]) for the current [Picker]: the hue of the
+     * selected mask's color range, or the white balance that makes it gray.
+     */
+    fun pickAt(x: Float, y: Float) {
+        val s = _state.value
+        val bitmap = s.image?.preview ?: return
+        val (r, g, b) = averageColor(bitmap, x, y)
+        when (s.picker) {
+            Picker.NONE -> return
+            Picker.MASK_COLOR -> {
+                val range = s.activeMask?.let { s.edit.masks[it].mask.range } ?: return
+                updateMask { it.copy(mask = it.mask.copy(range = range.copy(type = RangeType.COLOR, hue = MaskRange.hueOf(r, g, b)))) }
+            }
+            Picker.WHITE_BALANCE -> {
+                val (temperature, tint) = WhiteBalance.neutralize(r, g, b) ?: return
+                updateLive { e -> e.copy(adjustments = e.adjustments.copy(temperature = temperature, tint = tint)) }
+            }
+        }
+        _state.update { it.copy(picker = Picker.NONE) }
+        commit()
+    }
+
+    /** The mean color (0..1) of a small square of [bitmap] around source-normalized ([x], [y]). */
+    private fun averageColor(bitmap: Bitmap, x: Float, y: Float): Triple<Float, Float, Float> {
+        val cx = (x * bitmap.width).toInt().coerceIn(0, bitmap.width - 1)
+        val cy = (y * bitmap.height).toInt().coerceIn(0, bitmap.height - 1)
+        val half = maxOf(1, maxOf(bitmap.width, bitmap.height) / 400)
+        var r = 0f
+        var g = 0f
+        var b = 0f
+        var n = 0
+        for (py in (cy - half)..(cy + half)) for (px in (cx - half)..(cx + half)) {
+            if (px !in 0 until bitmap.width || py !in 0 until bitmap.height) continue
+            val c = bitmap.getPixel(px, py)
+            r += (c shr 16 and 0xFF) / 255f
+            g += (c shr 8 and 0xFF) / 255f
+            b += (c and 0xFF) / 255f
+            n++
+        }
+        return Triple(r / n, g / n, b / n)
+    }
 
     // --- Adjustments -------------------------------------------------------------------------
 
@@ -319,7 +374,7 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         commit()
     }
 
-    fun selectMask(index: Int?) = _state.update { it.copy(selectedMask = index) }
+    fun selectMask(index: Int?) = _state.update { it.copy(selectedMask = index, picker = Picker.NONE) }
 
     fun deleteMask(index: Int) {
         if (index !in _state.value.edit.masks.indices) return

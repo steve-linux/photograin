@@ -8,12 +8,16 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Colorize
 import androidx.compose.material.icons.outlined.Flip
 import androidx.compose.material.icons.outlined.RestartAlt
 import androidx.compose.material.icons.outlined.Rotate90DegreesCw
@@ -63,6 +67,29 @@ fun AdjustmentPanel(
                 onChange = { onChange(spec, it) },
                 onChangeFinished = onChangeFinished,
                 onReset = { onReset(spec) },
+            )
+        }
+    }
+}
+
+/** The white balance eyedropper: on, the next tap on the photo makes that spot neutral. */
+@Composable
+fun WhiteBalancePicker(picking: Boolean, onPicking: (Boolean) -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+        FilterChip(
+            selected = picking,
+            onClick = { onPicking(!picking) },
+            label = { Text(stringResource(R.string.wb_pick_label)) },
+            leadingIcon = {
+                Icon(Icons.Outlined.Colorize, contentDescription = stringResource(R.string.wb_pick), Modifier.size(18.dp))
+            },
+        )
+        if (picking) {
+            Spacer(Modifier.width(12.dp))
+            Text(
+                stringResource(R.string.wb_pick_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }

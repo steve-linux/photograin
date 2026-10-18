@@ -166,7 +166,7 @@
     <string name="guide_light_title">Luce</string>
     <string name="guide_light_body">Esposizione, contrasto, luci, ombre, bianchi e neri. Passa a «Curve» per un controllo più fine dei toni. Tocca due volte il nome di un cursore per riportarlo al valore iniziale.</string>
     <string name="guide_color_title">Colore</string>
-    <string name="guide_color_body">Temperatura, tinta, vividezza e saturazione. In «HSL» cambi tonalità, saturazione e luminosità di un solo colore, per esempio il blu del cielo.</string>
+    <string name="guide_color_body">Temperatura, tinta, vividezza e saturazione. In «HSL» cambi tonalità, saturazione e luminosità di un solo colore, per esempio il blu del cielo. Col Contagocce tocchi qualcosa che dovrebbe essere bianco o grigio e il bilanciamento del bianco si regola da solo.</string>
     <string name="guide_detail_title">Dettagli ed Effetti</string>
     <string name="guide_detail_body">In Dettagli regoli nitidezza, chiarezza e foschia, e riduci il rumore delle foto scattate con poca luce. In Effetti aggiungi vignettatura e grana da pellicola.</string>
     <string name="guide_crop_title">Ritaglio</string>
@@ -189,7 +189,7 @@
     <string name="local_delete">Elimina maschera</string>
     <string name="local_feather">Sfumatura</string>
     <string name="guide_local_title">Maschere</string>
-    <string name="guide_local_body">In Ritocco, con Maschere regoli solo una parte della foto. Una sfumatura lineare scurisce un cielo troppo chiaro o schiarisce il primo piano; una circolare fa risaltare un soggetto; col pennello dipingi tu la zona, e Cancella corregge le sbavature. Trascina i punti sulla foto per spostarla e darle forma, usa {icon} per vedere dove agisce e Inverti per cambiare tutto il resto.</string>
+    <string name="guide_local_body">In Ritocco, con Maschere regoli solo una parte della foto. Una sfumatura lineare scurisce un cielo troppo chiaro o schiarisce il primo piano; una circolare fa risaltare un soggetto; col pennello dipingi tu la zona, e Cancella corregge le sbavature. Trascina i punti sulla foto per spostarla e darle forma, usa {icon} per vedere dove agisce e Inverti per cambiare tutto il resto. In Intervallo puoi limitare la maschera alle parti più chiare o più scure, o a un colore scelto toccando la foto; Foto intera con un intervallo regola, per esempio, tutto il cielo chiaro o tutto il verde in un colpo.</string>
     <string name="local_add_brush">Pennello</string>
     <string name="local_brush_n">Pennello %1$d</string>
     <string name="brush_paint">Dipingi</string>
@@ -231,4 +231,20 @@
     <string name="font_handwriting">Corsivo</string>
     <string name="guide_decor_title">Cornici e testo</string>
     <string name="guide_decor_body">In Effetti, Cornice aggiunge un bordo intorno alla foto, o una polaroid con lo spazio per una didascalia. Testo aggiunge didascalie, date o una firma: trascinale sulla foto per posizionarle e scegli dimensione, carattere e colore.</string>
+    <string name="local_add_full">Foto intera</string>
+    <string name="local_full_n">Foto intera %1$d</string>
+    <string name="range_title">Intervallo</string>
+    <string name="range_none">Nessuno</string>
+    <string name="range_luminance">Luminosità</string>
+    <string name="range_color_chip">Colore</string>
+    <string name="range_low">Da</string>
+    <string name="range_high">A</string>
+    <string name="range_smooth">Sfumatura</string>
+    <string name="range_color">Agisce sui colori simili a questo.</string>
+    <string name="range_pick_hint">Tocca la foto sul colore da scegliere.</string>
+    <string name="range_pick">Scegli il colore</string>
+    <string name="range_tolerance">Tolleranza</string>
+    <string name="wb_pick">Contagocce del bilanciamento del bianco</string>
+    <string name="wb_pick_hint">Tocca qualcosa che dovrebbe essere bianco o grigio.</string>
+    <string name="wb_pick_label">Contagocce</string>
 </resources>
