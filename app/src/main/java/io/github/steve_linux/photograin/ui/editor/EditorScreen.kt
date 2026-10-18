@@ -212,6 +212,27 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit) {
                         onAmount = viewModel::setLookAmount,
                         onAmountFinished = viewModel::commit,
                     )
+                } else if (state.tool == ToolGroup.EFFECTS) {
+                    EffectsModeSelector(state.effectsMode, viewModel::setEffectsMode)
+                    when (state.effectsMode) {
+                        1 -> FramePanel(state.edit.frame, viewModel::setFrame, viewModel::commit)
+                        2 -> TextPanel(
+                            texts = state.edit.texts,
+                            selected = state.activeText,
+                            onAdd = viewModel::addText,
+                            onSelect = viewModel::selectText,
+                            onChange = viewModel::setText,
+                            onDelete = viewModel::deleteText,
+                            onChangeFinished = viewModel::commit,
+                        )
+                        else -> AdjustmentPanel(
+                            group = ToolGroup.EFFECTS,
+                            adjustments = state.edit.adjustments,
+                            onChange = viewModel::setParam,
+                            onChangeFinished = viewModel::commit,
+                            onReset = viewModel::resetParam,
+                        )
+                    }
                 } else if (state.tool == ToolGroup.LOCAL) {
                     PanelModeSelector(
                         secondLabel = R.string.mode_heal,

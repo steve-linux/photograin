@@ -209,4 +209,26 @@
     <string name="guide_heal_body">In Ritocco scegli Correggi e tocca quello che vuoi togliere: una macchia, un granello di polvere, un filo. Photograin lo copre con una zona vicina simile. Trascina il cerchio tratteggiato per scegliere un\'altra zona, e usa Clona per una copia esatta.</string>
     <string name="perspective_vertical">Prospettiva verticale</string>
     <string name="perspective_horizontal">Prospettiva orizzontale</string>
+    <string name="mode_effects">Effetti</string>
+    <string name="mode_frame">Cornice</string>
+    <string name="mode_text">Testo</string>
+    <string name="frame_none">Nessuna</string>
+    <string name="frame_border">Bordo</string>
+    <string name="frame_polaroid">Polaroid</string>
+    <string name="frame_width">Spessore</string>
+    <string name="text_add">Testo</string>
+    <string name="text_hint_empty">Aggiungi una didascalia, una data o una firma. Trascinala sulla foto per posizionarla.</string>
+    <string name="text_hint_select">Tocca un testo per modificarlo, o trascinalo sulla foto.</string>
+    <string name="text_bold">Grassetto</string>
+    <string name="text_shadow">Ombra</string>
+    <string name="text_edit">Modifica testo</string>
+    <string name="text_delete">Elimina testo</string>
+    <string name="text_size">Dimensione</string>
+    <string name="text_dialog_title">Testo</string>
+    <string name="font_sans">Sans</string>
+    <string name="font_serif">Serif</string>
+    <string name="font_mono">Mono</string>
+    <string name="font_handwriting">Corsivo</string>
+    <string name="guide_decor_title">Cornici e testo</string>
+    <string name="guide_decor_body">In Effetti, Cornice aggiunge un bordo intorno alla foto, o una polaroid con lo spazio per una didascalia. Testo aggiunge didascalie, date o una firma: trascinale sulla foto per posizionarle e scegli dimensione, carattere e colore.</string>
 </resources>

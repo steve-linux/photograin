@@ -38,6 +38,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import io.github.steve_linux.photograin.model.CropRect
+import io.github.steve_linux.photograin.model.Frame
 import io.github.steve_linux.photograin.model.MaskType
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -65,12 +66,16 @@ fun PhotoView(
     val displayGeometry = if (cropMode) geometry.copy(crop = CropRect.FULL) else geometry
     val mapper = viewModel.mapper(displayGeometry) ?: return
     val content = mapper.outputSize
+    // The frame is left out while cropping, so the crop handles sit on the photo's edges.
+    val decorFrame = if (cropMode) Frame() else state.edit.frame
+    val layout = decorFrame.layout(content)
+    val textMode = state.tool == ToolGroup.EFFECTS && state.effectsMode == 2
 
     val renderer = remember { PreviewRenderer() }
     var zoom by remember { mutableFloatStateOf(1f) }
     var pan by remember { mutableStateOf(Offset.Zero) }
     // Reset zoom whenever what is displayed changes shape.
-    LaunchedEffect(image, cropMode, content) {
+    LaunchedEffect(image, cropMode, layout.size) {
         zoom = 1f
         pan = Offset.Zero
     }
@@ -80,12 +85,15 @@ fun PhotoView(
         val viewW = constraints.maxWidth.toFloat()
         val viewH = constraints.maxHeight.toFloat()
         val padding = with(density) { (if (cropMode) 28.dp else 8.dp).toPx() }
-        val fit = min((viewW - 2 * padding) / content.width, (viewH - 2 * padding) / content.height)
-        val w = content.width * fit * zoom
-        val h = content.height * fit * zoom
-        val left = (viewW - w) / 2 + pan.x
-        val top = (viewH - h) / 2 + pan.y
-        val rect = RectF(left, top, left + w, top + h)
+        val total = layout.size
+        val fit = min((viewW - 2 * padding) / total.width, (viewH - 2 * padding) / total.height)
+        val scale = fit * zoom
+        val frameLeft = (viewW - total.width * scale) / 2 + pan.x
+        val frameTop = (viewH - total.height * scale) / 2 + pan.y
+        val frameRect = RectF(frameLeft, frameTop, frameLeft + total.width * scale, frameTop + total.height * scale)
+        val left = frameLeft + layout.imageLeft * scale
+        val top = frameTop + layout.imageTop * scale
+        val rect = RectF(left, top, left + content.width * scale, top + content.height * scale)
 
         val compare = when {
             cropMode -> -1f
@@ -140,6 +148,10 @@ fun PhotoView(
             modifier = Modifier.fillMaxSize(),
         )
 
+        if (!cropMode) {
+            DecorOverlay(decorFrame, frameRect, rect, total, state.edit.texts, if (textMode) state.activeText else null)
+        }
+
         if (cropMode) {
             CropOverlay(
                 crop = geometry.crop,
@@ -164,6 +176,10 @@ fun PhotoView(
             var handleHeld by remember { mutableStateOf(false) }
             val currentBrush by rememberUpdatedState(state.brush)
             var brushCursor by remember { mutableStateOf<Offset?>(null) }
+            val currentTexts by rememberUpdatedState(state.edit.texts)
+            val currentText by rememberUpdatedState(state.activeText)
+            val currentFrameRect by rememberUpdatedState(frameRect)
+            val currentTotal by rememberUpdatedState(total)
             val currentSpots by rememberUpdatedState(state.edit.retouch)
             val currentSpot by rememberUpdatedState(state.activeSpot)
             val currentSpotSize by rememberUpdatedState(state.spotSize)
@@ -215,6 +231,38 @@ fun PhotoView(
                     }
                     // Last in the chain, so it sees each touch before the gestures above and can
                     // claim the ones that start on a mask handle.
+                    .pointerInput(textMode) {
+                        if (!textMode) return@pointerInput
+                        val reach = 12.dp.toPx()
+                        awaitEachGesture {
+                            val down = awaitFirstDown(requireUnconsumed = false)
+                            val texts = currentTexts
+                            val index = hitText(texts, currentTotal, currentFrameRect, down.position, reach)
+                                ?: return@awaitEachGesture
+                            down.consume()
+                            handleHeld = true
+                            if (index != currentText) viewModel.selectText(index)
+                            val start = texts[index]
+                            val box = currentFrameRect
+                            var moved = false
+                            try {
+                                drag(down.id) { change ->
+                                    moved = true
+                                    val d = change.position - down.position
+                                    viewModel.setText(
+                                        start.copy(
+                                            x = (start.x + d.x / box.width()).coerceIn(0f, 1f),
+                                            y = (start.y + d.y / box.height()).coerceIn(0f, 1f),
+                                        ),
+                                    )
+                                    change.consume()
+                                }
+                            } finally {
+                                handleHeld = false
+                                if (moved) viewModel.commit()
+                            }
+                        }
+                    }
                     .pointerInput(retouchMode) {
                         if (!retouchMode) return@pointerInput
                         val reach = 24.dp.toPx()
