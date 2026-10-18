@@ -106,6 +106,7 @@
     <string name="msg_lut_imported">LUT importato</string>
     <string name="msg_lut_invalid">Questo file non è un LUT .cube valido</string>
     <string name="msg_preset_saved">Preset salvato</string>
+    <string name="msg_horizon_not_found">Nessuna linea abbastanza netta per raddrizzare</string>
     <string name="home_batch">In serie</string>
     <string name="batch_title">Modifica in serie (%1$d)</string>
     <string name="batch_apply_what">Da applicare a tutte le foto</string>
@@ -192,7 +193,7 @@
     <string name="guide_detail_title">Dettagli ed Effetti</string>
     <string name="guide_detail_body">In Dettagli regoli nitidezza, chiarezza e foschia, e riduci il rumore delle foto scattate con poca luce. In Effetti aggiungi vignettatura e grana da pellicola.</string>
     <string name="guide_crop_title">Ritaglio</string>
-    <string name="guide_crop_body">Scegli un formato (1:1, 4:3, 16:9…), trascina gli angoli, raddrizza l\'orizzonte, ruota o capovolgi la foto. Con la prospettiva raddrizzi palazzi e linee che pendono.</string>
+    <string name="guide_crop_body">Scegli un formato (1:1, 4:3, 16:9…), trascina gli angoli, raddrizza l\'orizzonte, ruota o capovolgi la foto. Con la prospettiva raddrizzi palazzi e linee che pendono. Raddrizza automaticamente livella la foto dalle sue linee; per un oggetto fotografato di sbieco usa la prospettiva a 4 punti: segni qualcosa di rettangolare e viene squadrato.</string>
     <string name="guide_copy_title">Stesse modifiche su più foto</string>
     <string name="guide_copy_body">Dal menu dell\'editor copia le regolazioni e incollale su un\'altra foto. Per molte foto insieme tocca «In serie» nella schermata iniziale: applichi le regolazioni copiate o un preset e, se vuoi, le esporti tutte in una volta.</string>
     <string name="guide_export_title">Salva la foto</string>
@@ -231,6 +232,12 @@
     <string name="guide_heal_body">In Ritocco scegli Correggi e tocca quello che vuoi togliere: una macchia, un granello di polvere, un filo. Photograin lo copre con una zona vicina simile. Trascina il cerchio tratteggiato per scegliere un\'altra zona, e usa Clona per una copia esatta.</string>
     <string name="perspective_vertical">Prospettiva verticale</string>
     <string name="perspective_horizontal">Prospettiva orizzontale</string>
+    <string name="straighten_auto">Raddrizza automaticamente</string>
+    <string name="quad_start">Prospettiva a 4 punti</string>
+    <string name="quad_edit">Modifica 4 punti</string>
+    <string name="quad_remove">Togli 4 punti</string>
+    <string name="quad_hint">Trascina i quattro angoli sui bordi di qualcosa che dovrebbe essere rettangolare, come una facciata, una finestra o un foglio.</string>
+    <string name="quad_apply">Applica</string>
     <string name="mode_effects">Effetti</string>
     <string name="mode_frame">Cornice</string>
     <string name="mode_text">Testo</string>

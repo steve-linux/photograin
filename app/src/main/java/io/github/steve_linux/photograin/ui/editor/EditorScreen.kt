@@ -57,6 +57,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -75,6 +76,7 @@ import io.github.steve_linux.photograin.data.SettingsStore
 import io.github.steve_linux.photograin.model.ToolGroup
 import io.github.steve_linux.photograin.ui.theme.PhotoBackgroundDark
 import io.github.steve_linux.photograin.ui.theme.PhotoBackgroundLight
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -82,6 +84,7 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val snackbar = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
     val settings by remember { SettingsStore.get(context) }.state.collectAsStateWithLifecycle()
     var showExport by rememberSaveable { mutableStateOf(false) }
     var pendingExport by remember { mutableStateOf<ExportOptions?>(null) }
@@ -116,7 +119,9 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit) {
             Toast.makeText(context, messageText(message), Toast.LENGTH_LONG).show()
             onClose()
         } else {
-            snackbar.showSnackbar(context.getString(messageText(message)))
+            // Outside this effect: clearing the message restarts it, which would cancel the snackbar.
+            val text = context.getString(messageText(message))
+            scope.launch { snackbar.showSnackbar(text) }
         }
     }
 
@@ -305,6 +310,12 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit) {
                         onFlipH = viewModel::flipHorizontal,
                         onFlipV = viewModel::flipVertical,
                         onReset = viewModel::resetGeometry,
+                        quadDraft = state.quadDraft,
+                        onAutoStraighten = viewModel::autoStraighten,
+                        onStartQuad = viewModel::startQuad,
+                        onApplyQuad = viewModel::applyQuad,
+                        onCancelQuad = viewModel::cancelQuad,
+                        onRemoveQuad = viewModel::removeQuad,
                     )
                 } else {
                     val advanced = state.tool == ToolGroup.LIGHT || state.tool == ToolGroup.COLOR
@@ -413,6 +424,7 @@ private fun messageText(m: Message): Int = when (m) {
     Message.LUT_INVALID -> R.string.msg_lut_invalid
     Message.LUT_MISSING -> R.string.look_lut_missing
     Message.PRESET_SAVED -> R.string.msg_preset_saved
+    Message.HORIZON_NOT_FOUND -> R.string.msg_horizon_not_found
 }
 
 /** ACTION_CREATE_DOCUMENT with the MIME type chosen at launch time: input is (mimeType, fileName). */

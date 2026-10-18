@@ -119,6 +119,7 @@
     <string name="msg_lut_imported">LUT imported</string>
     <string name="msg_lut_invalid">This file is not a valid .cube LUT</string>
     <string name="msg_preset_saved">Preset saved</string>
+    <string name="msg_horizon_not_found">No clear lines to straighten by</string>
     <string name="home_batch">Batch</string>
     <string name="batch_title">Batch edit (%1$d)</string>
     <string name="batch_apply_what">Apply to every photo</string>
@@ -205,7 +206,7 @@
     <string name="guide_detail_title">Detail and Effects</string>
     <string name="guide_detail_body">In Detail you set sharpness, clarity and haze, and reduce the noise of shots taken in low light. Effects adds a vignette and film grain.</string>
     <string name="guide_crop_title">Crop</string>
-    <string name="guide_crop_body">Choose a ratio (1:1, 4:3, 16:9…), drag the corners, straighten the horizon, rotate or flip the photo. The perspective sliders straighten buildings and lines that lean.</string>
+    <string name="guide_crop_body">Choose a ratio (1:1, 4:3, 16:9…), drag the corners, straighten the horizon, rotate or flip the photo. The perspective sliders straighten buildings and lines that lean. Auto straighten levels the photo from its lines; for something shot at an angle, use 4-point perspective: mark something rectangular and it is squared up.</string>
     <string name="guide_copy_title">Same edits on many photos</string>
     <string name="guide_copy_body">From the editor menu, copy the adjustments and paste them onto another photo. For many photos at once, tap “Batch” on the home screen: apply the copied adjustments or a preset and, if you like, export them all in one go.</string>
     <string name="guide_export_title">Save the photo</string>
@@ -244,6 +245,12 @@
     <string name="guide_heal_body">In Retouch, choose Heal and tap what you want to remove: a spot, a speck of dust, a wire. Photograin covers it with a matching nearby area. Drag the dashed circle to pick a different source, and use Clone for an exact copy.</string>
     <string name="perspective_vertical">Vertical perspective</string>
     <string name="perspective_horizontal">Horizontal perspective</string>
+    <string name="straighten_auto">Auto straighten</string>
+    <string name="quad_start">4-point perspective</string>
+    <string name="quad_edit">Edit 4 points</string>
+    <string name="quad_remove">Remove 4 points</string>
+    <string name="quad_hint">Drag the four corners onto the edges of something that should be rectangular, such as a facade, a window or a sheet of paper.</string>
+    <string name="quad_apply">Apply</string>
     <string name="mode_effects">Effects</string>
     <string name="mode_frame">Frame</string>
     <string name="mode_text">Text</string>

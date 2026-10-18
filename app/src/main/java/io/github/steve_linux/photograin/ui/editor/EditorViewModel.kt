@@ -55,6 +55,8 @@ import io.github.steve_linux.photograin.model.ToolGroup
 import io.github.steve_linux.photograin.model.flippedHorizontally
 import io.github.steve_linux.photograin.model.flippedVertically
 import io.github.steve_linux.photograin.model.rotatedClockwise
+import io.github.steve_linux.photograin.model.Quad
+import io.github.steve_linux.photograin.math.Horizon
 import io.github.steve_linux.photograin.render.Exporter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -70,7 +72,7 @@ import kotlinx.coroutines.withContext
 
 enum class Message {
     EXPORTED, EXPORTED_TO_PICTURES, EXPORTED_TO_DOWNLOADS, EXPORT_FAILED, LOAD_FAILED, ADJUSTMENTS_COPIED, ADJUSTMENTS_PASTED, OUT_OF_MEMORY,
-    LUT_IMPORTED, LUT_INVALID, LUT_MISSING, PRESET_SAVED,
+    LUT_IMPORTED, LUT_INVALID, LUT_MISSING, PRESET_SAVED, HORIZON_NOT_FOUND,
 }
 
 data class EditorUiState(
@@ -119,6 +121,8 @@ data class EditorUiState(
     val selectedShape: Int? = null,
     /** A tap on the photo picks a color for this, instead of its usual meaning. */
     val picker: Picker = Picker.NONE,
+    /** The four perspective points being placed, shown on the uncorrected photo; null when not placing them. */
+    val quadDraft: Quad? = null,
 ) {
     /** [selectedShape] if it still exists. */
     val activeShape: Int? get() = selectedShape?.takeIf { it in edit.shapes.indices }
@@ -206,7 +210,7 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun selectTool(tool: ToolGroup) = _state.update { it.copy(tool = tool, picker = Picker.NONE) }
+    fun selectTool(tool: ToolGroup) = _state.update { it.copy(tool = tool, picker = Picker.NONE, quadDraft = null) }
 
     // --- Eyedropper ----------------------------------------------------------------------------
 
@@ -672,7 +676,81 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         return if (m.frameHeight > m.frameWidth) 1f / r else r
     }
 
-    fun resetGeometry() = commitGeometry { Geometry() }
+    fun resetGeometry() {
+        _state.update { it.copy(quadDraft = null) }
+        commitGeometry { Geometry() }
+    }
+
+    /** Starts placing the four perspective points, from the current ones if any. */
+    fun startQuad() = _state.update { it.copy(quadDraft = it.edit.geometry.quad ?: Quad()) }
+
+    fun setQuadDraft(quad: Quad) = _state.update { it.copy(quadDraft = quad) }
+
+    fun cancelQuad() = _state.update { it.copy(quadDraft = null) }
+
+    /** Straightens what the four points mark; the crop then shrinks to keep out empty corners. */
+    fun applyQuad() {
+        val quad = _state.value.quadDraft ?: return
+        _state.update { it.copy(quadDraft = null) }
+        commitGeometry { g -> refit(g.copy(quad = quad, vertical = 0f, horizontal = 0f)) }
+    }
+
+    fun removeQuad() {
+        _state.update { it.copy(quadDraft = null) }
+        commitGeometry { g -> refit(g.copy(quad = null)) }
+    }
+
+    /**
+     * Levels the photo from the lines in it. Found on the preview as stored, before rotation:
+     * quarter turns keep a line's tilt, each mirroring reverses it.
+     */
+    fun autoStraighten() {
+        val image = _state.value.image ?: return
+        viewModelScope.launch {
+            val angle = withContext(Dispatchers.Default) {
+                val (lum, w, h) = luminance(image.preview, 640)
+                Horizon.straightenAngle(lum, w, h)
+            }
+            if (angle == null) {
+                _state.update { it.copy(message = Message.HORIZON_NOT_FOUND) }
+                return@launch
+            }
+            val g = _state.value.edit.geometry
+            val mirrored = image.base.mirror xor g.flipH xor g.flipV
+            setStraighten(if (mirrored) -angle else angle)
+            commit()
+        }
+    }
+
+    /** The crop made as large as the frame allows again, keeping its aspect if one is chosen. */
+    private fun refit(g: Geometry): Geometry {
+        val m = mapper(g) ?: return g
+        val ratio = aspectRatioValue(g.aspect, g)
+        return g.copy(crop = m.largestCrop(ratio ?: (m.frameWidth / m.frameHeight).toFloat()))
+    }
+
+    /**
+     * Luminance of [bitmap] scaled down to about [longEdge] pixels, with its size. Each pixel
+     * averages a whole block, so fine detail does not turn into aliasing that blurs the lines.
+     */
+    private fun luminance(bitmap: Bitmap, longEdge: Int): Triple<FloatArray, Int, Int> {
+        val k = maxOf(1, (maxOf(bitmap.width, bitmap.height) + longEdge - 1) / longEdge)
+        val w = maxOf(1, bitmap.width / k)
+        val h = maxOf(1, bitmap.height / k)
+        val lum = FloatArray(w * h)
+        val row = IntArray(bitmap.width)
+        for (y in 0 until h * k) {
+            bitmap.getPixels(row, 0, bitmap.width, 0, y, bitmap.width, 1)
+            val o = (y / k) * w
+            for (x in 0 until w * k) {
+                val c = row[x]
+                lum[o + x / k] += 0.2126f * ((c shr 16) and 0xFF) + 0.7152f * ((c shr 8) and 0xFF) + 0.0722f * (c and 0xFF)
+            }
+        }
+        val scale = 1f / (255f * k * k)
+        for (i in lum.indices) lum[i] *= scale
+        return Triple(lum, w, h)
+    }
 
     private fun commitGeometry(transform: (Geometry) -> Geometry) {
         updateLive { it.copy(geometry = transform(it.geometry)) }
