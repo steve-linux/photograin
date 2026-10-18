@@ -20,11 +20,11 @@ import androidx.compose.material.icons.outlined.AutoFixOff
 import androidx.compose.material.icons.outlined.Brush
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Visibility
-import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -101,11 +101,9 @@ fun LocalPanel(
             Spacer(Modifier.width(8.dp))
             Text(stringResource(R.string.local_invert), style = MaterialTheme.typography.labelLarge)
             Spacer(Modifier.weight(1f))
-            IconButton(onClick = { onShowMask(!showMask) }) {
-                Icon(
-                    if (showMask) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
-                    contentDescription = stringResource(R.string.local_show_mask),
-                )
+            // Highlighted while the mask is shown, like the split view button.
+            IconToggleButton(checked = showMask, onCheckedChange = onShowMask) {
+                Icon(Icons.Outlined.Visibility, contentDescription = stringResource(R.string.local_show_mask))
             }
             IconButton(onClick = { onDelete(index) }) {
                 Icon(Icons.Outlined.Delete, contentDescription = stringResource(R.string.local_delete))

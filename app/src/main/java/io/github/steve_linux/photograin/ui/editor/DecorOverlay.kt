@@ -51,7 +51,9 @@ fun DecorOverlay(
         if (frame.style != FrameStyle.NONE) {
             val c = Color(frame.color)
             val f = frameRect
-            val r = imageRect
+            // Reach a pixel into the photo: its edges rarely fall on whole pixels, and the gap
+            // would show the dark background as a thin line along the frame.
+            val r = RectF(imageRect.left + 1, imageRect.top + 1, imageRect.right - 1, imageRect.bottom - 1)
             drawRect(c, Offset(f.left, f.top), Size(f.width(), r.top - f.top))
             drawRect(c, Offset(f.left, r.bottom), Size(f.width(), f.bottom - r.bottom))
             drawRect(c, Offset(f.left, r.top), Size(r.left - f.left, r.height()))

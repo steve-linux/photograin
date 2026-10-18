@@ -38,6 +38,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,6 +46,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -227,11 +230,14 @@ fun TextPanel(
 @Composable
 private fun TextDialog(initial: String, onDismiss: () -> Unit, onDone: (String) -> Unit) {
     var text by remember { mutableStateOf(initial) }
+    val focus = remember { FocusRequester() }
+    // Open with the keyboard up, ready to type.
+    LaunchedEffect(Unit) { focus.requestFocus() }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.text_dialog_title)) },
         text = {
-            OutlinedTextField(value = text, onValueChange = { text = it }, minLines = 1, maxLines = 4)
+            OutlinedTextField(value = text, onValueChange = { text = it }, minLines = 1, maxLines = 4, modifier = Modifier.focusRequester(focus))
         },
         confirmButton = {
             TextButton(enabled = text.isNotBlank(), onClick = { onDone(text.trim()) }) {

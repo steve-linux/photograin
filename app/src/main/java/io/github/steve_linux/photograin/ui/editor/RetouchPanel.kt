@@ -42,7 +42,8 @@ fun RetouchPanel(
     onDelete: (Int) -> Unit,
     onChangeFinished: () -> Unit,
 ) {
-    val spot = selected?.let { spots.getOrNull(it) }
+    val index = selected?.takeIf { it in spots.indices }
+    val spot = index?.let { spots[it] }
     Column(
         Modifier
             .fillMaxWidth()
@@ -66,8 +67,8 @@ fun RetouchPanel(
                 leadingIcon = { Icon(Icons.Outlined.ContentCopy, contentDescription = null, Modifier.size(18.dp)) },
             )
             Spacer(Modifier.weight(1f))
-            if (spot != null && selected != null) {
-                IconButton(onClick = { onDelete(selected) }) {
+            if (index != null) {
+                IconButton(onClick = { onDelete(index) }) {
                     Icon(Icons.Outlined.Delete, contentDescription = stringResource(R.string.retouch_delete))
                 }
             }

@@ -487,7 +487,10 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
             val layout = e.frame.layout(image)
             val bottomTop = layout.imageTop + image.height
             val y = (bottomTop + layout.size.height) / 2f / layout.size.height
-            item = item.copy(y = y, color = 0xFF333333.toInt(), shadow = false)
+            // A caption on the polaroid's bottom border: dark on a light border, white on a dark one.
+            val c = e.frame.color
+            val light = 0.299 * (c shr 16 and 0xFF) + 0.587 * (c shr 8 and 0xFF) + 0.114 * (c and 0xFF) > 140
+            item = item.copy(y = y, color = if (light) 0xFF333333.toInt() else Frame.WHITE, shadow = false)
         }
         updateLive { it.copy(texts = it.texts + item) }
         _state.update { it.copy(selectedText = it.edit.texts.lastIndex) }
