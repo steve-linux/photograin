@@ -190,7 +190,7 @@
     <string name="guide_export_body">Tap {icon} to save a copy. Choose format, quality and size: you can also enlarge the photo 2× or 4×, with AI to restore detail. The sRGB color profile is right for sharing; Display P3 and Adobe RGB keep more color for printing.</string>
     <string name="guide_settings_title">Settings</string>
     <string name="guide_settings_body">With {icon} you choose where to save (Pictures/Photograin to begin with), how files are named, the default format, whether to remove the GPS location, and a light or dark theme.</string>
-    <string name="tool_local">Masks</string>
+    <string name="tool_local">Retouch</string>
     <string name="local_add_linear">Linear</string>
     <string name="local_add_radial">Radial</string>
     <string name="local_linear_n">Linear %1$d</string>
@@ -202,7 +202,7 @@
     <string name="local_delete">Delete mask</string>
     <string name="local_feather">Feather</string>
     <string name="guide_local_title">Masks</string>
-    <string name="guide_local_body">Adjust only part of the photo. A linear gradient darkens a bright sky or lightens a foreground; a radial one brings out a subject; with the brush you paint the area yourself, and Erase fixes any overflow. Drag the points on the photo to move and shape it, use {icon} to see where it applies, and Invert to change everything else instead.</string>
+    <string name="guide_local_body">In Retouch, Masks adjust only part of the photo. A linear gradient darkens a bright sky or lightens a foreground; a radial one brings out a subject; with the brush you paint the area yourself, and Erase fixes any overflow. Drag the points on the photo to move and shape it, use {icon} to see where it applies, and Invert to change everything else instead.</string>
     <string name="local_add_brush">Brush</string>
     <string name="local_brush_n">Brush %1$d</string>
     <string name="brush_paint">Paint</string>
@@ -210,4 +210,14 @@
     <string name="brush_size">Brush size</string>
     <string name="brush_hardness">Hardness</string>
     <string name="local_hint_brush">Paint on the photo with one finger; use two fingers to zoom.</string>
+    <string name="mode_masks">Masks</string>
+    <string name="mode_heal">Heal</string>
+    <string name="retouch_heal">Heal</string>
+    <string name="retouch_clone">Clone</string>
+    <string name="retouch_opacity">Opacity</string>
+    <string name="retouch_delete">Delete spot</string>
+    <string name="retouch_hint_empty">Tap a spot, a wire or a small object to remove it. Heal blends the patch in; Clone copies it as it is.</string>
+    <string name="retouch_hint_select">Tap another spot to fix it. Drag a circle to move the fix, or its dashed twin to pick where the patch comes from.</string>
+    <string name="guide_heal_title">Remove blemishes</string>
+    <string name="guide_heal_body">In Retouch, choose Heal and tap what you want to remove: a spot, a speck of dust, a wire. Photograin covers it with a matching nearby area. Drag the dashed circle to pick a different source, and use Clone for an exact copy.</string>
 </resources>

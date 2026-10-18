@@ -12,6 +12,8 @@ data class EditState(
     val geometry: Geometry = Geometry(),
     /** Local adjustments, applied in order on top of [adjustments]. */
     val masks: List<LocalAdjustment> = emptyList(),
+    /** Healing and clone spots, applied to the original before everything else. */
+    val retouch: List<RetouchSpot> = emptyList(),
 ) {
     fun toJson(): String = json.encodeToString(Recipe(version = Recipe.CURRENT_VERSION, edit = this))
 

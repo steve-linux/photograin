@@ -213,22 +213,42 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit) {
                         onAmountFinished = viewModel::commit,
                     )
                 } else if (state.tool == ToolGroup.LOCAL) {
-                    LocalPanel(
-                        masks = state.edit.masks,
-                        selected = state.activeMask,
-                        showMask = state.showMask,
-                        onAdd = viewModel::addMask,
-                        onSelect = viewModel::selectMask,
-                        onDelete = viewModel::deleteMask,
-                        onParam = viewModel::setMaskParam,
-                        onResetParam = viewModel::resetMaskParam,
-                        onShape = viewModel::setMaskShape,
-                        onInvert = viewModel::setMaskInvert,
-                        onShowMask = viewModel::setShowMask,
-                        onChangeFinished = viewModel::commit,
-                        brush = state.brush,
-                        onBrush = viewModel::setBrush,
+                    PanelModeSelector(
+                        secondLabel = R.string.mode_heal,
+                        showSecond = state.retouchMode,
+                        onSelect = viewModel::setRetouchMode,
+                        firstLabel = R.string.mode_masks,
                     )
+                    if (state.retouchMode) {
+                        RetouchPanel(
+                            spots = state.edit.retouch,
+                            selected = state.activeSpot,
+                            type = state.spotType,
+                            size = state.spotSize,
+                            onType = viewModel::setSpotType,
+                            onSize = viewModel::setSpotSize,
+                            onSpot = viewModel::setSpot,
+                            onDelete = viewModel::deleteSpot,
+                            onChangeFinished = viewModel::commit,
+                        )
+                    } else {
+                        LocalPanel(
+                            masks = state.edit.masks,
+                            selected = state.activeMask,
+                            showMask = state.showMask,
+                            onAdd = viewModel::addMask,
+                            onSelect = viewModel::selectMask,
+                            onDelete = viewModel::deleteMask,
+                            onParam = viewModel::setMaskParam,
+                            onResetParam = viewModel::resetMaskParam,
+                            onShape = viewModel::setMaskShape,
+                            onInvert = viewModel::setMaskInvert,
+                            onShowMask = viewModel::setShowMask,
+                            onChangeFinished = viewModel::commit,
+                            brush = state.brush,
+                            onBrush = viewModel::setBrush,
+                        )
+                    }
                 } else if (state.tool == ToolGroup.CROP) {
                     CropPanel(
                         geometry = state.edit.geometry,
@@ -293,13 +313,18 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit) {
 /** "Basic | Curves" or "Basic | HSL" switch above the Light and Color panels. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun PanelModeSelector(secondLabel: Int, showSecond: Boolean, onSelect: (Boolean) -> Unit) {
+private fun PanelModeSelector(
+    secondLabel: Int,
+    showSecond: Boolean,
+    onSelect: (Boolean) -> Unit,
+    firstLabel: Int = R.string.mode_basic,
+) {
     SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
         SegmentedButton(
             selected = !showSecond,
             onClick = { onSelect(false) },
             shape = SegmentedButtonDefaults.itemShape(0, 2),
-        ) { Text(stringResource(R.string.mode_basic)) }
+        ) { Text(stringResource(firstLabel)) }
         SegmentedButton(
             selected = showSecond,
             onClick = { onSelect(true) },

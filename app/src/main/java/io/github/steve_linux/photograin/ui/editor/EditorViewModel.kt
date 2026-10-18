@@ -2,6 +2,8 @@
 package io.github.steve_linux.photograin.ui.editor
 
 import android.app.Application
+import android.graphics.Bitmap
+import android.graphics.Rect
 import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
@@ -16,6 +18,7 @@ import io.github.steve_linux.photograin.data.LutEntry
 import io.github.steve_linux.photograin.data.Preferences
 import io.github.steve_linux.photograin.data.RecipeStore
 import io.github.steve_linux.photograin.data.RegionSource
+import io.github.steve_linux.photograin.data.Retoucher
 import io.github.steve_linux.photograin.data.SaveLocation
 import io.github.steve_linux.photograin.data.SettingsStore
 import io.github.steve_linux.photograin.model.Adjustments
@@ -37,6 +40,9 @@ import io.github.steve_linux.photograin.model.Look
 import io.github.steve_linux.photograin.model.ParamSpec
 import io.github.steve_linux.photograin.model.Preset
 import io.github.steve_linux.photograin.model.PxSize
+import io.github.steve_linux.photograin.model.Retouch
+import io.github.steve_linux.photograin.model.RetouchSpot
+import io.github.steve_linux.photograin.model.RetouchType
 import io.github.steve_linux.photograin.model.ToolGroup
 import io.github.steve_linux.photograin.model.flippedHorizontally
 import io.github.steve_linux.photograin.model.flippedVertically
@@ -88,7 +94,19 @@ data class EditorUiState(
     /** A mask handle is being dragged: the mask is shown while it moves. */
     val maskDragging: Boolean = false,
     val brush: BrushSettings = BrushSettings(),
+    /** The preview with the healing and clone spots drawn in, or null when there are none. */
+    val retouchedPreview: Bitmap? = null,
+    /** In the Retouch tab: false for masks, true for healing and clone. */
+    val retouchMode: Boolean = false,
+    /** The spot being edited, by index in [EditState.retouch]. */
+    val selectedSpot: Int? = null,
+    /** Type and size (0..1, relative to the screen) of the next spot. */
+    val spotType: RetouchType = RetouchType.HEAL,
+    val spotSize: Float = 0.3f,
 ) {
+    /** [selectedSpot] if it still exists. */
+    val activeSpot: Int? get() = selectedSpot?.takeIf { it in edit.retouch.indices }
+
     /** [selectedMask] if it still exists (undo can remove it). */
     val activeMask: Int? get() = selectedMask?.takeIf { it in edit.masks.indices }
 }
@@ -122,6 +140,7 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
             val presets = withContext(Dispatchers.IO) { library.userPresets() }
             _state.update { it.copy(luts = luts, userPresets = presets) }
         }
+        watchRetouch()
         // Load the LUT whenever the edit points at a different one (open, undo, paste, preset).
         viewModelScope.launch {
             _state.map { it.edit.adjustments.look.lutId }.distinctUntilChanged().collectLatest { id ->
@@ -351,6 +370,94 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
     private fun updateMask(transform: (LocalAdjustment) -> LocalAdjustment) {
         val index = _state.value.activeMask ?: return
         updateLive { e -> e.copy(masks = e.masks.mapIndexed { i, l -> if (i == index) transform(l) else l }) }
+    }
+
+    // --- Healing and clone ---------------------------------------------------------------------
+
+    fun setRetouchMode(on: Boolean) = _state.update { it.copy(retouchMode = on) }
+
+    /**
+     * Adds a spot at source-normalized ([x], [y]) of [radius] long-edge units, taking its
+     * source from the best matching nearby area, and selects it.
+     */
+    fun addSpot(x: Float, y: Float, radius: Float) {
+        val s = _state.value
+        val image = s.image ?: return
+        if (s.edit.retouch.size >= Retouch.MAX_SPOTS) return
+        val type = s.spotType
+        viewModelScope.launch {
+            val bitmap = s.retouchedPreview ?: image.preview
+            val (sx, sy) = withContext(Dispatchers.Default) {
+                val w = bitmap.width
+                val h = bitmap.height
+                val pixels = IntArray(w * h)
+                bitmap.getPixels(pixels, 0, w, 0, 0, w, h)
+                val rPx = radius * maxOf(w, h).toDouble()
+                Retouch.findSource(w, h, x * w.toDouble(), y * h.toDouble(), rPx, type == RetouchType.HEAL) { px, py ->
+                    val c = pixels[py * w + px]
+                    floatArrayOf(((c shr 16) and 0xFF).toFloat(), ((c shr 8) and 0xFF).toFloat(), (c and 0xFF).toFloat())
+                }.let { (a, b) -> (a / w).toFloat() to (b / h).toFloat() }
+            }
+            val spot = RetouchSpot(type, x, y, sx, sy, radius)
+            updateLive { it.copy(retouch = it.retouch + spot) }
+            _state.update { it.copy(selectedSpot = it.edit.retouch.lastIndex) }
+            commit()
+        }
+    }
+
+    fun selectSpot(index: Int?) = _state.update { it.copy(selectedSpot = index) }
+
+    /** Live change of the selected spot, from dragging it or the panel; [commit] when done. */
+    fun setSpot(spot: RetouchSpot) {
+        val index = _state.value.activeSpot ?: return
+        updateLive { e -> e.copy(retouch = e.retouch.mapIndexed { i, old -> if (i == index) spot else old }) }
+    }
+
+    fun deleteSpot(index: Int) {
+        if (index !in _state.value.edit.retouch.indices) return
+        updateLive { e -> e.copy(retouch = e.retouch.filterIndexed { i, _ -> i != index }) }
+        _state.update { it.copy(selectedSpot = null) }
+        commit()
+    }
+
+    /** Type of the selected spot (if any) and of the next ones. */
+    fun setSpotType(type: RetouchType) {
+        _state.update { it.copy(spotType = type) }
+        val index = _state.value.activeSpot ?: return
+        setSpot(_state.value.edit.retouch[index].copy(type = type))
+        commit()
+    }
+
+    fun setSpotSize(size: Float) = _state.update { it.copy(spotSize = size) }
+
+    /** Keeps [EditorUiState.retouchedPreview] in step with the spots, reusing unchanged ones. */
+    private fun watchRetouch() {
+        val patches = java.util.concurrent.ConcurrentHashMap<RetouchSpot, Retoucher.Patch>()
+        var patchesFor: Bitmap? = null
+        viewModelScope.launch {
+            _state.map { it.image?.preview to it.edit.retouch }.distinctUntilChanged().collectLatest { (preview, spots) ->
+                if (preview == null || spots.isEmpty()) {
+                    _state.update { it.copy(retouchedPreview = null) }
+                    return@collectLatest
+                }
+                if (patchesFor !== preview) {
+                    patches.clear()
+                    patchesFor = preview
+                }
+                val result = withContext(Dispatchers.Default) {
+                    val w = preview.width
+                    val h = preview.height
+                    val copy = preview.copy(Bitmap.Config.ARGB_8888, true)
+                    Retoucher.apply(copy, Rect(0, 0, w, h), 1, w, h, spots, patches) { r, _ ->
+                        val part = Bitmap.createBitmap(preview, r.left, r.top, r.width(), r.height())
+                        if (part === preview) preview.copy(Bitmap.Config.ARGB_8888, false) else part
+                    }
+                    patches.keys.retainAll(spots.toSet())
+                    copy
+                }
+                _state.update { if (it.image?.preview === preview) it.copy(retouchedPreview = result) else it }
+            }
+        }
     }
 
     // --- Before / after ----------------------------------------------------------------------
