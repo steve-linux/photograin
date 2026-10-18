@@ -482,7 +482,8 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         val e = _state.value.edit
         if (text.isBlank() || e.texts.size >= TextItem.MAX_ITEMS) return
         val image = mapper()?.outputSize
-        var item = TextItem(text.trim())
+        // Each new text a little lower than the last, so they do not land on top of each other.
+        var item = TextItem(text.trim(), y = 0.5f + 0.08f * (e.texts.size % 4))
         if (image != null && e.frame.style == FrameStyle.POLAROID && e.texts.isEmpty()) {
             val layout = e.frame.layout(image)
             val bottomTop = layout.imageTop + image.height

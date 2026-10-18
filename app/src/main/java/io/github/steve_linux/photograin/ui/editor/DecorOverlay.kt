@@ -7,9 +7,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.PathFillType
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
@@ -51,13 +54,16 @@ fun DecorOverlay(
         if (frame.style != FrameStyle.NONE) {
             val c = Color(frame.color)
             val f = frameRect
-            // Reach a pixel into the photo: its edges rarely fall on whole pixels, and the gap
-            // would show the dark background as a thin line along the frame.
-            val r = RectF(imageRect.left + 1, imageRect.top + 1, imageRect.right - 1, imageRect.bottom - 1)
-            drawRect(c, Offset(f.left, f.top), Size(f.width(), r.top - f.top))
-            drawRect(c, Offset(f.left, r.bottom), Size(f.width(), f.bottom - r.bottom))
-            drawRect(c, Offset(f.left, r.top), Size(r.left - f.left, r.height()))
-            drawRect(c, Offset(r.right, r.top), Size(f.right - r.right, r.height()))
+            val r = imageRect
+            // One shape with a hole, reaching a pixel into the photo: separate bands would
+            // leave half-covered pixels where they meet, and the photo's edges rarely fall on
+            // whole pixels, both of which show the dark background as thin lines.
+            val border = Path().apply {
+                fillType = PathFillType.EvenOdd
+                addRect(Rect(f.left, f.top, f.right, f.bottom))
+                addRect(Rect(r.left + 1, r.top + 1, r.right - 1, r.bottom - 1))
+            }
+            drawPath(border, c)
         }
         if (texts.isNotEmpty()) {
             drawIntoCanvas { canvas ->

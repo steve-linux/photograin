@@ -49,6 +49,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -57,6 +58,7 @@ import io.github.steve_linux.photograin.model.Frame
 import io.github.steve_linux.photograin.model.FrameStyle
 import io.github.steve_linux.photograin.model.TextFont
 import io.github.steve_linux.photograin.model.TextItem
+import kotlinx.coroutines.delay
 
 /** Colors offered for frames and text, ARGB in sRGB. */
 private val SWATCHES = listOf(
@@ -231,13 +233,18 @@ fun TextPanel(
 private fun TextDialog(initial: String, onDismiss: () -> Unit, onDone: (String) -> Unit) {
     var text by remember { mutableStateOf(initial) }
     val focus = remember { FocusRequester() }
-    // Open with the keyboard up, ready to type.
-    LaunchedEffect(Unit) { focus.requestFocus() }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.text_dialog_title)) },
         text = {
+            val keyboard = LocalSoftwareKeyboardController.current
             OutlinedTextField(value = text, onValueChange = { text = it }, minLines = 1, maxLines = 4, modifier = Modifier.focusRequester(focus))
+            // Open with the keyboard up, ready to type: wait for the dialog's window to take focus first.
+            LaunchedEffect(Unit) {
+                delay(150)
+                focus.requestFocus()
+                keyboard?.show()
+            }
         },
         confirmButton = {
             TextButton(enabled = text.isNotBlank(), onClick = { onDone(text.trim()) }) {

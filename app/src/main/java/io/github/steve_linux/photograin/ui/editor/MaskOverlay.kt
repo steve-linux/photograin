@@ -86,9 +86,12 @@ class MaskSpace(
         }
     }
 
-    /** Where to grab an unselected mask: its center, or where a brush mask was first painted. */
+    /** Where to grab an unselected mask: its center, or the middle of a brush mask's first stroke. */
     fun pin(m: Mask): Offset? = when (m.type) {
-        MaskType.BRUSH -> m.strokes.firstOrNull()?.let { toScreen(it.points[0].toDouble(), it.points[1].toDouble()) }
+        MaskType.BRUSH -> m.strokes.firstOrNull { !it.erase }?.let {
+            val mid = it.pointCount / 2
+            toScreen(it.points[2 * mid].toDouble(), it.points[2 * mid + 1].toDouble())
+        }
         else -> handles(m).getValue(MaskHandle.MOVE)
     }
 
