@@ -11,6 +11,7 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import io.github.steve_linux.photograin.model.RetouchSpot
+import io.github.steve_linux.photograin.model.RetouchType
 
 /** Which circle of a spot is grabbed: the area being fixed or where its replacement comes from. */
 enum class SpotPart { SPOT, SOURCE }
@@ -36,7 +37,7 @@ fun hitSpot(space: MaskSpace, spots: List<RetouchSpot>, selected: Int?, p: Offse
         val c = circles(space, spots[selected])
         val r = maxOf(c.radius, reach)
         if ((c.spot - p).getDistance() <= r) return selected to SpotPart.SPOT
-        if ((c.source - p).getDistance() <= r) return selected to SpotPart.SOURCE
+        if (spots[selected].type != RetouchType.RED_EYE && (c.source - p).getDistance() <= r) return selected to SpotPart.SOURCE
     }
     for (i in spots.indices.reversed()) {
         if (i == selected) continue
@@ -58,14 +59,14 @@ fun dragSpot(space: MaskSpace, start: RetouchSpot, part: SpotPart, from: Offset,
     }
 }
 
-/** Every spot as a circle; the selected one also shows its source, joined by a line. */
+/** Every spot as a circle; the selected one also shows its source (red eye has none), joined by a line. */
 @Composable
 fun RetouchOverlay(spots: List<RetouchSpot>, selected: Int?, space: MaskSpace) {
     Canvas(Modifier.fillMaxSize()) {
         val shadow = Color.Black.copy(alpha = 0.4f)
         spots.forEachIndexed { i, s ->
             val c = circles(space, s)
-            if (i == selected) {
+            if (i == selected && s.type != RetouchType.RED_EYE) {
                 val dashed = PathEffect.dashPathEffect(floatArrayOf(5.dp.toPx(), 4.dp.toPx()))
                 val d = c.source - c.spot
                 val len = d.getDistance()
@@ -75,6 +76,9 @@ fun RetouchOverlay(spots: List<RetouchSpot>, selected: Int?, space: MaskSpace) {
                 }
                 drawCircle(shadow, c.radius, c.source, style = Stroke(3.dp.toPx()))
                 drawCircle(Color.White, c.radius, c.source, style = Stroke(1.5.dp.toPx(), pathEffect = dashed))
+                drawCircle(shadow, c.radius, c.spot, style = Stroke(4.dp.toPx()))
+                drawCircle(Color.White, c.radius, c.spot, style = Stroke(2.5.dp.toPx()))
+            } else if (i == selected) {
                 drawCircle(shadow, c.radius, c.spot, style = Stroke(4.dp.toPx()))
                 drawCircle(Color.White, c.radius, c.spot, style = Stroke(2.5.dp.toPx()))
             } else {

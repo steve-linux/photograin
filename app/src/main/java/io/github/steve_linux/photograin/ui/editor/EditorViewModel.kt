@@ -455,7 +455,8 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
 
     /**
      * Adds a spot at source-normalized ([x], [y]) of [radius] long-edge units, taking its
-     * source from the best matching nearby area, and selects it.
+     * source from the best matching nearby area, and selects it. A red-eye spot instead snaps
+     * to the red pupil near the tap and takes its size.
      */
     fun addSpot(x: Float, y: Float, radius: Float) {
         val s = _state.value
@@ -464,23 +465,59 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         val type = s.spotType
         viewModelScope.launch {
             val bitmap = s.retouchedPreview ?: image.preview
-            val (sx, sy) = withContext(Dispatchers.Default) {
-                val w = bitmap.width
-                val h = bitmap.height
-                val pixels = IntArray(w * h)
-                bitmap.getPixels(pixels, 0, w, 0, 0, w, h)
-                val rPx = radius * maxOf(w, h).toDouble()
-                Retouch.findSource(w, h, x * w.toDouble(), y * h.toDouble(), rPx, type == RetouchType.HEAL) { px, py ->
-                    val c = pixels[py * w + px]
-                    floatArrayOf(((c shr 16) and 0xFF).toFloat(), ((c shr 8) and 0xFF).toFloat(), (c and 0xFF).toFloat())
-                }.let { (a, b) -> (a / w).toFloat() to (b / h).toFloat() }
+            val spot = withContext(Dispatchers.Default) {
+                if (type == RetouchType.RED_EYE) {
+                    redEyeSpot(bitmap, x, y, radius)
+                } else {
+                    val (sx, sy) = findSpotSource(bitmap, x, y, radius, type)
+                    RetouchSpot(type, x, y, sx, sy, radius)
+                }
             }
-            val spot = RetouchSpot(type, x, y, sx, sy, radius)
             updateLive { it.copy(retouch = it.retouch + spot) }
             _state.update { it.copy(selectedSpot = it.edit.retouch.lastIndex) }
             commit()
         }
     }
+
+    /** Where a heal or clone spot at ([x], [y]) should take its patch from, source-normalized. */
+    private fun findSpotSource(bitmap: Bitmap, x: Float, y: Float, radius: Float, type: RetouchType): Pair<Float, Float> {
+        val w = bitmap.width
+        val h = bitmap.height
+        val pixels = IntArray(w * h)
+        bitmap.getPixels(pixels, 0, w, 0, 0, w, h)
+        val rPx = radius * maxOf(w, h).toDouble()
+        return Retouch.findSource(w, h, x * w.toDouble(), y * h.toDouble(), rPx, type == RetouchType.HEAL) { px, py ->
+            rgbAt(pixels[py * w + px])
+        }.let { (a, b) -> (a / w).toFloat() to (b / h).toFloat() }
+    }
+
+    /**
+     * A red-eye spot for a tap at ([x], [y]): fitted to the red pupil within twice the brush
+     * [radius] of it, or the brush circle itself when there is no red there.
+     */
+    private fun redEyeSpot(bitmap: Bitmap, x: Float, y: Float, radius: Float): RetouchSpot {
+        val w = bitmap.width
+        val h = bitmap.height
+        val long = maxOf(w, h).toDouble()
+        val reach = maxOf(2.0 * radius * long, 6.0)
+        val left = (x * w - reach).toInt().coerceIn(0, w - 1)
+        val top = (y * h - reach).toInt().coerceIn(0, h - 1)
+        val cw = (x * w + reach).toInt().coerceIn(left + 1, w) - left
+        val ch = (y * h + reach).toInt().coerceIn(top + 1, h) - top
+        val pixels = IntArray(cw * ch)
+        bitmap.getPixels(pixels, 0, cw, left, top, cw, ch)
+        val found = Retouch.findRedEye(cw, ch, x * w.toDouble() - left, y * h.toDouble() - top, reach) { px, py ->
+            rgbAt(pixels[py * cw + px])
+        }
+        if (found == null) return RetouchSpot(RetouchType.RED_EYE, x, y, x, y, radius)
+        val (cx, cy, r) = found
+        val sx = ((cx + left) / w).toFloat()
+        val sy = ((cy + top) / h).toFloat()
+        return RetouchSpot(RetouchType.RED_EYE, sx, sy, sx, sy, (r / long).toFloat(), feather = 0.3f)
+    }
+
+    private fun rgbAt(c: Int) =
+        floatArrayOf(((c shr 16) and 0xFF).toFloat(), ((c shr 8) and 0xFF).toFloat(), (c and 0xFF).toFloat())
 
     fun selectSpot(index: Int?) = _state.update { it.copy(selectedSpot = index) }
 
@@ -497,11 +534,30 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         commit()
     }
 
-    /** Type of the selected spot (if any) and of the next ones. */
+    /**
+     * Type of the selected spot (if any) and of the next ones. A spot turned into red eye takes
+     * its source from itself; one turned back gets a source of its own again.
+     */
     fun setSpotType(type: RetouchType) {
         _state.update { it.copy(spotType = type) }
-        val index = _state.value.activeSpot ?: return
-        setSpot(_state.value.edit.retouch[index].copy(type = type))
+        val s = _state.value
+        val index = s.activeSpot ?: return
+        val spot = s.edit.retouch[index]
+        when {
+            type == spot.type -> return
+            type == RetouchType.RED_EYE -> setSpot(spot.copy(type = type, sourceX = spot.x, sourceY = spot.y))
+            spot.type == RetouchType.RED_EYE -> {
+                val bitmap = s.retouchedPreview ?: s.image?.preview ?: return
+                viewModelScope.launch {
+                    val (sx, sy) = withContext(Dispatchers.Default) { findSpotSource(bitmap, spot.x, spot.y, spot.radius, type) }
+                    if (_state.value.activeSpot != index) return@launch
+                    setSpot(spot.copy(type = type, sourceX = sx, sourceY = sy))
+                    commit()
+                }
+                return
+            }
+            else -> setSpot(spot.copy(type = type))
+        }
         commit()
     }
 

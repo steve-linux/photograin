@@ -18,6 +18,8 @@ Editor fotografico non distruttivo per Android, libero (GPL-3.0-or-later) e pens
   ogni foto mantiene il suo ritaglio, e puoi esportarle tutte in una cartella.
 - **Ritaglio**: proporzioni predefinite, raddrizzamento ±45° anche automatico (dalle linee della foto),
   rotazione, specchio, prospettiva con cursori o a 4 punti (segni qualcosa di rettangolare e viene squadrato).
+- **Ritocco**: correttivo e clona per togliere macchie, polvere e piccoli oggetti; occhi rossi con un
+  tocco per pupilla (il cerchio si adatta da solo al rosso).
 - **Confronto prima/dopo**: tieni premuto sulla foto, oppure vista divisa con cursore.
 - **Copia/incolla** delle regolazioni tra foto.
 - **Esportazione a piena risoluzione**, elaborata a tasselli per foto più grandi del limite della GPU;

@@ -224,12 +224,14 @@
     <string name="mode_heal">Correggi</string>
     <string name="retouch_heal">Correttivo</string>
     <string name="retouch_clone">Clona</string>
+    <string name="retouch_red_eye">Occhi rossi</string>
     <string name="retouch_opacity">Opacità</string>
     <string name="retouch_delete">Elimina correzione</string>
     <string name="retouch_hint_empty">Tocca una macchia, un filo o un piccolo oggetto per toglierlo. Correttivo fonde la toppa con la foto; Clona la copia così com\'è.</string>
     <string name="retouch_hint_select">Tocca un altro punto per correggerlo. Trascina un cerchio per spostare la correzione, o il suo gemello tratteggiato per scegliere da dove prenderla.</string>
+    <string name="retouch_hint_red_eye">Tocca ogni pupilla rossa: il cerchio si adatta al rosso e lo scurisce. Se resta del rosso sul bordo, allarga il cerchio con Dimensione pennello.</string>
     <string name="guide_heal_title">Togliere i difetti</string>
-    <string name="guide_heal_body">In Ritocco scegli Correggi e tocca quello che vuoi togliere: una macchia, un granello di polvere, un filo. Photograin lo copre con una zona vicina simile. Trascina il cerchio tratteggiato per scegliere un\'altra zona, e usa Clona per una copia esatta.</string>
+    <string name="guide_heal_body">In Ritocco scegli Correggi e tocca quello che vuoi togliere: una macchia, un granello di polvere, un filo. Photograin lo copre con una zona vicina simile. Trascina il cerchio tratteggiato per scegliere un\'altra zona, e usa Clona per una copia esatta. Occhi rossi scurisce le pupille rosse del flash con un tocco ciascuna.</string>
     <string name="perspective_vertical">Prospettiva verticale</string>
     <string name="perspective_horizontal">Prospettiva orizzontale</string>
     <string name="straighten_auto">Raddrizza automaticamente</string>
