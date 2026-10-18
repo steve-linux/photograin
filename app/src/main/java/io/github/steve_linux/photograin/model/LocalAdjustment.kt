@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package io.github.steve_linux.photograin.model
 
-import io.github.steve_linux.photograin.math.Affine
+import io.github.steve_linux.photograin.math.Homography
 import io.github.steve_linux.photograin.math.Vec2
 import kotlinx.serialization.Serializable
 import kotlin.math.atan2
@@ -113,7 +113,7 @@ data class LocalAdjustment(
          * A linear mask darkens from the top of the view, an ellipse sits in the middle;
          * both start with a small exposure drop so the effect is visible at once.
          */
-        fun create(type: MaskType, outputToSource: Affine, sourceWidth: Int, sourceHeight: Int): LocalAdjustment {
+        fun create(type: MaskType, outputToSource: Homography, sourceWidth: Int, sourceHeight: Int): LocalAdjustment {
             val long = max(sourceWidth, sourceHeight).toDouble()
             val ax = sourceWidth / long
             val ay = sourceHeight / long

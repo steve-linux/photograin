@@ -183,7 +183,7 @@
     <string name="guide_detail_title">Detail and Effects</string>
     <string name="guide_detail_body">In Detail you set sharpness, clarity and haze, and reduce the noise of shots taken in low light. Effects adds a vignette and film grain.</string>
     <string name="guide_crop_title">Crop</string>
-    <string name="guide_crop_body">Choose a ratio (1:1, 4:3, 16:9…), drag the corners, straighten the horizon, rotate or flip the photo.</string>
+    <string name="guide_crop_body">Choose a ratio (1:1, 4:3, 16:9…), drag the corners, straighten the horizon, rotate or flip the photo. The perspective sliders straighten buildings and lines that lean.</string>
     <string name="guide_copy_title">Same edits on many photos</string>
     <string name="guide_copy_body">From the editor menu, copy the adjustments and paste them onto another photo. For many photos at once, tap “Batch” on the home screen: apply the copied adjustments or a preset and, if you like, export them all in one go.</string>
     <string name="guide_export_title">Save the photo</string>
@@ -220,4 +220,6 @@
     <string name="retouch_hint_select">Tap another spot to fix it. Drag a circle to move the fix, or its dashed twin to pick where the patch comes from.</string>
     <string name="guide_heal_title">Remove blemishes</string>
     <string name="guide_heal_body">In Retouch, choose Heal and tap what you want to remove: a spot, a speck of dust, a wire. Photograin covers it with a matching nearby area. Drag the dashed circle to pick a different source, and use Clone for an exact copy.</string>
+    <string name="perspective_vertical">Vertical perspective</string>
+    <string name="perspective_horizontal">Horizontal perspective</string>
 </resources>
