@@ -72,6 +72,7 @@ fun PhotoView(
     val decorFrame = if (cropMode) Frame() else state.edit.frame
     val layout = decorFrame.layout(content)
     val textMode = state.tool == ToolGroup.EFFECTS && state.effectsMode == 2
+    val shapeMode = state.tool == ToolGroup.EFFECTS && state.effectsMode == 3
 
     val renderer = remember { PreviewRenderer() }
     var zoom by remember { mutableFloatStateOf(1f) }
@@ -151,7 +152,11 @@ fun PhotoView(
         )
 
         if (!cropMode) {
-            DecorOverlay(decorFrame, frameRect, rect, total, state.edit.texts, if (textMode) state.activeText else null)
+            DecorOverlay(
+                decorFrame, frameRect, rect, total,
+                state.edit.texts, if (textMode) state.activeText else null,
+                state.edit.shapes, if (shapeMode) state.activeShape else null,
+            )
         }
 
         if (cropMode) {
@@ -178,6 +183,8 @@ fun PhotoView(
             var handleHeld by remember { mutableStateOf(false) }
             val currentBrush by rememberUpdatedState(state.brush)
             var brushCursor by remember { mutableStateOf<Offset?>(null) }
+            val currentShapes by rememberUpdatedState(state.edit.shapes)
+            val currentShape by rememberUpdatedState(state.activeShape)
             val currentTexts by rememberUpdatedState(state.edit.texts)
             val currentText by rememberUpdatedState(state.activeText)
             val currentFrameRect by rememberUpdatedState(frameRect)
@@ -257,6 +264,32 @@ fun PhotoView(
                                             y = (start.y + d.y / box.height()).coerceIn(0f, 1f),
                                         ),
                                     )
+                                    change.consume()
+                                }
+                            } finally {
+                                handleHeld = false
+                                if (moved) viewModel.commit()
+                            }
+                        }
+                    }
+                    .pointerInput(shapeMode) {
+                        if (!shapeMode) return@pointerInput
+                        val reach = 16.dp.toPx()
+                        awaitEachGesture {
+                            val down = awaitFirstDown(requireUnconsumed = false)
+                            val shapes = currentShapes
+                            val box = currentFrameRect
+                            val (index, part) = hitShape(shapes, currentShape, box, down.position, reach)
+                                ?: return@awaitEachGesture
+                            down.consume()
+                            handleHeld = true
+                            if (index != currentShape) viewModel.selectShape(index)
+                            val start = shapes[index]
+                            var moved = false
+                            try {
+                                drag(down.id) { change ->
+                                    moved = true
+                                    viewModel.setShape(dragShape(start, part, box, down.position, change.position))
                                     change.consume()
                                 }
                             } finally {

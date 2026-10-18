@@ -29,6 +29,8 @@ import io.github.steve_linux.photograin.model.Curves
 import io.github.steve_linux.photograin.model.EditState
 import io.github.steve_linux.photograin.model.Frame
 import io.github.steve_linux.photograin.model.FrameStyle
+import io.github.steve_linux.photograin.model.ShapeItem
+import io.github.steve_linux.photograin.model.ShapeType
 import io.github.steve_linux.photograin.model.TextItem
 import io.github.steve_linux.photograin.model.Geometry
 import io.github.steve_linux.photograin.model.GeometryMapper
@@ -109,13 +111,18 @@ data class EditorUiState(
     /** Type and size (0..1, relative to the screen) of the next spot. */
     val spotType: RetouchType = RetouchType.HEAL,
     val spotSize: Float = 0.3f,
-    /** In the Effects tab: 0 effects, 1 frame, 2 text. */
+    /** In the Effects tab: 0 effects, 1 frame, 2 text, 3 shapes. */
     val effectsMode: Int = 0,
     /** The text being edited, by index in [EditState.texts]. */
     val selectedText: Int? = null,
+    /** The shape being edited, by index in [EditState.shapes]. */
+    val selectedShape: Int? = null,
     /** A tap on the photo picks a color for this, instead of its usual meaning. */
     val picker: Picker = Picker.NONE,
 ) {
+    /** [selectedShape] if it still exists. */
+    val activeShape: Int? get() = selectedShape?.takeIf { it in edit.shapes.indices }
+
     /** [selectedText] if it still exists. */
     val activeText: Int? get() = selectedText?.takeIf { it in edit.texts.indices }
 
@@ -566,6 +573,36 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         if (index !in _state.value.edit.texts.indices) return
         updateLive { e -> e.copy(texts = e.texts.filterIndexed { i, _ -> i != index }) }
         _state.update { it.copy(selectedText = null) }
+        commit()
+    }
+
+    /** Adds a shape of [type] in the middle of the output and selects it; each one a bit lower. */
+    fun addShape(type: ShapeType) {
+        val e = _state.value.edit
+        if (e.shapes.size >= ShapeItem.MAX_ITEMS) return
+        val dy = 0.06f * (e.shapes.size % 4)
+        val shape = when (type) {
+            // Lines and arrows lie flat; boxes keep the photo's proportions.
+            ShapeType.LINE, ShapeType.ARROW -> ShapeItem(type, 0.3f, 0.5f + dy, 0.7f, 0.5f + dy)
+            else -> ShapeItem(type, 0.35f, 0.35f + dy, 0.65f, 0.65f + dy)
+        }
+        updateLive { it.copy(shapes = it.shapes + shape) }
+        _state.update { it.copy(selectedShape = it.edit.shapes.lastIndex) }
+        commit()
+    }
+
+    fun selectShape(index: Int?) = _state.update { it.copy(selectedShape = index) }
+
+    /** Live change of the selected shape; [commit] when done. */
+    fun setShape(shape: ShapeItem) {
+        val index = _state.value.activeShape ?: return
+        updateLive { e -> e.copy(shapes = e.shapes.mapIndexed { i, old -> if (i == index) shape else old }) }
+    }
+
+    fun deleteShape(index: Int) {
+        if (index !in _state.value.edit.shapes.indices) return
+        updateLive { e -> e.copy(shapes = e.shapes.filterIndexed { i, _ -> i != index }) }
+        _state.update { it.copy(selectedShape = null) }
         commit()
     }
 

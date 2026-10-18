@@ -18,6 +18,8 @@ data class EditState(
     val frame: Frame = Frame(),
     /** Text drawn over the finished photo and its frame. */
     val texts: List<TextItem> = emptyList(),
+    /** Lines, arrows and boxes, drawn under the texts. */
+    val shapes: List<ShapeItem> = emptyList(),
 ) {
     fun toJson(): String = json.encodeToString(Recipe(version = Recipe.CURRENT_VERSION, edit = this))
 
