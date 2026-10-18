@@ -10,7 +10,7 @@ import java.util.Locale
 import kotlin.math.roundToInt
 
 /** Kinds of EXIF data, each kept or dropped as a whole when exporting. */
-enum class MetadataGroup(@StringRes val label: Int, val tags: List<String>) {
+enum class MetadataGroup(@param:StringRes val label: Int, val tags: List<String>) {
     DATE(
         R.string.metadata_date,
         listOf(
@@ -56,7 +56,7 @@ enum class MetadataGroup(@StringRes val label: Int, val tags: List<String>) {
 }
 
 /** One line of the photo's information: what it is and its value, ready to show. */
-data class MetadataEntry(val group: MetadataGroup, @StringRes val label: Int, val value: String)
+data class MetadataEntry(val group: MetadataGroup, @param:StringRes val label: Int, val value: String)
 
 object Metadata {
     /** The EXIF data of the photo at [uri] worth showing, grouped as [MetadataGroup]; empty if none. */
