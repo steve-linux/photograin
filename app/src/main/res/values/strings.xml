@@ -195,12 +195,19 @@
     <string name="local_add_radial">Radial</string>
     <string name="local_linear_n">Linear %1$d</string>
     <string name="local_radial_n">Radial %1$d</string>
-    <string name="local_hint_empty">Add a gradient to adjust only part of the photo: linear for a sky or a foreground, radial for a subject.</string>
+    <string name="local_hint_empty">Add a mask to adjust only part of the photo: linear for a sky or a foreground, radial for a subject, brush to paint exactly where you want.</string>
     <string name="local_hint_select">Tap a mask to edit it, or drag its point on the photo.</string>
     <string name="local_invert">Invert</string>
     <string name="local_show_mask">Show mask</string>
     <string name="local_delete">Delete mask</string>
     <string name="local_feather">Feather</string>
     <string name="guide_local_title">Masks</string>
-    <string name="guide_local_body">Adjust only part of the photo. A linear gradient darkens a bright sky or lightens a foreground; a radial one brings out a subject. Drag the points on the photo to move and shape it, use {icon} to see where it applies, and Invert to change everything else instead.</string>
+    <string name="guide_local_body">Adjust only part of the photo. A linear gradient darkens a bright sky or lightens a foreground; a radial one brings out a subject; with the brush you paint the area yourself, and Erase fixes any overflow. Drag the points on the photo to move and shape it, use {icon} to see where it applies, and Invert to change everything else instead.</string>
+    <string name="local_add_brush">Brush</string>
+    <string name="local_brush_n">Brush %1$d</string>
+    <string name="brush_paint">Paint</string>
+    <string name="brush_erase">Erase</string>
+    <string name="brush_size">Brush size</string>
+    <string name="brush_hardness">Hardness</string>
+    <string name="local_hint_brush">Paint on the photo with one finger; use two fingers to zoom.</string>
 </resources>

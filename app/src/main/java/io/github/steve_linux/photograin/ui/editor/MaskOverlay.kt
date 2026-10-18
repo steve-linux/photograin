@@ -58,7 +58,15 @@ class MaskSpace(
         return s.x to s.y
     }
 
+    /** Length of [px] screen pixels at [p], in long-edge units. */
+    fun unitsFor(p: Offset, px: Float): Double {
+        val (x0, y0) = toSource(p)
+        val (x1, y1) = toSource(p + Offset(px, 0f))
+        return hypot((x1 - x0) * ax, (y1 - y0) * ay)
+    }
+
     fun handles(m: Mask): Map<MaskHandle, Offset> = when (m.type) {
+        MaskType.BRUSH -> emptyMap()
         MaskType.LINEAR -> mapOf(
             MaskHandle.START to toScreen(m.x0.toDouble(), m.y0.toDouble()),
             MaskHandle.END to toScreen(m.x1.toDouble(), m.y1.toDouble()),
@@ -77,8 +85,11 @@ class MaskSpace(
         }
     }
 
-    /** Where to grab an unselected mask. */
-    fun pin(m: Mask): Offset = handles(m).getValue(MaskHandle.MOVE)
+    /** Where to grab an unselected mask: its center, or where a brush mask was first painted. */
+    fun pin(m: Mask): Offset? = when (m.type) {
+        MaskType.BRUSH -> m.strokes.firstOrNull()?.let { toScreen(it.points[0].toDouble(), it.points[1].toDouble()) }
+        else -> handles(m).getValue(MaskHandle.MOVE)
+    }
 
     /**
      * [start] with [handle] dragged from screen point [from] to [to]. Moves keep the offset
@@ -90,7 +101,12 @@ class MaskSpace(
         val dx = (tx - fx).toFloat()
         val dy = (ty - fy).toFloat()
         return when (handle) {
-            MaskHandle.MOVE -> start.copy(x0 = start.x0 + dx, y0 = start.y0 + dy, x1 = start.x1 + dx, y1 = start.y1 + dy)
+            MaskHandle.MOVE -> start.copy(
+                x0 = start.x0 + dx, y0 = start.y0 + dy, x1 = start.x1 + dx, y1 = start.y1 + dy,
+                strokes = start.strokes.map { s ->
+                    s.copy(points = s.points.mapIndexed { i, v -> if (i % 2 == 0) v + dx else v + dy })
+                },
+            )
             MaskHandle.START -> start.copy(x0 = start.x0 + dx, y0 = start.y0 + dy)
             MaskHandle.END -> start.copy(x1 = start.x1 + dx, y1 = start.y1 + dy)
             MaskHandle.RADIUS_X, MaskHandle.RADIUS_Y -> {
@@ -140,19 +156,33 @@ fun hitMask(space: MaskSpace, masks: List<LocalAdjustment>, selected: Int?, p: O
             ?.takeIf { (it.value - p).getDistance() <= reach }
             ?.let { return selected to it.key }
     }
-    return masks.indices
-        .filter { it != selected }
-        .minByOrNull { (space.pin(masks[it].mask) - p).getDistance() }
-        ?.takeIf { (space.pin(masks[it].mask) - p).getDistance() <= reach }
-        ?.let { it to MaskHandle.MOVE }
+    val pins = masks.indices.filter { it != selected }.mapNotNull { i -> space.pin(masks[i].mask)?.let { i to it } }
+    return pins
+        .minByOrNull { (it.second - p).getDistance() }
+        ?.takeIf { (it.second - p).getDistance() <= reach }
+        ?.let { it.first to MaskHandle.MOVE }
 }
 
-/** Draws every mask: the selected one with its handles, the others as pins to tap. */
+/**
+ * Draws every mask: the selected one with its handles, the others as pins to tap. While a
+ * brush mask is painted, [brushCursor] is the finger and [brushRadius] the brush, in pixels.
+ */
 @Composable
-fun MaskOverlay(masks: List<LocalAdjustment>, selected: Int?, space: MaskSpace, dragging: Boolean) {
+fun MaskOverlay(
+    masks: List<LocalAdjustment>,
+    selected: Int?,
+    space: MaskSpace,
+    dragging: Boolean,
+    brushCursor: Offset?,
+    brushRadius: Float,
+) {
     Canvas(Modifier.fillMaxSize()) {
         masks.forEachIndexed { i, local ->
-            if (i == selected) drawSelected(local.mask, space, dragging) else drawPin(space.pin(local.mask))
+            if (i == selected) drawSelected(local.mask, space, dragging) else space.pin(local.mask)?.let { drawPin(it) }
+        }
+        brushCursor?.let {
+            drawCircle(Color.Black.copy(alpha = 0.4f), radius = brushRadius, center = it, style = Stroke(3.dp.toPx()))
+            drawCircle(Color.White, radius = brushRadius, center = it, style = Stroke(1.5.dp.toPx()))
         }
     }
 }
@@ -177,6 +207,7 @@ private fun DrawScope.drawSelected(m: Mask, space: MaskSpace, dragging: Boolean)
             val mid = handles.getValue(MaskHandle.MOVE)
             drawLine(line, mid - perp, mid + perp, strokeWidth = width, pathEffect = dashed)
         }
+        MaskType.BRUSH -> Unit
         MaskType.RADIAL -> {
             drawPath(path(space.ellipse(m, 1.0)), line, style = Stroke(width))
             if (m.feather > 0.02f) {

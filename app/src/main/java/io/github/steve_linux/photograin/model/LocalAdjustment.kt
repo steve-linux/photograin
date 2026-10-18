@@ -12,7 +12,22 @@ import kotlin.math.min
 import kotlin.math.sin
 
 @Serializable
-enum class MaskType { LINEAR, RADIAL }
+enum class MaskType { LINEAR, RADIAL, BRUSH }
+
+/**
+ * One brush stroke of a [MaskType.BRUSH] mask: [points] are x, y pairs in source-normalized
+ * coordinates, [radius] is in source long-edge units. [hardness] is the part of the radius
+ * painted at full strength; [erase] removes paint instead of adding it.
+ */
+@Serializable
+data class BrushStroke(
+    val points: List<Float>,
+    val radius: Float,
+    val hardness: Float = 0.5f,
+    val erase: Boolean = false,
+) {
+    val pointCount get() = points.size / 2
+}
 
 /**
  * Where a local adjustment applies. Positions are normalized to the source image as stored in
@@ -21,6 +36,7 @@ enum class MaskType { LINEAR, RADIAL }
  *
  * Linear: full effect on the (x0, y0) side, fading out towards (x1, y1).
  * Radial: an ellipse centered on (x0, y0), turned by [angle] radians (clockwise on screen).
+ * Brush: painted with [strokes], rasterized by [BrushRaster].
  */
 @Serializable
 data class Mask(
@@ -35,10 +51,12 @@ data class Mask(
     /** Radial only: the outer part of the ellipse that fades, 0..1. */
     val feather: Float = 0.5f,
     val invert: Boolean = false,
+    val strokes: List<BrushStroke> = emptyList(),
 ) {
     /**
      * Strength 0..1 at source-normalized ([x], [y]) for a source of width / long edge [aspectX]
-     * and height / long edge [aspectY]. Mirrors maskWeight() in the color shader.
+     * and height / long edge [aspectY]. Mirrors maskWeight() in the color shader. Brush masks
+     * need their raster (see [BrushRaster]) and read as 0 here.
      */
     fun weight(x: Float, y: Float, aspectX: Float, aspectY: Float): Float {
         val qx = x * aspectX
@@ -61,6 +79,7 @@ data class Mask(
                 val v = (-sn * dx + cs * dy) / max(radiusY, 1e-5f)
                 1f - smoothstep(1f - max(feather, 0.001f), 1f, hypot(u, v))
             }
+            MaskType.BRUSH -> 0f
         }
         return if (invert) 1f - w else w
     }
@@ -107,13 +126,14 @@ data class LocalAdjustment(
             val wy = (ex.y - o.y) * ay
             val viewW = hypot(wx, wy)
             val viewH = hypot((ey.x - o.x) * ax, (ey.y - o.y) * ay)
+            if (type == MaskType.BRUSH) return LocalAdjustment(mask = Mask(MaskType.BRUSH), exposure = 0.5f)
             val mask = when (type) {
                 MaskType.LINEAR -> {
                     val a = at(0.5, 0.15)
                     val b = at(0.5, 0.55)
                     Mask(MaskType.LINEAR, a.x.toFloat(), a.y.toFloat(), b.x.toFloat(), b.y.toFloat())
                 }
-                MaskType.RADIAL -> {
+                else -> {
                     val c = at(0.5, 0.5)
                     val r = 0.3 * min(viewW, viewH)
                     Mask(

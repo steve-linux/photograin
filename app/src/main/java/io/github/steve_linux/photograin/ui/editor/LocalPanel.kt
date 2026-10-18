@@ -16,6 +16,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.AutoFixOff
+import androidx.compose.material.icons.outlined.Brush
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
@@ -55,6 +57,8 @@ fun LocalPanel(
     onInvert: (Boolean) -> Unit,
     onShowMask: (Boolean) -> Unit,
     onChangeFinished: () -> Unit,
+    brush: BrushSettings,
+    onBrush: (BrushSettings) -> Unit,
 ) {
     Column(
         Modifier
@@ -107,6 +111,48 @@ fun LocalPanel(
                 Icon(Icons.Outlined.Delete, contentDescription = stringResource(R.string.local_delete))
             }
         }
+        if (local.mask.type == MaskType.BRUSH) {
+            if (local.mask.strokes.isEmpty()) {
+                Text(
+                    stringResource(R.string.local_hint_brush),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 4.dp),
+                )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(
+                    selected = !brush.erase,
+                    onClick = { onBrush(brush.copy(erase = false)) },
+                    label = { Text(stringResource(R.string.brush_paint)) },
+                    leadingIcon = { Icon(Icons.Outlined.Brush, contentDescription = null, Modifier.size(18.dp)) },
+                )
+                FilterChip(
+                    selected = brush.erase,
+                    onClick = { onBrush(brush.copy(erase = true)) },
+                    label = { Text(stringResource(R.string.brush_erase)) },
+                    leadingIcon = { Icon(Icons.Outlined.AutoFixOff, contentDescription = null, Modifier.size(18.dp)) },
+                )
+            }
+            ParamSlider(
+                label = stringResource(R.string.brush_size),
+                value = brush.size,
+                range = 0f..1f,
+                display = "${Math.round(brush.size * 100)}",
+                onChange = { onBrush(brush.copy(size = it)) },
+                onChangeFinished = {},
+                onReset = { onBrush(brush.copy(size = BrushSettings().size)) },
+            )
+            ParamSlider(
+                label = stringResource(R.string.brush_hardness),
+                value = brush.hardness,
+                range = 0f..1f,
+                display = "${Math.round(brush.hardness * 100)}",
+                onChange = { onBrush(brush.copy(hardness = it)) },
+                onChangeFinished = {},
+                onReset = { onBrush(brush.copy(hardness = BrushSettings().hardness)) },
+            )
+        }
         if (local.mask.type == MaskType.RADIAL) {
             ParamSlider(
                 label = stringResource(R.string.local_feather),
@@ -149,9 +195,11 @@ private fun formatLocal(spec: LocalParamSpec, value: Float): String {
 private fun maskName(type: MaskType): Int = when (type) {
     MaskType.LINEAR -> R.string.local_linear_n
     MaskType.RADIAL -> R.string.local_radial_n
+    MaskType.BRUSH -> R.string.local_brush_n
 }
 
 private fun addLabel(type: MaskType): Int = when (type) {
     MaskType.LINEAR -> R.string.local_add_linear
     MaskType.RADIAL -> R.string.local_add_radial
+    MaskType.BRUSH -> R.string.local_add_brush
 }
