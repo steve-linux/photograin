@@ -10,6 +10,8 @@ import kotlinx.serialization.json.Json
 data class EditState(
     val adjustments: Adjustments = Adjustments(),
     val geometry: Geometry = Geometry(),
+    /** Local adjustments, applied in order on top of [adjustments]. */
+    val masks: List<LocalAdjustment> = emptyList(),
 ) {
     fun toJson(): String = json.encodeToString(Recipe(version = Recipe.CURRENT_VERSION, edit = this))
 

@@ -169,7 +169,7 @@ private fun formatValue(spec: ParamSpec, value: Float): String {
 }
 
 @StringRes
-private fun paramLabel(id: String): Int = when (id) {
+internal fun paramLabel(id: String): Int = when (id) {
     "exposure" -> R.string.param_exposure
     "contrast" -> R.string.param_contrast
     "highlights" -> R.string.param_highlights
@@ -209,5 +209,6 @@ fun toolLabel(t: ToolGroup): Int = when (t) {
     ToolGroup.COLOR -> R.string.tool_color
     ToolGroup.DETAIL -> R.string.tool_detail
     ToolGroup.EFFECTS -> R.string.tool_effects
+    ToolGroup.LOCAL -> R.string.tool_local
     ToolGroup.CROP -> R.string.tool_crop
 }

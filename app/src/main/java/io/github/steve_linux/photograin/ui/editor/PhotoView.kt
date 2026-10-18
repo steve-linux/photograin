@@ -4,7 +4,10 @@ package io.github.steve_linux.photograin.ui.editor
 import android.graphics.RectF
 import android.opengl.GLSurfaceView
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
@@ -53,6 +56,7 @@ fun PhotoView(
 ) {
     val image = state.image ?: return
     val cropMode = state.tool == ToolGroup.CROP
+    val localMode = state.tool == ToolGroup.LOCAL
     val geometry = state.edit.geometry
     val displayGeometry = if (cropMode) geometry.copy(crop = CropRect.FULL) else geometry
     val mapper = viewModel.mapper(displayGeometry) ?: return
@@ -95,6 +99,8 @@ fun PhotoView(
             compareSplit = compare,
             background = floatArrayOf(background.red, background.green, background.blue),
             profile = image.profile,
+            masks = state.edit.masks,
+            showMask = if (localMode && (state.showMask || state.maskDragging)) state.activeMask ?: -1 else -1,
         )
 
         val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -141,6 +147,17 @@ fun PhotoView(
             )
         } else {
             val currentRect by rememberUpdatedState(rect)
+            val space = if (localMode) {
+                MaskSpace(rect, mapper.normalizedOutputToSource(), image.preview.width, image.preview.height)
+            } else {
+                null
+            }
+            val currentSpace by rememberUpdatedState(space)
+            val currentMasks by rememberUpdatedState(state.edit.masks)
+            val currentSelected by rememberUpdatedState(state.activeMask)
+            // A finger on a mask handle: holding still must not reveal the original.
+            var handleHeld by remember { mutableStateOf(false) }
+            if (space != null) MaskOverlay(state.edit.masks, state.activeMask, space, state.maskDragging)
             Box(
                 Modifier
                     .fillMaxSize()
@@ -171,7 +188,7 @@ fun PhotoView(
                                 coroutineScope {
                                     val reveal = launch {
                                         delay(180)
-                                        viewModel.setShowOriginal(true)
+                                        if (!handleHeld) viewModel.setShowOriginal(true)
                                     }
                                     tryAwaitRelease()
                                     reveal.cancel()
@@ -179,6 +196,33 @@ fun PhotoView(
                                 }
                             },
                         )
+                    }
+                    // Last in the chain, so it sees each touch before the gestures above and can
+                    // claim the ones that start on a mask handle.
+                    .pointerInput(localMode) {
+                        if (!localMode) return@pointerInput
+                        val reach = 28.dp.toPx()
+                        awaitEachGesture {
+                            val down = awaitFirstDown(requireUnconsumed = false)
+                            val sp = currentSpace ?: return@awaitEachGesture
+                            val masks = currentMasks
+                            val (index, handle) = hitMask(sp, masks, currentSelected, down.position, reach)
+                                ?: return@awaitEachGesture
+                            down.consume()
+                            handleHeld = true
+                            if (index != currentSelected) viewModel.selectMask(index)
+                            val start = masks[index].mask
+                            viewModel.setMaskDragging(true)
+                            try {
+                                drag(down.id) { change ->
+                                    viewModel.setMaskShape(sp.drag(start, handle, down.position, change.position))
+                                    change.consume()
+                                }
+                            } finally {
+                                handleHeld = false
+                                viewModel.setMaskDragging(false)
+                            }
+                        }
                     },
             )
             state.split?.let { split ->

@@ -7,6 +7,7 @@ import io.github.steve_linux.photograin.model.Adjustments
 import io.github.steve_linux.photograin.model.ColorProfile
 import io.github.steve_linux.photograin.model.CubeLut
 import io.github.steve_linux.photograin.model.Curves
+import io.github.steve_linux.photograin.model.LocalAdjustment
 import io.github.steve_linux.photograin.model.Mat3
 import io.github.steve_linux.photograin.model.PxSize
 import java.nio.ByteBuffer
@@ -127,6 +128,9 @@ internal class Pipeline {
      * @param lut the table for [Adjustments.look], or null when it is off or not available.
      * @param working the color space of the source pixels, which the adjustments work in.
      * @param output the color space to write: sRGB for the screen, the chosen profile for export.
+     * @param masks local adjustments; [posToSource] maps output positions (0..1) to source
+     *   positions (0..1), and [sourceWidth] x [sourceHeight] gives the source's shape.
+     * @param showMask index of the mask to tint red, or -1.
      */
     fun renderColor(
         adjustments: Adjustments,
@@ -141,6 +145,11 @@ internal class Pipeline {
         working: ColorProfile = ColorProfile.SRGB,
         output: ColorProfile = ColorProfile.SRGB,
         background: FloatArray = floatArrayOf(0f, 0f, 0f),
+        masks: List<LocalAdjustment> = emptyList(),
+        posToSource: Affine = Affine.IDENTITY,
+        sourceWidth: Int = 1,
+        sourceHeight: Int = 1,
+        showMask: Int = -1,
     ) {
         val geoTarget = checkNotNull(geo) { "renderIntermediate() must run first" }
         val blurred = checkNotNull(blurB)
@@ -204,6 +213,19 @@ internal class Pipeline {
         if (outConvert) {
             p.mat3("uOutM", Mat3.toGl(working.conversionTo(output)))
             p.float("uOutGamma", output.gamma.toFloat())
+        }
+        val mu = ShaderParams.maskUniforms(masks)
+        p.int("uMaskCount", mu.count)
+        val shown = if (showMask in 0 until mu.count) showMask else -1
+        p.int("uShowMask", shown)
+        if (mu.count > 0 || shown >= 0) {
+            p.mat3("uPosToSrc", posToSource.toGlMat3())
+            val srcLong = max(sourceWidth, sourceHeight).toFloat()
+            p.vec2("uSrcAspect", sourceWidth / srcLong, sourceHeight / srcLong)
+            p.vec4Array("uMaskGeo", mu.geo)
+            p.vec4Array("uMaskOpt", mu.opt)
+            p.vec4Array("uLocA", mu.locA)
+            p.vec4Array("uLocB", mu.locB)
         }
         p.float("uCompare", compareSplit)
         p.float("uComposite", if (composite) 1f else 0f)
@@ -302,6 +324,7 @@ internal class GlProgram(vertex: String, fragment: String) {
     fun vec3(name: String, x: Float, y: Float, z: Float) = GLES30.glUniform3f(loc(name), x, y, z)
     fun vec4(name: String, v: FloatArray) = GLES30.glUniform4f(loc(name), v[0], v[1], v[2], v[3])
     fun vec3Array(name: String, v: FloatArray) = GLES30.glUniform3fv(loc(name), v.size / 3, v, 0)
+    fun vec4Array(name: String, v: FloatArray) = GLES30.glUniform4fv(loc(name), v.size / 4, v, 0)
     fun mat3(name: String, m: FloatArray) = GLES30.glUniformMatrix3fv(loc(name), 1, false, m, 0)
 
     fun texture(name: String, unit: Int, texture: Int) {

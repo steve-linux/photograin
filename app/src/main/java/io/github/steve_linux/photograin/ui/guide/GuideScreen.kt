@@ -24,11 +24,13 @@ import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Compare
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Crop
+import androidx.compose.material.icons.outlined.Gradient
 import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Style
+import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.WbSunny
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -61,6 +63,7 @@ private val TOPICS = listOf(
     Topic(Icons.Outlined.WbSunny, R.string.guide_light_title, R.string.guide_light_body),
     Topic(Icons.Outlined.Palette, R.string.guide_color_title, R.string.guide_color_body),
     Topic(Icons.Outlined.AutoAwesome, R.string.guide_detail_title, R.string.guide_detail_body),
+    Topic(Icons.Outlined.Gradient, R.string.guide_local_title, R.string.guide_local_body, Icons.Outlined.Visibility),
     Topic(Icons.Outlined.Crop, R.string.guide_crop_title, R.string.guide_crop_body),
     Topic(Icons.Outlined.ContentCopy, R.string.guide_copy_title, R.string.guide_copy_body),
     Topic(Icons.Outlined.Save, R.string.guide_export_title, R.string.guide_export_body, Icons.Outlined.Save),

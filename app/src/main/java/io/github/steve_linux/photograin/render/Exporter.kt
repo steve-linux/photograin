@@ -177,6 +177,10 @@ object Exporter {
                         composite = false,
                         working = source.profile,
                         output = output,
+                        masks = edit.masks,
+                        posToSource = mapper.normalizedOutputToSource(),
+                        sourceWidth = source.width,
+                        sourceHeight = source.height,
                     )
 
                     pixels.clear()

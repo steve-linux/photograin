@@ -125,6 +125,17 @@ class GeometryMapper(
         return sourceToFrame.then(frameToOutput).inverse()
     }
 
+    /**
+     * Position in the whole output (0..1) -> position in the source (0..1). The same at any
+     * resolution, so masks line up between the preview and the export.
+     */
+    fun normalizedOutputToSource(): Affine {
+        val c = geometry.crop
+        return Affine.scale(c.width * frameWidth, c.height * frameHeight)
+            .then(outputToSource())
+            .then(Affine.scale(1.0 / sourceWidth, 1.0 / sourceHeight))
+    }
+
     /** True when every corner of [crop] lies on actual image content (inside the straightened source). */
     fun isCropValid(crop: CropRect, tolerancePx: Double = 0.5): Boolean {
         val inv = sourceToFrame.inverse()

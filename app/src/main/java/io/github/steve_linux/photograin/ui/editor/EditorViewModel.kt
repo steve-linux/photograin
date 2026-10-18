@@ -27,6 +27,10 @@ import io.github.steve_linux.photograin.model.EditState
 import io.github.steve_linux.photograin.model.Geometry
 import io.github.steve_linux.photograin.model.GeometryMapper
 import io.github.steve_linux.photograin.model.History
+import io.github.steve_linux.photograin.model.LocalAdjustment
+import io.github.steve_linux.photograin.model.LocalParamSpec
+import io.github.steve_linux.photograin.model.Mask
+import io.github.steve_linux.photograin.model.MaskType
 import io.github.steve_linux.photograin.model.Hsl
 import io.github.steve_linux.photograin.model.Look
 import io.github.steve_linux.photograin.model.ParamSpec
@@ -76,7 +80,16 @@ data class EditorUiState(
     val lut: CubeLut? = null,
     val luts: List<LutEntry> = emptyList(),
     val userPresets: List<Preset> = emptyList(),
-)
+    /** The local adjustment being edited, by index in [EditState.masks]. */
+    val selectedMask: Int? = null,
+    /** Tint the selected mask red, to see where it applies. */
+    val showMask: Boolean = false,
+    /** A mask handle is being dragged: the mask is shown while it moves. */
+    val maskDragging: Boolean = false,
+) {
+    /** [selectedMask] if it still exists (undo can remove it). */
+    val activeMask: Int? get() = selectedMask?.takeIf { it in edit.masks.indices }
+}
 
 /** An export waiting for the user to pick where it goes. */
 data class SaveRequest(val options: ExportOptions, val fileName: String)
@@ -254,6 +267,56 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
             }
             _state.update { it.copy(luts = luts) }
         }
+    }
+
+    // --- Local adjustments -------------------------------------------------------------------
+
+    /** Adds a mask of [type] over the visible part of the photo and selects it. */
+    fun addMask(type: MaskType) {
+        val image = _state.value.image ?: return
+        val m = mapper() ?: return
+        if (_state.value.edit.masks.size >= LocalAdjustment.MAX) return
+        val local = LocalAdjustment.create(type, m.normalizedOutputToSource(), image.preview.width, image.preview.height)
+        updateLive { it.copy(masks = it.masks + local) }
+        _state.update { it.copy(selectedMask = it.edit.masks.lastIndex) }
+        commit()
+    }
+
+    fun selectMask(index: Int?) = _state.update { it.copy(selectedMask = index) }
+
+    fun deleteMask(index: Int) {
+        if (index !in _state.value.edit.masks.indices) return
+        updateLive { e -> e.copy(masks = e.masks.filterIndexed { i, _ -> i != index }) }
+        _state.update { it.copy(selectedMask = null) }
+        commit()
+    }
+
+    /** Live update of a local slider; [commit] when it is released. */
+    fun setMaskParam(spec: LocalParamSpec, value: Float) = updateMask { spec.set(it, value.coerceIn(spec.min, spec.max)) }
+
+    fun resetMaskParam(spec: LocalParamSpec) {
+        setMaskParam(spec, spec.get(LocalAdjustment()))
+        commit()
+    }
+
+    /** Live update of the selected mask's shape, from its handles or the feather slider. */
+    fun setMaskShape(mask: Mask) = updateMask { it.copy(mask = mask) }
+
+    fun setMaskInvert(invert: Boolean) {
+        updateMask { it.copy(mask = it.mask.copy(invert = invert)) }
+        commit()
+    }
+
+    fun setShowMask(show: Boolean) = _state.update { it.copy(showMask = show) }
+
+    fun setMaskDragging(dragging: Boolean) {
+        _state.update { it.copy(maskDragging = dragging) }
+        if (!dragging) commit()
+    }
+
+    private fun updateMask(transform: (LocalAdjustment) -> LocalAdjustment) {
+        val index = _state.value.activeMask ?: return
+        updateLive { e -> e.copy(masks = e.masks.mapIndexed { i, l -> if (i == index) transform(l) else l }) }
     }
 
     // --- Before / after ----------------------------------------------------------------------

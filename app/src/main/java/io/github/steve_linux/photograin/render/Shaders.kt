@@ -141,6 +141,22 @@ uniform float uOutGamma;
 // Luminance weights of the working space.
 uniform vec3 uLuma;
 
+// Local adjustments. uPosToSrc maps the output position (0..1) to the source (0..1); multiplying
+// by uSrcAspect (width and height over the long edge) gives units where circles stay round.
+uniform int uMaskCount;
+uniform mat3 uPosToSrc;
+uniform vec2 uSrcAspect;
+// Linear: start xy, end zw. Radial: center xy, radii zw (in long-edge units).
+uniform vec4 uMaskGeo[8];
+// Type (0 linear, 1 radial), angle, feather, invert.
+uniform vec4 uMaskOpt[8];
+// Exposure, contrast, highlights, shadows.
+uniform vec4 uLocA[8];
+// Temperature, tint, saturation, clarity.
+uniform vec4 uLocB[8];
+// Index of the mask to tint red on screen, or -1.
+uniform int uShowMask;
+
 // Pixels left of this x (0..1 in the output) show the original. -1 disables comparison.
 uniform float uCompare;
 // 1.0 composites over uBg (screen); 0.0 writes the color with the geometry alpha (export).
@@ -254,7 +270,44 @@ vec3 denoise(vec3 s) {
     return clamp(lo + mix(o - lo, accC / wC, uChromaNr), 0.0, 1.0);
 }
 
+// Same as ShaderParams.whiteBalanceGains.
+vec3 wbGains(float temp, float tint) {
+    vec3 g = vec3(1.0 + 0.35 * temp, 1.0 - 0.25 * tint, 1.0 - 0.35 * temp);
+    return g / dot(g, vec3(0.2126, 0.7152, 0.0722));
+}
+
+// Same as Mask.weight.
+float maskWeight(int i, vec2 pos) {
+    vec2 q = (uPosToSrc * vec3(pos, 1.0)).xy * uSrcAspect;
+    vec4 g = uMaskGeo[i];
+    vec4 o = uMaskOpt[i];
+    float w;
+    if (o.x < 0.5) {
+        vec2 a = g.xy * uSrcAspect;
+        vec2 d = g.zw * uSrcAspect - a;
+        float t = dot(q - a, d) / max(dot(d, d), 1e-8);
+        w = 1.0 - smoothstep(0.0, 1.0, t);
+    } else {
+        vec2 d = q - g.xy * uSrcAspect;
+        float cs = cos(o.y);
+        float sn = sin(o.y);
+        vec2 r = vec2(cs * d.x + sn * d.y, -sn * d.x + cs * d.y) / max(g.zw, vec2(1e-5));
+        w = 1.0 - smoothstep(1.0 - max(o.z, 0.001), 1.0, length(r));
+    }
+    return o.w > 0.5 ? 1.0 - w : w;
+}
+
 vec3 process(vec3 s, vec2 pos) {
+    vec4 la = vec4(0.0);
+    vec4 lb = vec4(0.0);
+    for (int i = 0; i < 8; i++) {
+        if (i >= uMaskCount) break;
+        float w = maskWeight(i, pos);
+        la += w * uLocA[i];
+        lb += w * uLocB[i];
+    }
+    float clarity = uClarity + lb.w;
+
     if (uLumaNr > 0.0 || uChromaNr > 0.0) {
         s = denoise(s);
     }
@@ -271,15 +324,16 @@ vec3 process(vec3 s, vec2 pos) {
     vec3 c = toLinear(s);
     vec3 bl = toLinear(texture(uBlur, vCoord).rgb);
 
-    float gain = exp2(uExposure);
-    c *= uWb * gain;
-    bl *= uWb * gain;
+    float gain = exp2(uExposure + la.x);
+    vec3 wb = uMaskCount > 0 ? uWb * wbGains(lb.x, lb.y) : uWb;
+    c *= wb * gain;
+    bl *= wb * gain;
 
     // Shadows and highlights driven by local (blurred) luminance to limit halos.
     float localL = toSrgb(vec3(dot(bl, LUMA))).x;
     float wS = 1.0 - smoothstep(0.0, 0.6, localL);
     float wH = smoothstep(0.4, 1.0, localL);
-    c *= exp2(uShadows * 1.5 * wS + uHighlights * 1.5 * wH);
+    c *= exp2((uShadows + la.w) * 1.5 * wS + (uHighlights + la.z) * 1.5 * wH);
 
     vec3 v = toSrgb(c);
     vec3 bv = toSrgb(bl);
@@ -295,13 +349,13 @@ vec3 process(vec3 s, vec2 pos) {
     float wp = 1.0 - uWhites * 0.2;
     v = clamp((v - bp) / (wp - bp), 0.0, 1.0);
 
-    v = contrastCurve(v, uContrast);
+    v = contrastCurve(v, uContrast + la.y);
 
-    if (uClarity != 0.0) {
+    if (clarity != 0.0) {
         float lv = dot(v, LUMA);
-        float lb = dot(bv, LUMA);
+        float lbl = dot(bv, LUMA);
         float mid = 1.0 - pow(abs(2.0 * lv - 1.0), 2.0);
-        v += uClarity * 1.5 * (lv - lb) * mid;
+        v += clarity * 1.5 * (lv - lbl) * mid;
     }
 
     if (uCurvesOn > 0.5) {
@@ -311,7 +365,7 @@ vec3 process(vec3 s, vec2 pos) {
     float y = dot(v, LUMA);
     float sat = max(v.r, max(v.g, v.b)) - min(v.r, min(v.g, v.b));
     v = mix(vec3(y), v, 1.0 + uVibrance * (1.0 - sat) * 1.2);
-    v = mix(vec3(y), v, 1.0 + uSaturation);
+    v = mix(vec3(y), v, max(0.0, 1.0 + uSaturation + lb.z));
 
     if (uHslOn > 0.5) {
         v = applyHsl(clamp(v, 0.0, 1.0));
@@ -358,6 +412,7 @@ void main() {
     vec4 src = texture(uGeo, vCoord);
     vec2 pos = uImgMap.xy + vCoord * uImgMap.zw;
     vec3 rgb = pos.x < uCompare ? src.rgb : process(src.rgb, pos);
+    if (uShowMask >= 0) rgb = mix(rgb, vec3(1.0, 0.1, 0.1), 0.6 * maskWeight(uShowMask, pos));
     if (uOutConvert > 0.5) rgb = toOutput(rgb);
     if (uComposite > 0.5) {
         oColor = vec4(mix(uBg, rgb, src.a), 1.0);
