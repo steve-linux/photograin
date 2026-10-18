@@ -26,7 +26,6 @@ import io.github.steve_linux.photograin.model.PxSize
 import io.github.steve_linux.photograin.model.RetouchSpot
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.max
@@ -142,7 +141,7 @@ object Exporter {
                 var sample = 1
                 while (sample * 2 <= 1.0 / scale) sample *= 2
                 var tile = if (source is AiUpscaleSource) AI_TILE else TILE
-                val stretch = perspectiveStretch(edit)
+                val stretch = mapper.perspectiveStretch()
                 while (tile > 256 && regionSpan(tile, margin, scale, sample) * stretch > maxTex) tile /= 2
 
                 val cols = ceil(out.width / tile.toDouble()).toInt()
@@ -272,13 +271,6 @@ object Exporter {
             source.decode(rect, s)
         }
         return target
-    }
-
-    /** How much perspective correction can enlarge a block of source pixels, at worst. */
-    private fun perspectiveStretch(edit: EditState): Double {
-        val g = edit.geometry
-        val k = (abs(g.vertical) + abs(g.horizontal)) * GeometryMapper.PERSPECTIVE_STRENGTH
-        return 1.0 / max(0.2, 1.0 - k)
     }
 
     /** Pixel span of the decoded region for a tile, in the worst (45 degree) case. */

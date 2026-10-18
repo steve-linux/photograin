@@ -17,16 +17,21 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AutoFixHigh
 import androidx.compose.material.icons.outlined.Colorize
+import androidx.compose.material.icons.outlined.CropFree
 import androidx.compose.material.icons.outlined.Flip
 import androidx.compose.material.icons.outlined.RestartAlt
 import androidx.compose.material.icons.outlined.Rotate90DegreesCw
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,6 +45,7 @@ import io.github.steve_linux.photograin.model.AspectRatio
 import io.github.steve_linux.photograin.model.Geometry
 import io.github.steve_linux.photograin.model.ParamSpec
 import io.github.steve_linux.photograin.model.Params
+import io.github.steve_linux.photograin.model.Quad
 import io.github.steve_linux.photograin.model.ToolGroup
 import java.util.Locale
 
@@ -137,7 +143,28 @@ fun CropPanel(
     onFlipH: () -> Unit,
     onFlipV: () -> Unit,
     onReset: () -> Unit,
+    quadDraft: Quad?,
+    onAutoStraighten: () -> Unit,
+    onStartQuad: () -> Unit,
+    onApplyQuad: () -> Unit,
+    onCancelQuad: () -> Unit,
+    onRemoveQuad: () -> Unit,
 ) {
+    if (quadDraft != null) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+            Text(
+                stringResource(R.string.quad_hint),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.End) {
+                TextButton(onClick = onCancelQuad) { Text(stringResource(R.string.look_cancel)) }
+                Spacer(Modifier.width(8.dp))
+                Button(onClick = onApplyQuad) { Text(stringResource(R.string.quad_apply)) }
+            }
+        }
+        return
+    }
     Column(
         Modifier
             .fillMaxWidth()
@@ -167,6 +194,55 @@ fun CropPanel(
                 onStraightenFinished()
             },
         )
+        FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            AssistChip(
+                onClick = onAutoStraighten,
+                label = { Text(stringResource(R.string.straighten_auto)) },
+                leadingIcon = { Icon(Icons.Outlined.AutoFixHigh, null, Modifier.size(18.dp)) },
+            )
+            AssistChip(
+                onClick = onStartQuad,
+                label = { Text(stringResource(if (geometry.quad != null) R.string.quad_edit else R.string.quad_start)) },
+                leadingIcon = { Icon(Icons.Outlined.CropFree, null, Modifier.size(18.dp)) },
+            )
+            if (geometry.quad != null) {
+                AssistChip(onClick = onRemoveQuad, label = { Text(stringResource(R.string.quad_remove)) })
+            }
+        }
+        // The four points replace the two keystone sliders.
+        if (geometry.quad == null) PerspectiveSliders(geometry, onPerspective, onStraightenFinished)
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(onClick = onRotate) {
+                Icon(Icons.Outlined.Rotate90DegreesCw, contentDescription = stringResource(R.string.rotate))
+            }
+            IconButton(onClick = onFlipH) {
+                Icon(Icons.Outlined.Flip, contentDescription = stringResource(R.string.flip_horizontal))
+            }
+            IconButton(onClick = onFlipV) {
+                Icon(
+                    Icons.Outlined.Flip,
+                    contentDescription = stringResource(R.string.flip_vertical),
+                    modifier = Modifier.rotate(90f),
+                )
+            }
+            IconButton(onClick = onReset) {
+                Icon(Icons.Outlined.RestartAlt, contentDescription = stringResource(R.string.reset_crop))
+            }
+        }
+    }
+}
+
+@Composable
+private fun PerspectiveSliders(
+    geometry: Geometry,
+    onPerspective: (vertical: Float, horizontal: Float) -> Unit,
+    onStraightenFinished: () -> Unit,
+) {
+    Column {
         ParamSlider(
             label = stringResource(R.string.perspective_vertical),
             value = geometry.vertical,
@@ -191,28 +267,6 @@ fun CropPanel(
                 onStraightenFinished()
             },
         )
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            IconButton(onClick = onRotate) {
-                Icon(Icons.Outlined.Rotate90DegreesCw, contentDescription = stringResource(R.string.rotate))
-            }
-            IconButton(onClick = onFlipH) {
-                Icon(Icons.Outlined.Flip, contentDescription = stringResource(R.string.flip_horizontal))
-            }
-            IconButton(onClick = onFlipV) {
-                Icon(
-                    Icons.Outlined.Flip,
-                    contentDescription = stringResource(R.string.flip_vertical),
-                    modifier = Modifier.rotate(90f),
-                )
-            }
-            IconButton(onClick = onReset) {
-                Icon(Icons.Outlined.RestartAlt, contentDescription = stringResource(R.string.reset_crop))
-            }
-        }
     }
 }
 
