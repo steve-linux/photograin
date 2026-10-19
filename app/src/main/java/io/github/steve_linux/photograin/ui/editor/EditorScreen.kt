@@ -98,8 +98,7 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit) {
     // A tap on the photo hides the bars and panels so the photo fills the screen; a tap or back
     // brings them back.
     var fullPhotoChosen by rememberSaveable { mutableStateOf(false) }
-    val photoOnly = state.tool in PHOTO_ONLY_TOOLS && state.picker == Picker.NONE &&
-        (state.tool != ToolGroup.EFFECTS || state.effectsMode == 0)
+    val photoOnly = state.tool in PHOTO_ONLY_TOOLS && state.picker == Picker.NONE
     val fullPhoto = fullPhotoChosen && photoOnly
 
     BackHandler(onBack = onClose)
@@ -446,5 +445,8 @@ private class CreateImageDocument : ActivityResultContract<Pair<String, String>,
     override fun parseResult(resultCode: Int, intent: Intent?): Uri? = intent?.data
 }
 
-/** Tools where a tap on the photo does nothing else, so it can hide the controls. */
+/**
+ * Tools where a tap on the photo has no other use, so it can hide the controls. In Effects, text
+ * and shapes claim the touches that land on them, so a tap elsewhere still hides the controls.
+ */
 private val PHOTO_ONLY_TOOLS = setOf(ToolGroup.LOOK, ToolGroup.LIGHT, ToolGroup.COLOR, ToolGroup.DETAIL, ToolGroup.EFFECTS)
