@@ -8,13 +8,25 @@ Edits are saved as a recipe next to the photo, not burned into it. Reopen a phot
 • Color: temperature, tint, vibrance, saturation
 • Detail: sharpening, clarity, dehaze
 • Effects: vignette, realistic film grain
-• Crop with aspect ratio presets, straighten, rotate and flip
+• Styles: ready-made presets, your own presets, and .cube LUTs with adjustable strength
+
+<b>Crop and geometry</b>
+Aspect ratio presets, rotate and flip, straighten by hand or automatically from the lines in the photo, and perspective correction with sliders or by marking four corners of something rectangular.
+
+<b>Retouch</b>
+Heal and clone to remove spots, dust and small objects, and fix red eye with one tap per pupil.
+
+<b>RAW and wide color</b>
+Opens DNG, CR2, CR3, NEF, ARW, RAF, ORF, RW2 and other RAW files with LibRaw, keeping 16 bits per channel all the way to the GPU. Photos with wide-gamut profiles (Display P3, Adobe RGB) keep their most saturated colors.
+
+<b>Batch editing</b>
+Apply a preset or copied adjustments to many photos at once and export them all to a folder.
+
+<b>Full-quality export</b>
+Exports are rendered tile by tile at full resolution, to JPEG, PNG, WebP, AVIF, JPEG XL or 16-bit TIFF, in sRGB, Display P3 or Adobe RGB. Choose which EXIF data to keep; location is removed by default. Optional 2× or 4× upscaling, bicubic or with AI (Real-ESRGAN, run on the device).
 
 <b>Compare</b>
 Press and hold the photo to see the original, or use the split view.
 
-<b>Full-quality export</b>
-Exports are rendered tile by tile at full resolution, to JPEG, PNG or WebP. Location data is removed by default.
-
 <b>Private by design</b>
-No permissions, no network access, no ads, no tracking. Photos are opened and saved through the system dialogs.
+No permissions, no network access, no ads, no tracking. Photos are opened and saved through the system dialogs, and the AI model is part of the app.

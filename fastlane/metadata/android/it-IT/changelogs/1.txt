@@ -1,1 +1,1 @@
-Prima versione: regolazioni globali in tempo reale, ritaglio e raddrizzamento, cronologia non distruttiva, confronto prima/dopo, esportazione a piena risoluzione.
+Prima versione: regolazioni in tempo reale, stili e LUT, ritaglio con raddrizzamento automatico e prospettiva a 4 punti, correttivo, clona e occhi rossi, RAW e colori ad ampia gamma, modifica in serie, esportazione in JPEG, PNG, WebP, AVIF, JPEG XL e TIFF a 16 bit con scelta dei dati EXIF e ingrandimento con IA.

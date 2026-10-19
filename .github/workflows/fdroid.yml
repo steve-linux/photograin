@@ -1,0 +1,71 @@
+name: F-Droid build
+
+# Builds the app the way F-Droid's build server does, from fdroid/<appid>.yml, so a change that
+# would break the F-Droid build (a new binary in the sources, a missing submodule, a toolchain
+# the server does not have) shows up here before a release. Mirrors the "fdroid build" job of
+# https://gitlab.com/fdroid/fdroiddata/-/blob/master/.gitlab-ci.yml.
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - fdroid/**
+      - .github/workflows/fdroid.yml
+      - .gitmodules
+      - gradle/**
+      - app/build.gradle.kts
+
+jobs:
+  fdroid:
+    runs-on: ubuntu-latest
+    container: registry.gitlab.com/fdroid/fdroidserver:buildserver-trixie
+    env:
+      ANDROID_HOME: /opt/android-sdk
+      APPID: io.github.steve_linux.photograin
+      COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.COMMIT }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Build like F-Droid
+        shell: bash
+        run: |
+          set -ex
+          source /etc/profile.d/bsenv.sh
+          apt-get update
+          apt-get install -y sudo openjdk-21-jdk-headless
+          update-alternatives --set java /usr/lib/jvm/java-21-openjdk-amd64/bin/java
+          sdkmanager "platform-tools" "build-tools;31.0.0"
+
+          rm -rf "$fdroidserver"
+          git clone --depth 1 https://gitlab.com/fdroid/fdroidserver.git "$fdroidserver"
+          git -C "$home_vagrant/gradlew-fdroid" pull
+
+          # Build this commit instead of the release tag the metadata names.
+          mkdir -p "$home_vagrant/metadata"
+          sed "s/^    commit: .*/    commit: $COMMIT/" "fdroid/$APPID.yml" > "$home_vagrant/metadata/$APPID.yml"
+          vercode=$(sed -n 's/^    versionCode: //p' "fdroid/$APPID.yml" | tail -1)
+          for d in logs tmp unsigned build .android .gradle; do mkdir -p "$home_vagrant/$d"; done
+          # While the repository is private, fdroid cannot clone it from GitHub (it forces
+          # anonymous access), so it starts from a clone of this checkout instead.
+          git config --system --add safe.directory '*'
+          git clone "$GITHUB_WORKSPACE" "$home_vagrant/build/$APPID"
+          repo=$(sed -n 's/^Repo: //p' "fdroid/$APPID.yml")
+          echo "git $repo" > "$home_vagrant/build/.fdroidvcs-$APPID"
+          chown -R vagrant "$home_vagrant"
+
+          cd "$home_vagrant"
+          # Runs as vagrant like the build server; `fdroid build --on-server` removes sudo after
+          # the build, and expects the source in build/ already.
+          fdroid="sudo --preserve-env --user vagrant
+            env PATH=$fdroidserver:$PATH PYTHONPATH=$fdroidserver:$fdroidserver/examples
+            PYTHONUNBUFFERED=true HOME=$home_vagrant GRADLE_USER_HOME=$home_vagrant/.gradle fdroid"
+          $fdroid build --verbose --test --refresh-scanner --on-server --no-tarball "$APPID:$vercode"
+          ls -l tmp/
+          cp tmp/*.apk "$GITHUB_WORKSPACE/"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: photograin-fdroid-unsigned-apk
+          path: "*.apk"
