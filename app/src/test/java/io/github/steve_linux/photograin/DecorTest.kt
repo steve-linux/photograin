@@ -48,6 +48,20 @@ class DecorTest {
     }
 
     @Test
+    fun recipeKeepsFontAndShadowColor() {
+        val state = EditState(
+            texts = listOf(TextItem("Estate", font = TextFont.CONDENSED, shadowColor = 0xFF1565C0.toInt())),
+        )
+        assertEquals(state, EditState.fromJson(state.toJson()))
+    }
+
+    @Test
+    fun olderRecipesGetABlackShadow() {
+        val old = EditState(texts = listOf(TextItem("Roma"))).toJson().replace(Regex(",?\"shadowColor\":-?\\d+"), "")
+        assertEquals(TextItem.SHADOW_BLACK, EditState.fromJson(old).texts.single().shadowColor)
+    }
+
+    @Test
     fun recipeKeepsShapesAndWatermark() {
         val state = EditState(
             texts = listOf(TextItem("© Stefano", opacity = 0.35f, angle = -30f, tiled = true)),

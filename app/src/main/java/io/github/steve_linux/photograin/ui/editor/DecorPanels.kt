@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -34,12 +35,14 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -48,9 +51,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.steve_linux.photograin.R
@@ -60,6 +66,8 @@ import io.github.steve_linux.photograin.model.ShapeItem
 import io.github.steve_linux.photograin.model.ShapeType
 import io.github.steve_linux.photograin.model.TextFont
 import io.github.steve_linux.photograin.model.TextItem
+import io.github.steve_linux.photograin.render.DecorPainter
+import java.util.Locale
 import kotlinx.coroutines.delay
 
 /** Colors offered for frames and text, ARGB in sRGB. */
@@ -240,13 +248,21 @@ fun TextPanel(
                     FilterChip(
                         selected = item.font == font,
                         onClick = { onChange(item.copy(font = font)); onChangeFinished() },
-                        label = { Text(stringResource(fontLabel(font))) },
+                        // Each name is written in its own font, so the list doubles as a preview.
+                        label = { Text(stringResource(fontLabel(font)), fontFamily = FontFamily(DecorPainter.family(font))) },
                     )
                 }
             }
             ColorRow(item.color) {
                 onChange(item.copy(color = it))
                 onChangeFinished()
+            }
+            if (item.shadow) {
+                Text(stringResource(R.string.text_shadow_color), style = MaterialTheme.typography.labelLarge)
+                ColorRow(item.shadowColor) {
+                    onChange(item.copy(shadowColor = it))
+                    onChangeFinished()
+                }
             }
         }
     }
@@ -391,6 +407,7 @@ private fun TextDialog(initial: String, onDismiss: () -> Unit, onDone: (String) 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ColorRow(selected: Int, onPick: (Int) -> Unit) {
+    var picking by remember { mutableStateOf(false) }
     FlowRow(
         Modifier.fillMaxWidth().padding(vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -409,7 +426,78 @@ private fun ColorRow(selected: Int, onPick: (Int) -> Unit) {
                     .clickable { onPick(c) },
             )
         }
+        // Any other color: a rainbow swatch opens the picker, and shows the color once chosen.
+        val custom = selected !in SWATCHES
+        Box(
+            Modifier
+                .size(32.dp)
+                .clip(CircleShape)
+                .border(if (custom) 3.dp else 1.dp, if (custom) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline, CircleShape)
+                .padding(3.dp)
+                .clip(CircleShape)
+                .background(if (custom) SolidColor(Color(selected)) else RAINBOW)
+                .clickable { picking = true },
+        )
     }
+    if (picking) {
+        ColorPickerDialog(selected, onDismiss = { picking = false }, onPick = { picking = false; onPick(it) })
+    }
+}
+
+private val RAINBOW = Brush.sweepGradient(
+    listOf(Color.Red, Color.Yellow, Color.Green, Color.Cyan, Color.Blue, Color.Magenta, Color.Red),
+)
+
+/** Hue, saturation and brightness sliders with a preview and a hex code, for any color. */
+@Composable
+private fun ColorPickerDialog(initial: Int, onDismiss: () -> Unit, onPick: (Int) -> Unit) {
+    val start = remember { FloatArray(3).also { android.graphics.Color.colorToHSV(initial, it) } }
+    var hue by remember { mutableFloatStateOf(start[0]) }
+    var sat by remember { mutableFloatStateOf(start[1]) }
+    var value by remember { mutableFloatStateOf(start[2]) }
+    val color = android.graphics.Color.HSVToColor(floatArrayOf(hue, sat, value))
+    var hex by remember(color) { mutableStateOf(String.format(Locale.ROOT, "%06X", color and 0xFFFFFF)) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.color_custom)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .clip(MaterialTheme.shapes.medium)
+                        .background(Color(color)),
+                )
+                Text(stringResource(R.string.color_hue), style = MaterialTheme.typography.labelLarge)
+                Slider(value = hue, onValueChange = { hue = it }, valueRange = 0f..360f)
+                Text(stringResource(R.string.color_saturation), style = MaterialTheme.typography.labelLarge)
+                Slider(value = sat, onValueChange = { sat = it })
+                Text(stringResource(R.string.color_brightness), style = MaterialTheme.typography.labelLarge)
+                Slider(value = value, onValueChange = { value = it })
+                OutlinedTextField(
+                    value = hex,
+                    onValueChange = { text ->
+                        hex = text.uppercase(Locale.ROOT).filter { it in "0123456789ABCDEF" }.take(6)
+                        if (hex.length == 6) {
+                            val hsv = FloatArray(3)
+                            android.graphics.Color.colorToHSV(hex.toInt(16) or -0x1000000, hsv)
+                            hue = hsv[0]; sat = hsv[1]; value = hsv[2]
+                        }
+                    },
+                    prefix = { Text("#") },
+                    singleLine = true,
+                    label = { Text(stringResource(R.string.color_hex)) },
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onPick(color) }) { Text(stringResource(android.R.string.ok)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(android.R.string.cancel)) }
+        },
+    )
 }
 
 private fun frameLabel(s: FrameStyle): Int = when (s) {
@@ -423,4 +511,11 @@ private fun fontLabel(f: TextFont): Int = when (f) {
     TextFont.SERIF -> R.string.font_serif
     TextFont.MONO -> R.string.font_mono
     TextFont.HANDWRITING -> R.string.font_handwriting
+    TextFont.LIGHT -> R.string.font_light
+    TextFont.THIN -> R.string.font_thin
+    TextFont.CONDENSED -> R.string.font_condensed
+    TextFont.BLACK -> R.string.font_black
+    TextFont.SMALL_CAPS -> R.string.font_small_caps
+    TextFont.CASUAL -> R.string.font_casual
+    TextFont.SERIF_MONO -> R.string.font_serif_mono
 }
