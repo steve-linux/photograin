@@ -346,4 +346,6 @@
     <string name="help_straighten">Rotates the photo by small amounts to level a tilted horizon.</string>
     <string name="help_perspective_vertical">Straightens lines that lean toward each other, like buildings shot from below.</string>
     <string name="help_perspective_horizontal">Corrects a photo taken at an angle from the side, so the front looks square.</string>
+    <string name="photo_full">Show the photo full screen</string>
+    <string name="photo_exit_full">Show the controls</string>
 </resources>

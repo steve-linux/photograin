@@ -333,4 +333,6 @@
     <string name="help_straighten">Ruota la foto di poco per mettere dritto un orizzonte storto.</string>
     <string name="help_perspective_vertical">Raddrizza le linee che convergono, come i palazzi fotografati dal basso.</string>
     <string name="help_perspective_horizontal">Corregge una foto scattata di sbieco, così la facciata torna dritta.</string>
+    <string name="photo_full">Foto a schermo intero</string>
+    <string name="photo_exit_full">Mostra i controlli</string>
 </resources>
