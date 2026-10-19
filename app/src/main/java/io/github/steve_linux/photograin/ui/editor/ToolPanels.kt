@@ -51,6 +51,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.steve_linux.photograin.R
 import io.github.steve_linux.photograin.model.Adjustments
@@ -125,23 +126,29 @@ internal fun ParamSlider(
     onChangeFinished: () -> Unit,
     onReset: () -> Unit,
 ) {
-    Column(Modifier.fillMaxWidth()) {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(top = 6.dp)
-                .pointerInput(Unit) { detectTapGestures(onDoubleTap = { onReset() }) },
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text(label, style = MaterialTheme.typography.labelLarge)
-            Text(display, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-        }
+    // One row per slider (name, track, value) leaves more of the screen to the photo.
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        val reset = Modifier.pointerInput(Unit) { detectTapGestures(onDoubleTap = { onReset() }) }
+        Text(
+            label,
+            style = MaterialTheme.typography.labelLarge,
+            maxLines = 2,
+            modifier = reset.width(96.dp),
+        )
         Slider(
             value = value,
             onValueChange = onChange,
             onValueChangeFinished = onChangeFinished,
             valueRange = range,
-            modifier = Modifier.clearOfEdgeGestures(),
+            modifier = Modifier.weight(1f).clearOfEdgeGestures(),
+        )
+        Text(
+            display,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+            textAlign = TextAlign.End,
+            maxLines = 1,
+            modifier = reset.width(48.dp),
         )
     }
 }

@@ -95,7 +95,15 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit) {
     var lightCurves by rememberSaveable { mutableStateOf(false) }
     var colorHsl by rememberSaveable { mutableStateOf(false) }
 
+    // A tap on the photo hides the bars and panels so the photo fills the screen; a tap or back
+    // brings them back.
+    var fullPhotoChosen by rememberSaveable { mutableStateOf(false) }
+    val photoOnly = state.tool in PHOTO_ONLY_TOOLS && state.picker == Picker.NONE &&
+        (state.tool != ToolGroup.EFFECTS || state.effectsMode == 0)
+    val fullPhoto = fullPhotoChosen && photoOnly
+
     BackHandler(onBack = onClose)
+    BackHandler(enabled = fullPhoto) { fullPhotoChosen = false }
 
     val createDocument = rememberLauncherForActivityResult(CreateImageDocument()) { uri ->
         val options = pendingExport
@@ -128,7 +136,7 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit) {
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
-            TopAppBar(
+            if (!fullPhoto) TopAppBar(
                 title = {
                     Text(state.image?.displayName.orEmpty(), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 },
@@ -183,7 +191,7 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit) {
             )
         },
         bottomBar = {
-            NavigationBar {
+            if (!fullPhoto) NavigationBar {
                 for (tool in ToolGroup.entries) {
                     NavigationBarItem(
                         selected = state.tool == tool,
@@ -211,10 +219,10 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit) {
                     CircularProgressIndicator()
                 } else {
                     val bg = if (MaterialTheme.colorScheme.background.luminance() < 0.5f) PhotoBackgroundDark else PhotoBackgroundLight
-                    PhotoView(state, viewModel, bg)
+                    PhotoView(state, viewModel, bg, onTap = if (photoOnly) ({ fullPhotoChosen = !fullPhoto }) else null)
                 }
             }
-            if (state.image != null) {
+            if (state.image != null && !fullPhoto) {
                 if (state.tool == ToolGroup.LOOK) {
                     LookPanel(
                         adjustments = state.edit.adjustments,
@@ -437,3 +445,6 @@ private class CreateImageDocument : ActivityResultContract<Pair<String, String>,
 
     override fun parseResult(resultCode: Int, intent: Intent?): Uri? = intent?.data
 }
+
+/** Tools where a tap on the photo does nothing else, so it can hide the controls. */
+private val PHOTO_ONLY_TOOLS = setOf(ToolGroup.LOOK, ToolGroup.LIGHT, ToolGroup.COLOR, ToolGroup.DETAIL, ToolGroup.EFFECTS)

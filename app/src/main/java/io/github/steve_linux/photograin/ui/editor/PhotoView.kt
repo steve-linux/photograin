@@ -56,7 +56,9 @@ fun PhotoView(
     viewModel: EditorViewModel,
     background: Color,
     modifier: Modifier = Modifier,
+    onTap: (() -> Unit)? = null,
 ) {
+    val currentOnTap by rememberUpdatedState(onTap)
     val image = state.image ?: return
     val cropMode = state.tool == ToolGroup.CROP
     val localMode = state.tool == ToolGroup.LOCAL
@@ -223,6 +225,7 @@ fun PhotoView(
                     }
                     .pointerInput(viewW, viewH) {
                         detectTapGestures(
+                            onTap = { currentOnTap?.invoke() },
                             onDoubleTap = { tap ->
                                 if (zoom > 1f) {
                                     zoom = 1f; pan = Offset.Zero
