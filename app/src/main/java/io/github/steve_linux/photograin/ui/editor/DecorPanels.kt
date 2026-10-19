@@ -26,11 +26,16 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -243,15 +248,9 @@ fun TextPanel(
                 Spacer(Modifier.width(8.dp))
                 Text(stringResource(R.string.text_tiled), style = MaterialTheme.typography.labelLarge)
             }
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                for (font in TextFont.entries) {
-                    FilterChip(
-                        selected = item.font == font,
-                        onClick = { onChange(item.copy(font = font)); onChangeFinished() },
-                        // Each name is written in its own font, so the list doubles as a preview.
-                        label = { Text(stringResource(fontLabel(font)), fontFamily = FontFamily(DecorPainter.family(font))) },
-                    )
-                }
+            FontMenu(item.font) {
+                onChange(item.copy(font = it))
+                onChangeFinished()
             }
             ColorRow(item.color) {
                 onChange(item.copy(color = it))
@@ -498,6 +497,36 @@ private fun ColorPickerDialog(initial: Int, onDismiss: () -> Unit, onPick: (Int)
             TextButton(onClick = onDismiss) { Text(stringResource(android.R.string.cancel)) }
         },
     )
+}
+
+/** A drop-down list of fonts, each name written in its own font so the list doubles as a preview. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FontMenu(selected: TextFont, onPick: (TextFont) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    ExposedDropdownMenuBox(expanded = open, onExpandedChange = { open = it }, modifier = Modifier.padding(vertical = 4.dp)) {
+        OutlinedTextField(
+            value = stringResource(fontLabel(selected)),
+            onValueChange = {},
+            readOnly = true,
+            singleLine = true,
+            label = { Text(stringResource(R.string.text_font)) },
+            textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily(DecorPainter.family(selected))),
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = open) },
+            modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable),
+        )
+        ExposedDropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            for (font in TextFont.entries) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(fontLabel(font)), fontFamily = FontFamily(DecorPainter.family(font))) },
+                    onClick = {
+                        open = false
+                        onPick(font)
+                    },
+                )
+            }
+        }
+    }
 }
 
 private fun frameLabel(s: FrameStyle): Int = when (s) {

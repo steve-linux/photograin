@@ -321,4 +321,5 @@
     <string name="shape_fill">Filled</string>
     <string name="shape_width">Thickness</string>
     <string name="shape_delete">Delete shape</string>
+    <string name="text_font">Font</string>
 </resources>
