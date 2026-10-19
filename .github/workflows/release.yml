@@ -1,0 +1,61 @@
+name: Release APK
+
+# Builds the release APK of a tag, signs it with the key in the repository secrets and attaches it
+# to that tag's GitHub release. Runs when a release is published, or by hand for an existing one.
+# Signing happens after the build, so the app's own build stays unsigned the way F-Droid needs it.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to build, e.g. v0.1.0
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+          submodules: true
+      - name: libjxl and ncnn dependencies
+        run: |
+          git -C app/src/main/cpp/libjxl submodule update --init --depth 1 third_party/highway third_party/brotli third_party/skcms
+          git -C app/src/main/cpp/ncnn submodule update --init --depth 1 glslang
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Release APK
+        run: ./gradlew --no-daemon assembleRelease
+      - name: Sign
+        env:
+          KEYSTORE_BASE64: ${{ secrets.PHOTOGRAIN_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.PHOTOGRAIN_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.PHOTOGRAIN_KEY_ALIAS }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::The PHOTOGRAIN_KEYSTORE_BASE64 secret is missing; see the comment in this workflow."
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          apksigner=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          out="Photograin-${TAG#v}.apk"
+          "$apksigner" sign --ks "$RUNNER_TEMP/release.jks" --ks-key-alias "$KEY_ALIAS" \
+            --ks-pass env:KEYSTORE_PASSWORD --out "$out" app/build/outputs/apk/release/app-release-unsigned.apk
+          "$apksigner" verify --print-certs "$out"
+          rm "$RUNNER_TEMP/release.jks"
+          echo "APK=$out" >> "$GITHUB_ENV"
+      - name: Attach to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$TAG" "$APK" --clobber --repo "$GITHUB_REPOSITORY"
