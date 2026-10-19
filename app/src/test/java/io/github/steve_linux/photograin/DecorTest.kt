@@ -58,7 +58,7 @@ class DecorTest {
     @Test
     fun olderRecipesGetABlackShadow() {
         val old = EditState(texts = listOf(TextItem("Roma"))).toJson().replace(Regex(",?\"shadowColor\":-?\\d+"), "")
-        assertEquals(TextItem.SHADOW_BLACK, EditState.fromJson(old).texts.single().shadowColor)
+        assertEquals(TextItem.SHADOW_BLACK, EditState.fromJson(old)!!.texts.single().shadowColor)
     }
 
     @Test
