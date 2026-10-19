@@ -102,6 +102,7 @@ fun RetouchPanel(
             )
             ParamSlider(
                 label = stringResource(R.string.brush_size),
+                help = helpFor(R.string.brush_size),
                 value = size,
                 range = 0f..1f,
                 display = "${Math.round(size * 100)}",
@@ -113,6 +114,7 @@ fun RetouchPanel(
         }
         ParamSlider(
             label = stringResource(R.string.brush_size),
+            help = helpFor(R.string.brush_size),
             value = spot.radius,
             range = MIN_RADIUS..MAX_RADIUS,
             display = "${Math.round((spot.radius - MIN_RADIUS) / (MAX_RADIUS - MIN_RADIUS) * 100)}",
@@ -122,6 +124,7 @@ fun RetouchPanel(
         )
         ParamSlider(
             label = stringResource(R.string.local_feather),
+            help = helpFor(R.string.local_feather),
             value = spot.feather,
             range = 0f..1f,
             display = "${Math.round(spot.feather * 100)}",
@@ -134,6 +137,7 @@ fun RetouchPanel(
         )
         ParamSlider(
             label = stringResource(R.string.retouch_opacity),
+            help = helpFor(R.string.retouch_opacity),
             value = spot.opacity,
             range = 0f..1f,
             display = "${Math.round(spot.opacity * 100)}",

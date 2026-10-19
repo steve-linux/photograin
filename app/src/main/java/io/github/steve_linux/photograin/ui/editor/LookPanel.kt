@@ -143,6 +143,7 @@ fun LookPanel(
             }
             ParamSlider(
                 label = stringResource(R.string.look_amount),
+                help = helpFor(R.string.look_amount),
                 value = look.amount,
                 range = 0f..1f,
                 display = "${(look.amount * 100).toInt()}%",

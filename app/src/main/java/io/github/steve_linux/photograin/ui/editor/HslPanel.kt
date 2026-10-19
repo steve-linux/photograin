@@ -85,6 +85,7 @@ private fun HslSlider(label: Int, value: Float, onChange: (Float) -> Unit, onCha
     val n = Math.round(value * 100)
     ParamSlider(
         label = stringResource(label),
+        help = helpFor(label),
         value = value,
         range = -1f..1f,
         display = if (n > 0) "+$n" else "$n",

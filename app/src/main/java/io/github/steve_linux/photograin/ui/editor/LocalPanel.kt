@@ -145,6 +145,7 @@ fun LocalPanel(
             }
             ParamSlider(
                 label = stringResource(R.string.brush_size),
+                help = helpFor(R.string.brush_size),
                 value = brush.size,
                 range = 0f..1f,
                 display = "${Math.round(brush.size * 100)}",
@@ -154,6 +155,7 @@ fun LocalPanel(
             )
             ParamSlider(
                 label = stringResource(R.string.brush_hardness),
+                help = helpFor(R.string.brush_hardness),
                 value = brush.hardness,
                 range = 0f..1f,
                 display = "${Math.round(brush.hardness * 100)}",
@@ -165,6 +167,7 @@ fun LocalPanel(
         if (local.mask.type == MaskType.RADIAL) {
             ParamSlider(
                 label = stringResource(R.string.local_feather),
+                help = helpFor(R.string.local_feather),
                 value = local.mask.feather,
                 range = 0f..1f,
                 display = "${Math.round(local.mask.feather * 100)}",
@@ -181,6 +184,7 @@ fun LocalPanel(
             val value = spec.get(local)
             ParamSlider(
                 label = stringResource(paramLabel(spec.id)),
+                help = helpFor(paramLabel(spec.id)),
                 value = value,
                 range = spec.min..spec.max,
                 display = formatLocal(spec, value),
@@ -238,6 +242,7 @@ private fun RangeSection(
         RangeType.LUMINANCE -> {
             ParamSlider(
                 label = stringResource(R.string.range_low),
+                help = helpFor(R.string.range_low),
                 value = range.low,
                 range = 0f..1f,
                 display = "${Math.round(range.low * 100)}",
@@ -247,6 +252,7 @@ private fun RangeSection(
             )
             ParamSlider(
                 label = stringResource(R.string.range_high),
+                help = helpFor(R.string.range_high),
                 value = range.high,
                 range = 0f..1f,
                 display = "${Math.round(range.high * 100)}",
@@ -256,6 +262,7 @@ private fun RangeSection(
             )
             ParamSlider(
                 label = stringResource(R.string.range_smooth),
+                help = helpFor(R.string.range_smooth),
                 value = range.smooth,
                 range = 0f..1f,
                 display = "${Math.round(range.smooth * 100)}",
@@ -286,6 +293,7 @@ private fun RangeSection(
             }
             ParamSlider(
                 label = stringResource(R.string.range_tolerance),
+                help = helpFor(R.string.range_tolerance),
                 value = range.tolerance,
                 range = 0f..1f,
                 display = "${Math.round(range.tolerance * 100)}",
