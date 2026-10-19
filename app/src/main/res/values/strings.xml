@@ -308,4 +308,6 @@
     <string name="shape_fill">Filled</string>
     <string name="shape_width">Thickness</string>
     <string name="shape_delete">Delete shape</string>
+    <string name="photo_full">Show the photo full screen</string>
+    <string name="photo_exit_full">Show the controls</string>
 </resources>
