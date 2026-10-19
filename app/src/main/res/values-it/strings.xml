@@ -121,6 +121,7 @@
     <string name="export_keep_metadata">Mantieni i dati di scatto (EXIF)</string>
     <string name="export_metadata_hint">Tocca un tipo di informazione per toglierlo dalla foto salvata.</string>
     <string name="photo_info">Informazioni foto</string>
+    <string name="tool_help">Guida a questo strumento</string>
     <string name="close">Chiudi</string>
     <string name="metadata_file">File</string>
     <string name="metadata_size">Dimensioni</string>

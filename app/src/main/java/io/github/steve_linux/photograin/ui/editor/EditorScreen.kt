@@ -8,6 +8,9 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContract
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,6 +20,7 @@ import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.automirrored.outlined.Redo
 import androidx.compose.material.icons.automirrored.outlined.Undo
 import androidx.compose.material.icons.outlined.AutoAwesome
@@ -58,12 +62,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -74,13 +81,14 @@ import io.github.steve_linux.photograin.R
 import io.github.steve_linux.photograin.data.ExportOptions
 import io.github.steve_linux.photograin.data.SettingsStore
 import io.github.steve_linux.photograin.model.ToolGroup
+import io.github.steve_linux.photograin.ui.guide.guideTopicFor
 import io.github.steve_linux.photograin.ui.theme.PhotoBackgroundDark
 import io.github.steve_linux.photograin.ui.theme.PhotoBackgroundLight
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit) {
+fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit, onGuide: (topic: Int) -> Unit) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val snackbar = remember { SnackbarHostState() }
@@ -172,6 +180,14 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit) {
                                 onClick = { menuOpen = false; viewModel.resetAll() },
                             )
                             DropdownMenuItem(
+                                text = { Text(stringResource(R.string.tool_help)) },
+                                leadingIcon = { Icon(Icons.AutoMirrored.Outlined.HelpOutline, null) },
+                                onClick = {
+                                    menuOpen = false
+                                    onGuide(guideTopicFor(state.tool, state.retouchMode))
+                                },
+                            )
+                            DropdownMenuItem(
                                 text = { Text(stringResource(R.string.photo_info)) },
                                 leadingIcon = { Icon(Icons.Outlined.Info, null) },
                                 enabled = state.image != null,
@@ -186,6 +202,8 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit) {
             NavigationBar {
                 for (tool in ToolGroup.entries) {
                     NavigationBarItem(
+                        // A long press opens the guide on this tool; the tap still selects it.
+                        modifier = Modifier.onLongPress { onGuide(guideTopicFor(tool, state.retouchMode)) },
                         selected = state.tool == tool,
                         onClick = { viewModel.selectTool(tool) },
                         icon = { Icon(toolIcon(tool), contentDescription = null) },
@@ -436,4 +454,23 @@ private class CreateImageDocument : ActivityResultContract<Pair<String, String>,
             .putExtra(Intent.EXTRA_TITLE, input.second)
 
     override fun parseResult(resultCode: Int, intent: Intent?): Uri? = intent?.data
+}
+
+/**
+ * Calls [action] when the element is held down, without consuming the touch, so the element's own
+ * tap handling still runs.
+ */
+@Composable
+private fun Modifier.onLongPress(action: () -> Unit): Modifier {
+    val current by rememberUpdatedState(action)
+    return pointerInput(Unit) {
+        awaitEachGesture {
+            awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+            val held = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+                waitForUpOrCancellation(PointerEventPass.Initial)
+                false
+            } ?: true
+            if (held) current()
+        }
+    }
 }
