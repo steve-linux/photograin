@@ -8,6 +8,10 @@
     <string name="home_tip_body">Scegli uno stile, ritocca la foto nelle altre schede, poi torna su Stili e tocca «Salva preset» per riusarlo su altre foto. Con {icon} confronti in ogni momento la foto con l\'originale.</string>
     <string name="home_tip_dismiss">Ho capito</string>
     <string name="recent_edits">Modifiche recenti</string>
+    <string name="home_show_compare">Confronta originali e modifiche</string>
+    <string name="home_show_grid">Mostra le foto recenti</string>
+    <string name="home_original">Originale</string>
+    <string name="home_edited">Modificata</string>
 
     <string name="back">Indietro</string>
     <string name="undo">Annulla</string>
