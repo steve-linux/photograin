@@ -9,10 +9,13 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.absolutePadding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemGestures
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -33,11 +36,22 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.steve_linux.photograin.R
 import io.github.steve_linux.photograin.model.Adjustments
@@ -112,24 +126,52 @@ internal fun ParamSlider(
     onChangeFinished: () -> Unit,
     onReset: () -> Unit,
 ) {
-    Column(Modifier.fillMaxWidth()) {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(top = 6.dp)
-                .pointerInput(Unit) { detectTapGestures(onDoubleTap = { onReset() }) },
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text(label, style = MaterialTheme.typography.labelLarge)
-            Text(display, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-        }
+    // One row per slider (name, track, value) leaves more of the screen to the photo.
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        val reset = Modifier.pointerInput(Unit) { detectTapGestures(onDoubleTap = { onReset() }) }
+        Text(
+            label,
+            style = MaterialTheme.typography.labelLarge,
+            maxLines = 2,
+            modifier = reset.width(96.dp),
+        )
         Slider(
             value = value,
             onValueChange = onChange,
             onValueChangeFinished = onChangeFinished,
             valueRange = range,
+            modifier = Modifier.weight(1f).clearOfEdgeGestures(),
+        )
+        Text(
+            display,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+            textAlign = TextAlign.End,
+            maxLines = 1,
+            modifier = reset.width(48.dp),
         )
     }
+}
+
+/**
+ * Insets a full-width control from the screen edges where gesture navigation reads a swipe as
+ * "back", so grabbing a slider at either end of its track does not close the screen.
+ */
+@Composable
+private fun Modifier.clearOfEdgeGestures(): Modifier {
+    val density = LocalDensity.current
+    val direction = LocalLayoutDirection.current
+    val gestures = WindowInsets.systemGestures
+    val windowWidth = LocalWindowInfo.current.containerSize.width
+    var bounds by remember { mutableStateOf<Rect?>(null) }
+    val left = bounds?.let { gestures.getLeft(density, direction) - it.left } ?: 0f
+    val right = bounds?.let { gestures.getRight(density, direction) - (windowWidth - it.right) } ?: 0f
+    return this
+        .onGloballyPositioned { bounds = it.boundsInWindow() }
+        .absolutePadding(
+            left = with(density) { left.coerceAtLeast(0f).toDp() },
+            right = with(density) { right.coerceAtLeast(0f).toDp() },
+        )
 }
 
 @OptIn(ExperimentalLayoutApi::class)

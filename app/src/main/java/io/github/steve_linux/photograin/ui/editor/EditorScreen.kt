@@ -25,6 +25,8 @@ import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.ContentPaste
 import androidx.compose.material.icons.outlined.Crop
 import androidx.compose.material.icons.outlined.Details
+import androidx.compose.material.icons.outlined.Fullscreen
+import androidx.compose.material.icons.outlined.FullscreenExit
 import androidx.compose.material.icons.outlined.Gradient
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.MoreVert
@@ -37,6 +39,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconToggleButton
@@ -95,7 +98,13 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit) {
     var lightCurves by rememberSaveable { mutableStateOf(false) }
     var colorHsl by rememberSaveable { mutableStateOf(false) }
 
+    // The button on the photo, or a tap on it where a tap has no other use, hides the bars and
+    // panels so the photo fills the screen; the same again, or back, brings them back.
+    var fullPhoto by rememberSaveable { mutableStateOf(false) }
+    val photoOnly = state.tool in PHOTO_ONLY_TOOLS && state.picker == Picker.NONE
+
     BackHandler(onBack = onClose)
+    BackHandler(enabled = fullPhoto) { fullPhoto = false }
 
     val createDocument = rememberLauncherForActivityResult(CreateImageDocument()) { uri ->
         val options = pendingExport
@@ -128,7 +137,7 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit) {
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
-            TopAppBar(
+            if (!fullPhoto) TopAppBar(
                 title = {
                     Text(state.image?.displayName.orEmpty(), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 },
@@ -146,6 +155,9 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit) {
                     }
                     IconToggleButton(checked = state.split != null, onCheckedChange = { viewModel.toggleSplit() }) {
                         Icon(Icons.Outlined.Compare, stringResource(R.string.compare))
+                    }
+                    IconButton(onClick = { fullPhoto = true }, enabled = state.image != null) {
+                        Icon(Icons.Outlined.Fullscreen, stringResource(R.string.photo_full))
                     }
                     IconButton(onClick = { showExport = true }, enabled = state.image != null) {
                         Icon(Icons.Outlined.Save, stringResource(R.string.export_title))
@@ -183,7 +195,7 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit) {
             )
         },
         bottomBar = {
-            NavigationBar {
+            if (!fullPhoto) NavigationBar {
                 for (tool in ToolGroup.entries) {
                     NavigationBarItem(
                         selected = state.tool == tool,
@@ -211,10 +223,19 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit) {
                     CircularProgressIndicator()
                 } else {
                     val bg = if (MaterialTheme.colorScheme.background.luminance() < 0.5f) PhotoBackgroundDark else PhotoBackgroundLight
-                    PhotoView(state, viewModel, bg)
+                    PhotoView(state, viewModel, bg, onTap = if (photoOnly) ({ fullPhoto = !fullPhoto }) else null)
+                    // With the bars hidden, this is the way back where a tap on the photo is taken.
+                    if (fullPhoto) {
+                        FilledTonalIconButton(
+                            onClick = { fullPhoto = false },
+                            modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp),
+                        ) {
+                            Icon(Icons.Outlined.FullscreenExit, stringResource(R.string.photo_exit_full))
+                        }
+                    }
                 }
             }
-            if (state.image != null) {
+            if (state.image != null && !fullPhoto) {
                 if (state.tool == ToolGroup.LOOK) {
                     LookPanel(
                         adjustments = state.edit.adjustments,
@@ -437,3 +458,9 @@ private class CreateImageDocument : ActivityResultContract<Pair<String, String>,
 
     override fun parseResult(resultCode: Int, intent: Intent?): Uri? = intent?.data
 }
+
+/**
+ * Tools where a tap on the photo has no other use, so it can hide the controls. In Effects, text
+ * and shapes claim the touches that land on them, so a tap elsewhere still hides the controls.
+ */
+private val PHOTO_ONLY_TOOLS = setOf(ToolGroup.LOOK, ToolGroup.LIGHT, ToolGroup.COLOR, ToolGroup.DETAIL, ToolGroup.EFFECTS)

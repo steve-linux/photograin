@@ -295,4 +295,6 @@
     <string name="shape_fill">Piena</string>
     <string name="shape_width">Spessore</string>
     <string name="shape_delete">Elimina forma</string>
+    <string name="photo_full">Foto a schermo intero</string>
+    <string name="photo_exit_full">Mostra i controlli</string>
 </resources>
