@@ -34,7 +34,30 @@ Builds:
       - app/src/main/cpp/libjxl/third_party/brotli/tests/testdata
     ndk: 27.0.12077973
 
+  - versionName: 0.2.0
+    versionCode: 2
+    commit: v0.2.0
+    subdir: app
+    init:
+      - cd ..
+      - git submodule update --init app/src/main/cpp/LibRaw app/src/main/cpp/libjxl
+        app/src/main/cpp/libavif app/src/main/cpp/aom app/src/main/cpp/ncnn
+      - git -C app/src/main/cpp/libjxl submodule update --init --depth 1 third_party/highway
+        third_party/brotli third_party/skcms
+      - git -C app/src/main/cpp/ncnn submodule update --init --depth 1 glslang
+    gradle:
+      - yes
+    scanignore:
+      - app/src/main/assets/models/realesr_general_x4v3.ncnn.bin
+    scandelete:
+      - app/src/main/cpp/ncnn/examples
+      - app/src/main/cpp/libjxl/tools/scripts
+      - app/src/main/cpp/libjxl/third_party/brotli/java
+      - app/src/main/cpp/libjxl/third_party/brotli/js
+      - app/src/main/cpp/libjxl/third_party/brotli/tests/testdata
+    ndk: 27.0.12077973
+
 AutoUpdateMode: Version
 UpdateCheckMode: Tags
-CurrentVersion: 0.1.0
-CurrentVersionCode: 1
+CurrentVersion: 0.2.0
+CurrentVersionCode: 2

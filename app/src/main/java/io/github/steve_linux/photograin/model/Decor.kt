@@ -40,7 +40,7 @@ data class Frame(
 data class FrameLayout(val size: PxSize, val imageLeft: Int, val imageTop: Int)
 
 @Serializable
-enum class TextFont { SANS, SERIF, MONO, HANDWRITING }
+enum class TextFont { SANS, SERIF, MONO, HANDWRITING, LIGHT, THIN, CONDENSED, BLACK, SMALL_CAPS, CASUAL, SERIF_MONO }
 
 /**
  * Text drawn over the finished photo. (x, y) is the center of the text, normalized to the
@@ -59,6 +59,16 @@ data class TextItem(
     val font: TextFont = TextFont.SANS,
     val bold: Boolean = false,
     val shadow: Boolean = true,
+    /** Shadow color, ARGB in sRGB; its alpha scales the shadow's own strength. */
+    val shadowColor: Int = SHADOW_BLACK,
+    /** How far the shadow falls from the letters, 0..1 (up to a quarter of the letter size). */
+    val shadowDistance: Float = 0.4f,
+    /** Direction the shadow falls, in degrees clockwise from the right; 45 is down and to the right. */
+    val shadowAngle: Float = 45f,
+    /** Softness of the shadow's edge, 0 (sharp) .. 1. */
+    val shadowBlur: Float = 0.3f,
+    /** Strength of the shadow, 0..1, on top of the text's own [opacity]. */
+    val shadowOpacity: Float = 0.8f,
     val opacity: Float = 1f,
     val angle: Float = 0f,
     val tiled: Boolean = false,
@@ -68,6 +78,7 @@ data class TextItem(
 
     companion object {
         const val MAX_ITEMS = 10
+        const val SHADOW_BLACK = -0x1000000
     }
 }
 

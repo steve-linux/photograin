@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -25,21 +26,28 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -48,9 +56,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.steve_linux.photograin.R
@@ -60,6 +71,8 @@ import io.github.steve_linux.photograin.model.ShapeItem
 import io.github.steve_linux.photograin.model.ShapeType
 import io.github.steve_linux.photograin.model.TextFont
 import io.github.steve_linux.photograin.model.TextItem
+import io.github.steve_linux.photograin.render.DecorPainter
+import java.util.Locale
 import kotlinx.coroutines.delay
 
 /** Colors offered for frames and text, ARGB in sRGB. */
@@ -108,6 +121,7 @@ fun FramePanel(frame: Frame, onChange: (Frame) -> Unit, onChangeFinished: () -> 
         if (frame.style == FrameStyle.NONE) return@Column
         ParamSlider(
             label = stringResource(R.string.frame_width),
+            help = helpFor(R.string.frame_width),
             value = frame.width,
             range = 0.02f..1f,
             display = "${Math.round(frame.width * 100)}",
@@ -188,6 +202,7 @@ fun TextPanel(
             }
             ParamSlider(
                 label = stringResource(R.string.text_size),
+                help = helpFor(R.string.text_size),
                 value = item.size,
                 range = 0f..1f,
                 display = "${Math.round(item.size * 100)}",
@@ -200,6 +215,7 @@ fun TextPanel(
             )
             ParamSlider(
                 label = stringResource(R.string.text_opacity),
+                help = helpFor(R.string.text_opacity),
                 value = item.opacity,
                 range = 0.05f..1f,
                 display = "${Math.round(item.opacity * 100)}",
@@ -212,6 +228,7 @@ fun TextPanel(
             )
             ParamSlider(
                 label = stringResource(R.string.text_angle),
+                help = helpFor(R.string.text_angle),
                 value = item.angle,
                 range = -180f..180f,
                 display = "${Math.round(item.angle)}°",
@@ -235,18 +252,16 @@ fun TextPanel(
                 Spacer(Modifier.width(8.dp))
                 Text(stringResource(R.string.text_tiled), style = MaterialTheme.typography.labelLarge)
             }
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                for (font in TextFont.entries) {
-                    FilterChip(
-                        selected = item.font == font,
-                        onClick = { onChange(item.copy(font = font)); onChangeFinished() },
-                        label = { Text(stringResource(fontLabel(font))) },
-                    )
-                }
+            FontMenu(item.font) {
+                onChange(item.copy(font = it))
+                onChangeFinished()
             }
             ColorRow(item.color) {
                 onChange(item.copy(color = it))
                 onChangeFinished()
+            }
+            if (item.shadow) {
+                ShadowControls(item, onChange, onChangeFinished)
             }
         }
     }
@@ -328,6 +343,7 @@ fun ShapesPanel(
         if (!(shape.isBox && shape.fill)) {
             ParamSlider(
                 label = stringResource(R.string.shape_width),
+                help = helpFor(R.string.shape_width),
                 value = shape.width,
                 range = 0f..1f,
                 display = "${Math.round(shape.width * 100)}",
@@ -391,6 +407,7 @@ private fun TextDialog(initial: String, onDismiss: () -> Unit, onDone: (String) 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ColorRow(selected: Int, onPick: (Int) -> Unit) {
+    var picking by remember { mutableStateOf(false) }
     FlowRow(
         Modifier.fillMaxWidth().padding(vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -409,6 +426,188 @@ private fun ColorRow(selected: Int, onPick: (Int) -> Unit) {
                     .clickable { onPick(c) },
             )
         }
+        // Any other color: a rainbow swatch opens the picker, and shows the color once chosen.
+        val custom = selected !in SWATCHES
+        Box(
+            Modifier
+                .size(32.dp)
+                .clip(CircleShape)
+                .border(if (custom) 3.dp else 1.dp, if (custom) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline, CircleShape)
+                .padding(3.dp)
+                .clip(CircleShape)
+                .background(if (custom) SolidColor(Color(selected)) else RAINBOW)
+                .clickable { picking = true },
+        )
+    }
+    if (picking) {
+        ColorPickerDialog(selected, onDismiss = { picking = false }, onPick = { picking = false; onPick(it) })
+    }
+}
+
+private val RAINBOW = Brush.sweepGradient(
+    listOf(Color.Red, Color.Yellow, Color.Green, Color.Cyan, Color.Blue, Color.Magenta, Color.Red),
+)
+
+/** Hue, saturation and brightness sliders with a preview and a hex code, for any color. */
+@Composable
+private fun ColorPickerDialog(initial: Int, onDismiss: () -> Unit, onPick: (Int) -> Unit) {
+    val start = remember { FloatArray(3).also { android.graphics.Color.colorToHSV(initial, it) } }
+    var hue by remember { mutableFloatStateOf(start[0]) }
+    var sat by remember { mutableFloatStateOf(start[1]) }
+    var value by remember { mutableFloatStateOf(start[2]) }
+    val color = android.graphics.Color.HSVToColor(floatArrayOf(hue, sat, value))
+    var hex by remember(color) { mutableStateOf(String.format(Locale.ROOT, "%06X", color and 0xFFFFFF)) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.color_custom)) },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+            ) {
+                ColorWheel(
+                    hue = hue,
+                    sat = sat,
+                    value = value,
+                    onHue = { hue = it },
+                    onSatValue = { s, v -> sat = s; value = v },
+                    modifier = Modifier.padding(horizontal = 8.dp),
+                )
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(32.dp)
+                        .clip(MaterialTheme.shapes.medium)
+                        .background(Color(color)),
+                )
+                // The bars are in HSL, where lightness runs from black through the color to white.
+                val (hslSat, light) = hsvToHsl(sat, value)
+                GradientBar(
+                    stringResource(R.string.color_hue),
+                    hue / 360f,
+                    listOf(0f, 60f, 120f, 180f, 240f, 300f, 360f).map { Color.hsl(it, 1f, 0.5f) },
+                ) { hue = it * 360f }
+                GradientBar(
+                    stringResource(R.string.color_saturation),
+                    hslSat,
+                    listOf(Color.hsl(hue, 0f, light), Color.hsl(hue, 1f, light)),
+                ) { s -> hslToHsv(s, light, sat).let { (hs, hv) -> sat = hs; value = hv } }
+                GradientBar(
+                    stringResource(R.string.color_lightness),
+                    light,
+                    listOf(Color.Black, Color.hsl(hue, hslSat, 0.5f), Color.White),
+                ) { l -> hslToHsv(hslSat, l, sat).let { (hs, hv) -> sat = hs; value = hv } }
+                OutlinedTextField(
+                    value = hex,
+                    onValueChange = { text ->
+                        hex = text.uppercase(Locale.ROOT).filter { it in "0123456789ABCDEF" }.take(6)
+                        if (hex.length == 6) {
+                            val hsv = FloatArray(3)
+                            android.graphics.Color.colorToHSV(hex.toInt(16) or -0x1000000, hsv)
+                            hue = hsv[0]; sat = hsv[1]; value = hsv[2]
+                        }
+                    },
+                    prefix = { Text("#") },
+                    singleLine = true,
+                    label = { Text(stringResource(R.string.color_hex)) },
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onPick(color) }) { Text(stringResource(android.R.string.ok)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(android.R.string.cancel)) }
+        },
+    )
+}
+
+/** Where the text's shadow falls, how soft and how strong it is, and its color. */
+@Composable
+private fun ShadowControls(item: TextItem, onChange: (TextItem) -> Unit, onChangeFinished: () -> Unit) {
+    val defaults = TextItem("")
+    ParamSlider(
+        label = stringResource(R.string.shadow_distance),
+        value = item.shadowDistance,
+        range = 0f..1f,
+        display = "${Math.round(item.shadowDistance * 100)}",
+        onChange = { onChange(item.copy(shadowDistance = it)) },
+        onChangeFinished = onChangeFinished,
+        onReset = {
+            onChange(item.copy(shadowDistance = defaults.shadowDistance))
+            onChangeFinished()
+        },
+    )
+    ParamSlider(
+        label = stringResource(R.string.shadow_angle),
+        value = item.shadowAngle,
+        range = 0f..360f,
+        display = "${Math.round(item.shadowAngle)}°",
+        onChange = { onChange(item.copy(shadowAngle = it)) },
+        onChangeFinished = onChangeFinished,
+        onReset = {
+            onChange(item.copy(shadowAngle = defaults.shadowAngle))
+            onChangeFinished()
+        },
+    )
+    ParamSlider(
+        label = stringResource(R.string.shadow_blur),
+        value = item.shadowBlur,
+        range = 0f..1f,
+        display = "${Math.round(item.shadowBlur * 100)}",
+        onChange = { onChange(item.copy(shadowBlur = it)) },
+        onChangeFinished = onChangeFinished,
+        onReset = {
+            onChange(item.copy(shadowBlur = defaults.shadowBlur))
+            onChangeFinished()
+        },
+    )
+    ParamSlider(
+        label = stringResource(R.string.shadow_opacity),
+        value = item.shadowOpacity,
+        range = 0f..1f,
+        display = "${Math.round(item.shadowOpacity * 100)}",
+        onChange = { onChange(item.copy(shadowOpacity = it)) },
+        onChangeFinished = onChangeFinished,
+        onReset = {
+            onChange(item.copy(shadowOpacity = defaults.shadowOpacity))
+            onChangeFinished()
+        },
+    )
+    Text(stringResource(R.string.text_shadow_color), style = MaterialTheme.typography.labelLarge)
+    ColorRow(item.shadowColor) {
+        onChange(item.copy(shadowColor = it))
+        onChangeFinished()
+    }
+}
+
+/** A drop-down list of fonts, each name written in its own font so the list doubles as a preview. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FontMenu(selected: TextFont, onPick: (TextFont) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    ExposedDropdownMenuBox(expanded = open, onExpandedChange = { open = it }, modifier = Modifier.padding(vertical = 4.dp)) {
+        OutlinedTextField(
+            value = stringResource(fontLabel(selected)),
+            onValueChange = {},
+            readOnly = true,
+            singleLine = true,
+            label = { Text(stringResource(R.string.text_font)) },
+            textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily(DecorPainter.family(selected))),
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = open) },
+            modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable),
+        )
+        ExposedDropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            for (font in TextFont.entries) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(fontLabel(font)), fontFamily = FontFamily(DecorPainter.family(font))) },
+                    onClick = {
+                        open = false
+                        onPick(font)
+                    },
+                )
+            }
+        }
     }
 }
 
@@ -423,4 +622,11 @@ private fun fontLabel(f: TextFont): Int = when (f) {
     TextFont.SERIF -> R.string.font_serif
     TextFont.MONO -> R.string.font_mono
     TextFont.HANDWRITING -> R.string.font_handwriting
+    TextFont.LIGHT -> R.string.font_light
+    TextFont.THIN -> R.string.font_thin
+    TextFont.CONDENSED -> R.string.font_condensed
+    TextFont.BLACK -> R.string.font_black
+    TextFont.SMALL_CAPS -> R.string.font_small_caps
+    TextFont.CASUAL -> R.string.font_casual
+    TextFont.SERIF_MONO -> R.string.font_serif_mono
 }

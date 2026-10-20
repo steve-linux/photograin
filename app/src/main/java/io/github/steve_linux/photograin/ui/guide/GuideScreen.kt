@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.material.icons.Icons
@@ -26,12 +27,12 @@ import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Crop
 import androidx.compose.material.icons.outlined.Gradient
 import androidx.compose.material.icons.outlined.Healing
-import androidx.compose.material.icons.outlined.TextFields
 import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Style
+import androidx.compose.material.icons.outlined.TextFields
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.WbSunny
 import androidx.compose.material3.Card
@@ -54,6 +55,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import io.github.steve_linux.photograin.R
+import io.github.steve_linux.photograin.model.ToolGroup
 
 /** One topic of the guide; [inline] is drawn where the text says {icon}. */
 private data class Topic(val icon: ImageVector, val title: Int, val body: Int, val inline: ImageVector? = null)
@@ -76,10 +78,26 @@ private val TOPICS = listOf(
 
 private const val INLINE_ICON = "icon"
 
-/** A short tour of every feature, for people new to photo editing. */
+/** The guide topic that explains [tool]; [healing] picks spot healing over masks in the Local tool. */
+fun guideTopicFor(tool: ToolGroup, healing: Boolean): Int = when (tool) {
+    ToolGroup.LOOK -> R.string.guide_look_title
+    ToolGroup.LIGHT -> R.string.guide_light_title
+    ToolGroup.COLOR -> R.string.guide_color_title
+    ToolGroup.DETAIL -> R.string.guide_detail_title
+    ToolGroup.EFFECTS -> R.string.guide_decor_title
+    ToolGroup.LOCAL -> if (healing) R.string.guide_heal_title else R.string.guide_local_title
+    ToolGroup.CROP -> R.string.guide_crop_title
+}
+
+/**
+ * A short tour of every feature, for people new to photo editing. With [focus] (a topic title) it
+ * opens on that topic and highlights it, for help on the tool in use.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun GuideScreen(onClose: () -> Unit) {
+fun GuideScreen(onClose: () -> Unit, focus: Int? = null) {
+    val start = TOPICS.indexOfFirst { it.title == focus }.coerceAtLeast(0)
+    val list = rememberLazyListState(initialFirstVisibleItemIndex = start)
     BackHandler(onBack = onClose)
     Scaffold(
         topBar = {
@@ -95,18 +113,25 @@ fun GuideScreen(onClose: () -> Unit) {
     ) { padding ->
         LazyColumn(
             Modifier.fillMaxSize().padding(padding),
+            state = list,
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            items(TOPICS) { TopicCard(it) }
+            items(TOPICS) { TopicCard(it, highlighted = it.title == focus) }
         }
     }
 }
 
 @Composable
-private fun TopicCard(topic: Topic) {
+private fun TopicCard(topic: Topic, highlighted: Boolean) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        colors = CardDefaults.cardColors(
+            containerColor = if (highlighted) {
+                MaterialTheme.colorScheme.secondaryContainer
+            } else {
+                MaterialTheme.colorScheme.surfaceContainer
+            },
+        ),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Row(Modifier.padding(16.dp)) {
