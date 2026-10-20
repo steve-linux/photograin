@@ -257,11 +257,7 @@ fun TextPanel(
                 onChangeFinished()
             }
             if (item.shadow) {
-                Text(stringResource(R.string.text_shadow_color), style = MaterialTheme.typography.labelLarge)
-                ColorRow(item.shadowColor) {
-                    onChange(item.copy(shadowColor = it))
-                    onChangeFinished()
-                }
+                ShadowControls(item, onChange, onChangeFinished)
             }
         }
     }
@@ -519,6 +515,65 @@ private fun ColorPickerDialog(initial: Int, onDismiss: () -> Unit, onPick: (Int)
             TextButton(onClick = onDismiss) { Text(stringResource(android.R.string.cancel)) }
         },
     )
+}
+
+/** Where the text's shadow falls, how soft and how strong it is, and its color. */
+@Composable
+private fun ShadowControls(item: TextItem, onChange: (TextItem) -> Unit, onChangeFinished: () -> Unit) {
+    val defaults = TextItem("")
+    ParamSlider(
+        label = stringResource(R.string.shadow_distance),
+        value = item.shadowDistance,
+        range = 0f..1f,
+        display = "${Math.round(item.shadowDistance * 100)}",
+        onChange = { onChange(item.copy(shadowDistance = it)) },
+        onChangeFinished = onChangeFinished,
+        onReset = {
+            onChange(item.copy(shadowDistance = defaults.shadowDistance))
+            onChangeFinished()
+        },
+    )
+    ParamSlider(
+        label = stringResource(R.string.shadow_angle),
+        value = item.shadowAngle,
+        range = 0f..360f,
+        display = "${Math.round(item.shadowAngle)}°",
+        onChange = { onChange(item.copy(shadowAngle = it)) },
+        onChangeFinished = onChangeFinished,
+        onReset = {
+            onChange(item.copy(shadowAngle = defaults.shadowAngle))
+            onChangeFinished()
+        },
+    )
+    ParamSlider(
+        label = stringResource(R.string.shadow_blur),
+        value = item.shadowBlur,
+        range = 0f..1f,
+        display = "${Math.round(item.shadowBlur * 100)}",
+        onChange = { onChange(item.copy(shadowBlur = it)) },
+        onChangeFinished = onChangeFinished,
+        onReset = {
+            onChange(item.copy(shadowBlur = defaults.shadowBlur))
+            onChangeFinished()
+        },
+    )
+    ParamSlider(
+        label = stringResource(R.string.shadow_opacity),
+        value = item.shadowOpacity,
+        range = 0f..1f,
+        display = "${Math.round(item.shadowOpacity * 100)}",
+        onChange = { onChange(item.copy(shadowOpacity = it)) },
+        onChangeFinished = onChangeFinished,
+        onReset = {
+            onChange(item.copy(shadowOpacity = defaults.shadowOpacity))
+            onChangeFinished()
+        },
+    )
+    Text(stringResource(R.string.text_shadow_color), style = MaterialTheme.typography.labelLarge)
+    ColorRow(item.shadowColor) {
+        onChange(item.copy(shadowColor = it))
+        onChangeFinished()
+    }
 }
 
 /** A drop-down list of fonts, each name written in its own font so the list doubles as a preview. */

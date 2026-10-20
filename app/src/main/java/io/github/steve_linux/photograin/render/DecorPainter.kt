@@ -124,8 +124,17 @@ object DecorPainter {
         textAlign = Paint.Align.CENTER
         typeface = Typeface.create(family(item.font), if (item.bold) Typeface.BOLD else Typeface.NORMAL)
         if (item.shadow) {
-            val shadowAlpha = (0x99 * item.opacity.coerceIn(0f, 1f) * (item.shadowColor ushr 24) / 255f).toInt()
-            setShadowLayer(size * 0.08f, 0f, size * 0.04f, (shadowAlpha shl 24) or (item.shadowColor and 0xFFFFFF))
+            val strength = item.shadowOpacity.coerceIn(0f, 1f) * item.opacity.coerceIn(0f, 1f) * (item.shadowColor ushr 24) / 255f
+            val shadowAlpha = (255 * strength).toInt()
+            val distance = size * 0.25f * item.shadowDistance.coerceIn(0f, 1f)
+            val angle = Math.toRadians(item.shadowAngle.toDouble())
+            // A radius of 0 turns the shadow off, so the sharpest one keeps a hairline of blur.
+            setShadowLayer(
+                size * (0.005f + 0.25f * item.shadowBlur.coerceIn(0f, 1f)),
+                distance * cos(angle).toFloat(),
+                distance * sin(angle).toFloat(),
+                (shadowAlpha shl 24) or (item.shadowColor and 0xFFFFFF),
+            )
         }
     }
 

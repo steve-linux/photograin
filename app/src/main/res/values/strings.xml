@@ -274,6 +274,10 @@
     <string name="font_mono">Mono</string>
     <string name="font_handwriting">Handwriting</string>
     <string name="text_shadow_color">Shadow color</string>
+    <string name="shadow_distance">Shadow distance</string>
+    <string name="shadow_angle">Shadow direction</string>
+    <string name="shadow_blur">Shadow softness</string>
+    <string name="shadow_opacity">Shadow strength</string>
     <string name="color_custom">Custom color</string>
     <string name="color_hue">Hue</string>
     <string name="color_saturation">Saturation</string>

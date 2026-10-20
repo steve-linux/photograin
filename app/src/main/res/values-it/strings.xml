@@ -261,6 +261,10 @@
     <string name="font_mono">Mono</string>
     <string name="font_handwriting">Corsivo</string>
     <string name="text_shadow_color">Colore dell\'ombra</string>
+    <string name="shadow_distance">Distanza dell\'ombra</string>
+    <string name="shadow_angle">Direzione dell\'ombra</string>
+    <string name="shadow_blur">Sfocatura dell\'ombra</string>
+    <string name="shadow_opacity">Intensità dell\'ombra</string>
     <string name="color_custom">Colore personalizzato</string>
     <string name="color_hue">Tonalità</string>
     <string name="color_saturation">Saturazione</string>

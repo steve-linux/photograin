@@ -61,6 +61,14 @@ data class TextItem(
     val shadow: Boolean = true,
     /** Shadow color, ARGB in sRGB; its alpha scales the shadow's own strength. */
     val shadowColor: Int = SHADOW_BLACK,
+    /** How far the shadow falls from the letters, 0..1 (up to a quarter of the letter size). */
+    val shadowDistance: Float = 0.4f,
+    /** Direction the shadow falls, in degrees clockwise from the right; 45 is down and to the right. */
+    val shadowAngle: Float = 45f,
+    /** Softness of the shadow's edge, 0 (sharp) .. 1. */
+    val shadowBlur: Float = 0.3f,
+    /** Strength of the shadow, 0..1, on top of the text's own [opacity]. */
+    val shadowOpacity: Float = 0.8f,
     val opacity: Float = 1f,
     val angle: Float = 0f,
     val tiled: Boolean = false,
