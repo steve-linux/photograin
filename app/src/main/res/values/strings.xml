@@ -277,7 +277,7 @@
     <string name="color_custom">Custom color</string>
     <string name="color_hue">Hue</string>
     <string name="color_saturation">Saturation</string>
-    <string name="color_brightness">Brightness</string>
+    <string name="color_lightness">Lightness</string>
     <string name="color_hex">Hex code</string>
     <string name="font_light">Light</string>
     <string name="font_thin">Thin</string>

@@ -460,20 +460,42 @@ private fun ColorPickerDialog(initial: Int, onDismiss: () -> Unit, onPick: (Int)
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.color_custom)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+            ) {
+                ColorWheel(
+                    hue = hue,
+                    sat = sat,
+                    value = value,
+                    onHue = { hue = it },
+                    onSatValue = { s, v -> sat = s; value = v },
+                    modifier = Modifier.padding(horizontal = 8.dp),
+                )
                 Box(
                     Modifier
                         .fillMaxWidth()
-                        .height(48.dp)
+                        .height(32.dp)
                         .clip(MaterialTheme.shapes.medium)
                         .background(Color(color)),
                 )
-                Text(stringResource(R.string.color_hue), style = MaterialTheme.typography.labelLarge)
-                Slider(value = hue, onValueChange = { hue = it }, valueRange = 0f..360f)
-                Text(stringResource(R.string.color_saturation), style = MaterialTheme.typography.labelLarge)
-                Slider(value = sat, onValueChange = { sat = it })
-                Text(stringResource(R.string.color_brightness), style = MaterialTheme.typography.labelLarge)
-                Slider(value = value, onValueChange = { value = it })
+                // The bars are in HSL, where lightness runs from black through the color to white.
+                val (hslSat, light) = hsvToHsl(sat, value)
+                GradientBar(
+                    stringResource(R.string.color_hue),
+                    hue / 360f,
+                    listOf(0f, 60f, 120f, 180f, 240f, 300f, 360f).map { Color.hsl(it, 1f, 0.5f) },
+                ) { hue = it * 360f }
+                GradientBar(
+                    stringResource(R.string.color_saturation),
+                    hslSat,
+                    listOf(Color.hsl(hue, 0f, light), Color.hsl(hue, 1f, light)),
+                ) { s -> hslToHsv(s, light, sat).let { (hs, hv) -> sat = hs; value = hv } }
+                GradientBar(
+                    stringResource(R.string.color_lightness),
+                    light,
+                    listOf(Color.Black, Color.hsl(hue, hslSat, 0.5f), Color.White),
+                ) { l -> hslToHsv(hslSat, l, sat).let { (hs, hv) -> sat = hs; value = hv } }
                 OutlinedTextField(
                     value = hex,
                     onValueChange = { text ->

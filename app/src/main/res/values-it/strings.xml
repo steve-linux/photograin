@@ -264,7 +264,7 @@
     <string name="color_custom">Colore personalizzato</string>
     <string name="color_hue">Tonalità</string>
     <string name="color_saturation">Saturazione</string>
-    <string name="color_brightness">Luminosità</string>
+    <string name="color_lightness">Chiarezza</string>
     <string name="color_hex">Codice esadecimale</string>
     <string name="font_light">Leggero</string>
     <string name="font_thin">Sottile</string>
