@@ -1,0 +1,1 @@
+Full-screen photo with a tap, and sliders kept clear of the screen edge. A long press on a tool opens its guide, and holding an adjustment's name explains it. Text gets eleven fonts, custom colors on a hue ring and triangle, and a shadow with adjustable distance, direction, softness and strength. Home can compare originals and edits side by side.
