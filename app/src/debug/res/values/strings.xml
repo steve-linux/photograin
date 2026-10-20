@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<resources>
+    <!-- Tells the debug build apart from the release one when both are installed. -->
+    <string name="app_name" translatable="false">Photograin Debug</string>
+</resources>
