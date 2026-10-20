@@ -28,6 +28,7 @@ import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AddPhotoAlternate
 import androidx.compose.material.icons.outlined.Compare
+import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.outlined.Settings
@@ -44,6 +45,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -76,11 +80,22 @@ fun HomeScreen(
     onSettings: () -> Unit,
     onGuide: () -> Unit,
 ) {
+    var comparing by rememberSaveable { mutableStateOf(false) }
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.app_name)) },
                 actions = {
+                    if (recents.isNotEmpty()) {
+                        IconButton(onClick = { comparing = !comparing }) {
+                            Icon(
+                                if (comparing) Icons.Outlined.GridView else Icons.Outlined.Compare,
+                                contentDescription = stringResource(
+                                    if (comparing) R.string.home_show_grid else R.string.home_show_compare,
+                                ),
+                            )
+                        }
+                    }
                     TextButton(onClick = onBatch) {
                         Icon(Icons.Outlined.PhotoLibrary, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
@@ -144,8 +159,15 @@ fun HomeScreen(
                         modifier = Modifier.padding(4.dp),
                     )
                 }
-                items(recents, key = { it.toString() }) { uri ->
-                    RecentThumbnail(uri, onClick = { onOpen(uri) })
+                if (comparing) {
+                    item(span = { GridItemSpan(maxLineSpan) }) { CompareHeader() }
+                    items(recents, key = { "compare $it" }, span = { GridItemSpan(maxLineSpan) }) { uri ->
+                        CompareRow(uri, onClick = { onOpen(uri) })
+                    }
+                } else {
+                    items(recents, key = { it.toString() }) { uri ->
+                        RecentThumbnail(uri, onClick = { onOpen(uri) })
+                    }
                 }
             }
         }
@@ -220,3 +242,57 @@ internal fun RecentThumbnail(uri: Uri, onClick: () -> Unit) {
         }
     }
 }
+
+@Composable
+private fun CompareHeader() {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        for (label in listOf(R.string.home_original, R.string.home_edited)) {
+            Text(
+                stringResource(label),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+/** The original and the edited photo side by side, whole, so the change is easy to judge. */
+@Composable
+private fun CompareRow(uri: Uri, onClick: () -> Unit) {
+    val context = LocalContext.current
+    val original: Bitmap? by produceState<Bitmap?>(null, uri) {
+        value = withContext(Dispatchers.IO) { ImageLoader.thumbnail(context, uri, COMPARE_SIZE) }
+    }
+    // (rendered, bitmap): the right side stays empty until the render is done.
+    val edited by produceState<Pair<Boolean, Bitmap?>>(false to null, uri) {
+        value = true to EditedThumbnails.load(context, uri, COMPARE_SIZE)
+    }
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable(onClick = onClick),
+    ) {
+        // Without a recipe the photo is unchanged, so both sides show the original.
+        for (bitmap in listOf(original, if (edited.first) edited.second ?: original else null)) {
+            Box(
+                Modifier
+                    .weight(1f)
+                    .aspectRatio(1f)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+            ) {
+                bitmap?.let {
+                    Image(
+                        bitmap = it.asImageBitmap(),
+                        contentDescription = null,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+            }
+        }
+    }
+}
+
+private const val COMPARE_SIZE = 512

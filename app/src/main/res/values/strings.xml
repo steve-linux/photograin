@@ -9,6 +9,10 @@
     <string name="home_tip_body">Pick a style, fine-tune the photo in the other tabs, then go back to Looks and tap “Save preset” to reuse it on other photos. Tap {icon} to compare with the original at any time.</string>
     <string name="home_tip_dismiss">Got it</string>
     <string name="recent_edits">Recent edits</string>
+    <string name="home_show_compare">Compare originals and edits</string>
+    <string name="home_show_grid">Show recent photos</string>
+    <string name="home_original">Original</string>
+    <string name="home_edited">Edited</string>
 
     <string name="back">Back</string>
     <string name="undo">Undo</string>
