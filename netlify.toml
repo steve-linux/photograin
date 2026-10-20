@@ -1,0 +1,6 @@
+# Sito di Photograin (https://photograin.netlify.app), generato da site/genera-sito.py.
+# Con base = "site" Netlify salta la pubblicazione quando un push non cambia quella cartella.
+[build]
+  base = "site"
+  command = "python3 genera-sito.py"
+  publish = "website"
