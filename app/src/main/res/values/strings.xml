@@ -274,6 +274,23 @@
     <string name="font_serif">Serif</string>
     <string name="font_mono">Mono</string>
     <string name="font_handwriting">Handwriting</string>
+    <string name="text_shadow_color">Shadow color</string>
+    <string name="shadow_distance">Shadow distance</string>
+    <string name="shadow_angle">Shadow direction</string>
+    <string name="shadow_blur">Shadow softness</string>
+    <string name="shadow_opacity">Shadow strength</string>
+    <string name="color_custom">Custom color</string>
+    <string name="color_hue">Hue</string>
+    <string name="color_saturation">Saturation</string>
+    <string name="color_lightness">Lightness</string>
+    <string name="color_hex">Hex code</string>
+    <string name="font_light">Light</string>
+    <string name="font_thin">Thin</string>
+    <string name="font_condensed">Condensed</string>
+    <string name="font_black">Black</string>
+    <string name="font_small_caps">Small caps</string>
+    <string name="font_casual">Casual</string>
+    <string name="font_serif_mono">Typewriter</string>
     <string name="guide_decor_title">Frames and text</string>
     <string name="guide_decor_body">In Effects, Frame adds a border around the photo, or a polaroid with room for a caption. Text adds captions, dates or a signature: drag them on the photo to place them, and pick size, font and color. In Shapes you add lines, arrows, rectangles and ellipses. A text with Repeat as watermark covers the whole photo, see-through and slanted.</string>
     <string name="local_add_full">Whole photo</string>
@@ -311,4 +328,5 @@
     <string name="shape_delete">Delete shape</string>
     <string name="photo_full">Show the photo full screen</string>
     <string name="photo_exit_full">Show the controls</string>
+    <string name="text_font">Font</string>
 </resources>
