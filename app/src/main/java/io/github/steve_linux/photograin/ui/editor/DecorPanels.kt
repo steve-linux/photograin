@@ -121,6 +121,7 @@ fun FramePanel(frame: Frame, onChange: (Frame) -> Unit, onChangeFinished: () -> 
         if (frame.style == FrameStyle.NONE) return@Column
         ParamSlider(
             label = stringResource(R.string.frame_width),
+            help = helpFor(R.string.frame_width),
             value = frame.width,
             range = 0.02f..1f,
             display = "${Math.round(frame.width * 100)}",
@@ -201,6 +202,7 @@ fun TextPanel(
             }
             ParamSlider(
                 label = stringResource(R.string.text_size),
+                help = helpFor(R.string.text_size),
                 value = item.size,
                 range = 0f..1f,
                 display = "${Math.round(item.size * 100)}",
@@ -213,6 +215,7 @@ fun TextPanel(
             )
             ParamSlider(
                 label = stringResource(R.string.text_opacity),
+                help = helpFor(R.string.text_opacity),
                 value = item.opacity,
                 range = 0.05f..1f,
                 display = "${Math.round(item.opacity * 100)}",
@@ -225,6 +228,7 @@ fun TextPanel(
             )
             ParamSlider(
                 label = stringResource(R.string.text_angle),
+                help = helpFor(R.string.text_angle),
                 value = item.angle,
                 range = -180f..180f,
                 display = "${Math.round(item.angle)}°",
@@ -339,6 +343,7 @@ fun ShapesPanel(
         if (!(shape.isBox && shape.fill)) {
             ParamSlider(
                 label = stringResource(R.string.shape_width),
+                help = helpFor(R.string.shape_width),
                 value = shape.width,
                 range = 0f..1f,
                 display = "${Math.round(shape.width * 100)}",
