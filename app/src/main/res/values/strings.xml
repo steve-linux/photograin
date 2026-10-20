@@ -134,6 +134,7 @@
     <string name="export_keep_metadata">Keep shooting data (EXIF)</string>
     <string name="export_metadata_hint">Tap a kind of information to leave it out of the saved photo.</string>
     <string name="photo_info">Photo information</string>
+    <string name="tool_help">Help for this tool</string>
     <string name="close">Close</string>
     <string name="metadata_file">File</string>
     <string name="metadata_size">Size</string>

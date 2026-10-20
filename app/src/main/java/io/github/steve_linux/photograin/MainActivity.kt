@@ -50,6 +50,7 @@ class MainActivity : ComponentActivity() {
                 var showTip by remember { mutableStateOf(!prefs.presetTipDismissed) }
                 var showSettings by rememberSaveable { mutableStateOf(false) }
                 var showGuide by rememberSaveable { mutableStateOf(false) }
+                var guideFocus by rememberSaveable { mutableStateOf<Int?>(null) }
                 val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
                     uri?.let(editor::open)
                 }
@@ -57,7 +58,7 @@ class MainActivity : ComponentActivity() {
                     if (uris.isNotEmpty()) batch.start(uris)
                 }
                 if (showGuide) {
-                    GuideScreen(onClose = { showGuide = false })
+                    GuideScreen(onClose = { showGuide = false }, focus = guideFocus)
                 } else if (showSettings) {
                     SettingsScreen(
                         onClose = { showSettings = false },
@@ -72,10 +73,17 @@ class MainActivity : ComponentActivity() {
                         recents = prefs.recents()
                     })
                 } else if (state.image != null || state.loading) {
-                    EditorScreen(editor, onClose = {
-                        editor.close()
-                        recents = prefs.recents()
-                    })
+                    EditorScreen(
+                        editor,
+                        onClose = {
+                            editor.close()
+                            recents = prefs.recents()
+                        },
+                        onGuide = { topic ->
+                            guideFocus = topic
+                            showGuide = true
+                        },
+                    )
                 } else {
                     HomeScreen(
                         recents = recents,
@@ -88,7 +96,10 @@ class MainActivity : ComponentActivity() {
                             showTip = false
                         },
                         onSettings = { showSettings = true },
-                        onGuide = { showGuide = true },
+                        onGuide = {
+                            guideFocus = null
+                            showGuide = true
+                        },
                     )
                 }
             }
