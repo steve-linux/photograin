@@ -2,17 +2,20 @@
 """Genera il sito di Photograin (italiano in website/, inglese in website/en/) da un unico modello.
 Per cambiare un testo modifica il dizionario della lingua e rilancia:  python3 genera-sito.py
 Le immagini vengono copiate da img/ in website/img/.
-Netlify lo esegue da solo a ogni push su GitHub che tocca la cartella site/ (vedi netlify.toml).
+Netlify lo esegue da solo a ogni push su GitHub che tocca la cartella site/ o la versione dell'app (vedi netlify.toml).
 Il giorno in cui Photograin è su F-Droid basta mettere FDROID = True."""
 import pathlib
+import re
 import shutil
 
 BASE = pathlib.Path(__file__).resolve().parent
 OUT = BASE / "website"
 SITE = "https://photograin.netlify.app"
 REPO = "https://github.com/steve-linux/photograin"
-RELEASE = REPO + "/releases/tag/v0.1.0"
-VERSION = "0.1.0"
+RELEASE = REPO + "/releases/latest"
+# La versione è quella dell'app (versionName in app/build.gradle.kts), così il sito non resta indietro
+VERSION = re.search(r'versionName\s*=\s*"([^"]+)"',
+                    (BASE.parent / "app" / "build.gradle.kts").read_text(encoding="utf-8")).group(1)
 PKG = "io.github.steve_linux.photograin"
 NB = "F&#8209;Droid"  # trattino che non va a capo
 FDROID = False  # True quando l'app è pubblicata su F-Droid

@@ -1,6 +1,7 @@
 # Sito di Photograin (https://photograin.netlify.app), generato da site/genera-sito.py.
-# Con base = "site" Netlify salta la pubblicazione quando un push non cambia quella cartella.
+# Netlify ripubblica solo quando un push cambia la cartella site/ o la versione dell'app.
 [build]
   base = "site"
   command = "python3 genera-sito.py"
   publish = "website"
+  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- . ../app/build.gradle.kts"
