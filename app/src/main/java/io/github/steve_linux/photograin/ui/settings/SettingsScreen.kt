@@ -275,6 +275,8 @@ private fun ModelsSection() {
                 try {
                     ModelPacks.install(context, uri)
                     R.string.settings_model_imported
+                } catch (_: ModelPacks.DamagedPack) {
+                    R.string.settings_model_damaged
                 } catch (_: ModelPacks.UnknownPack) {
                     R.string.settings_model_unknown
                 } catch (_: Exception) {

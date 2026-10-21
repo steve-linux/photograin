@@ -22,6 +22,9 @@ object ModelPacks {
     /** Thrown when the file chosen is not one of [ModelPack.all]. */
     class UnknownPack : IOException("Not a Photograin model pack")
 
+    /** Thrown when the file chosen has a pack's size but not its checksum: a damaged download. */
+    class DamagedPack : IOException("The model pack is damaged")
+
     private val _installed = MutableStateFlow<Set<String>?>(null)
 
     /** The ids of the packs installed, once [installed] has looked. */
@@ -45,8 +48,8 @@ object ModelPacks {
 
     /**
      * Imports the file at [uri]: checks its checksum against the known packs while copying it,
-     * then unpacks it. Returns the pack; throws [UnknownPack] for any other file. Blocking:
-     * call from a background thread.
+     * then unpacks it. Returns the pack; throws [DamagedPack] for a pack whose bytes changed on
+     * the way and [UnknownPack] for any other file. Blocking: call from a background thread.
      */
     fun install(context: Context, uri: Uri): ModelPack {
         val root = root(context).apply { mkdirs() }
@@ -55,7 +58,8 @@ object ModelPacks {
             val digest = MessageDigest.getInstance("SHA-256")
             val input = context.contentResolver.openInputStream(uri) ?: throw IOException("Cannot open $uri")
             DigestInputStream(input, digest).use { inp -> download.outputStream().use { inp.copyTo(it) } }
-            val pack = ModelPack.bySha256(ModelPack.hex(digest.digest())) ?: throw UnknownPack()
+            val pack = ModelPack.bySha256(ModelPack.hex(digest.digest()))
+                ?: throw if (ModelPack.bySize(download.length()) != null) DamagedPack() else UnknownPack()
             // Unpacked next to the pack's folder and swapped in, so a failure leaves no half pack.
             val staging = File(root, "${pack.id}.new").apply { deleteRecursively(); mkdirs() }
             ZipInputStream(download.inputStream().buffered()).use { zip ->
