@@ -10,6 +10,7 @@ import io.github.steve_linux.photograin.model.BrushRaster
 import io.github.steve_linux.photograin.model.EditState
 import io.github.steve_linux.photograin.model.MaskType
 import io.github.steve_linux.photograin.model.SubjectMask
+import io.github.steve_linux.photograin.model.Subjects
 import java.io.IOException
 import kotlin.math.max
 
@@ -60,16 +61,21 @@ object SubjectSegmenter {
     }
 
     /**
-     * The subject of [source] if [edit] has a subject mask, else null: decoded at about the
-     * size of a mask's grid, so it works on photos of any size.
+     * What the subject masks of [edit] cover in [source], or null without any: the main
+     * subject, and the objects their points select (see ObjectSelector). The photo is decoded
+     * at about the size of a mask's grid, so it works on photos of any size.
      */
-    fun forEdit(context: Context, source: RegionSource, base: BaseOrientation, edit: EditState): SubjectMask? {
-        if (edit.masks.none { it.mask.type == MaskType.SUBJECT }) return null
+    fun forEdit(context: Context, source: RegionSource, base: BaseOrientation, edit: EditState): Subjects? {
+        val points = edit.masks.filter { it.mask.type == MaskType.SUBJECT }.map { it.mask.points }
+        if (points.isEmpty()) return null
         var sample = 1
         while (max(source.width, source.height) / (sample * 2) >= BrushRaster.LONG_EDGE * 2) sample *= 2
         val bitmap = source.decode(Rect(0, 0, source.width, source.height), sample)
         return try {
-            segment(context, bitmap, base)
+            Subjects(
+                main = if (points.any { it.isEmpty() }) segment(context, bitmap, base) else null,
+                objects = points.filter { it.isNotEmpty() }.distinct().associateWith { ObjectSelector.select(context, bitmap, base, it) },
+            )
         } finally {
             bitmap.recycle()
         }

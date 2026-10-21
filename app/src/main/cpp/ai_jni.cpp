@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // JNI glue between the AI models and io.github.steve_linux.photograin.data: upscaler for
-// AiUpscaler, segmenter for SubjectSegmenter, inpainter for ObjectRemover.
+// AiUpscaler, segmenter for SubjectSegmenter, inpainter for ObjectRemover, selector for
+// ObjectSelector.
 #include <android/asset_manager_jni.h>
 #include <android/bitmap.h>
 #include <jni.h>
@@ -11,10 +12,12 @@
 
 #include "inpainter.h"
 #include "segmenter.h"
+#include "selector.h"
 #include "upscaler.h"
 
 using photograin::Inpainter;
 using photograin::Segmenter;
+using photograin::Selector;
 using photograin::Upscaler;
 
 namespace {
@@ -30,6 +33,13 @@ bool readAsset(AAssetManager* assets, const char* name, std::vector<unsigned cha
     out->resize(AAsset_getLength(asset));
     bool ok = AAsset_read(asset, out->data(), out->size()) == static_cast<int>(out->size());
     AAsset_close(asset);
+    return ok;
+}
+
+bool readAsset(JNIEnv* env, AAssetManager* assets, jstring name, std::vector<unsigned char>* out) {
+    const char* chars = env->GetStringUTFChars(name, nullptr);
+    bool ok = readAsset(assets, chars, out);
+    env->ReleaseStringUTFChars(name, chars);
     return ok;
 }
 
@@ -52,11 +62,7 @@ uint8_t* lock(JNIEnv* env, jobject bitmap, AndroidBitmapInfo* info) {
 bool readModel(JNIEnv* env, jobject assetManager, jstring param, jstring model,
                std::vector<unsigned char>* paramData, std::vector<unsigned char>* modelData) {
     AAssetManager* assets = AAssetManager_fromJava(env, assetManager);
-    const char* paramName = env->GetStringUTFChars(param, nullptr);
-    const char* modelName = env->GetStringUTFChars(model, nullptr);
-    bool read = readAsset(assets, paramName, paramData) && readAsset(assets, modelName, modelData);
-    env->ReleaseStringUTFChars(param, paramName);
-    env->ReleaseStringUTFChars(model, modelName);
+    bool read = readAsset(env, assets, param, paramData) && readAsset(env, assets, model, modelData);
     if (!read) throwIo(env, "Cannot read the model from the app");
     return read;
 }
@@ -195,6 +201,73 @@ Java_io_github_steve_1linux_photograin_data_ObjectRemover_nativeRun(
     }
     AndroidBitmap_unlockPixels(env, image);
     if (!ok) throwIo(env, error);
+}
+
+/** Loads the selection model from the app's assets; returns a handle, or 0 after throwing. */
+JNIEXPORT jlong JNICALL
+Java_io_github_steve_1linux_photograin_data_ObjectSelector_nativeLoad(
+        JNIEnv* env, jobject, jobject assetManager, jstring encoderParam, jstring encoderModel,
+        jstring decoderParam, jstring decoderModel, jstring prompt) {
+    std::vector<unsigned char> encParam, encModel, decParam, decModel, promptData;
+    if (!readModel(env, assetManager, encoderParam, encoderModel, &encParam, &encModel) ||
+        !readModel(env, assetManager, decoderParam, decoderModel, &decParam, &decModel)) {
+        return 0;
+    }
+    if (!readAsset(env, AAssetManager_fromJava(env, assetManager), prompt, &promptData)) {
+        throwIo(env, "Cannot read the model from the app");
+        return 0;
+    }
+    auto* selector = new Selector();
+    std::string error;
+    if (!selector->load(std::string(encParam.begin(), encParam.end()), std::move(encModel),
+                        std::string(decParam.begin(), decParam.end()), std::move(decModel), promptData, &error)) {
+        delete selector;
+        throwIo(env, error);
+        return 0;
+    }
+    return reinterpret_cast<jlong>(selector);
+}
+
+/** Reads [image], upright with a long edge of at most Selector::kSize, for later selections. */
+JNIEXPORT void JNICALL
+Java_io_github_steve_1linux_photograin_data_ObjectSelector_nativeEncode(
+        JNIEnv* env, jobject, jlong handle, jobject image) {
+    AndroidBitmapInfo info;
+    uint8_t* pixels = lock(env, image, &info);
+    if (pixels == nullptr) return;
+    std::string error;
+    bool ok = reinterpret_cast<Selector*>(handle)->encode(pixels, static_cast<int>(info.width), static_cast<int>(info.height),
+                                                          static_cast<int>(info.stride), &error);
+    AndroidBitmap_unlockPixels(env, image);
+    if (!ok) throwIo(env, error);
+}
+
+/**
+ * The object at the taps of the last encoded image: [coords] holds x, y pairs in its pixels
+ * and [labels] 1 to include or 0 to leave out each one. Returns Selector::kMaskSize squared
+ * values, positive on the object, or null after throwing.
+ */
+JNIEXPORT jfloatArray JNICALL
+Java_io_github_steve_1linux_photograin_data_ObjectSelector_nativeSelect(
+        JNIEnv* env, jobject, jlong handle, jfloatArray coords, jintArray labels) {
+    const int n = env->GetArrayLength(labels);
+    if (env->GetArrayLength(coords) != 2 * n) {
+        throwIo(env, "Expected two coordinates per tap");
+        return nullptr;
+    }
+    std::vector<float> xy(2 * n);
+    std::vector<int> kinds(n);
+    env->GetFloatArrayRegion(coords, 0, 2 * n, xy.data());
+    env->GetIntArrayRegion(labels, 0, n, reinterpret_cast<jint*>(kinds.data()));
+    std::vector<float> mask(Selector::kMaskSize * Selector::kMaskSize);
+    std::string error;
+    if (!reinterpret_cast<Selector*>(handle)->select(xy.data(), kinds.data(), n, mask.data(), &error)) {
+        throwIo(env, error);
+        return nullptr;
+    }
+    jfloatArray out = env->NewFloatArray(static_cast<jsize>(mask.size()));
+    if (out != nullptr) env->SetFloatArrayRegion(out, 0, static_cast<jsize>(mask.size()), mask.data());
+    return out;
 }
 
 }  // extern "C"

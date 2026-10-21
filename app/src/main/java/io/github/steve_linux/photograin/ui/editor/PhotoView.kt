@@ -40,6 +40,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import io.github.steve_linux.photograin.model.CropRect
 import io.github.steve_linux.photograin.model.Frame
 import io.github.steve_linux.photograin.model.LocalAdjustment
+import io.github.steve_linux.photograin.model.MaskType
 import io.github.steve_linux.photograin.model.RetouchType
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -125,7 +126,7 @@ fun PhotoView(
             background = floatArrayOf(background.red, background.green, background.blue),
             profile = image.profile,
             masks = state.edit.masks,
-            subject = state.subject,
+            subjects = state.subjects,
             showMask = if (maskMode && (state.showMask || state.maskDragging)) state.activeMask ?: -1 else -1,
         )
 
@@ -413,6 +414,7 @@ fun PhotoView(
                             val selected = currentSelected
                             if (selected != null && LocalAdjustment.usesRaster(masks[selected].mask.type)) {
                                 // One finger paints; a second one before it moves means zoom or pan.
+                                // On a subject mask a tap selects the object under it.
                                 handleHeld = true
                                 var painting = false
                                 try {
@@ -420,7 +422,13 @@ fun PhotoView(
                                         val event = awaitPointerEvent()
                                         if (event.changes.count { it.pressed } > 1) return@awaitEachGesture
                                         val c = event.changes.firstOrNull { it.id == down.id } ?: return@awaitEachGesture
-                                        if (!c.pressed) return@awaitEachGesture
+                                        if (!c.pressed) {
+                                            val (x, y) = sp.toSource(down.position)
+                                            if (masks[selected].mask.type == MaskType.SUBJECT && x in 0.0..1.0 && y in 0.0..1.0) {
+                                                viewModel.tapObject(x.toFloat(), y.toFloat())
+                                            }
+                                            return@awaitEachGesture
+                                        }
                                         if ((c.position - down.position).getDistance() > viewConfiguration.touchSlop) {
                                             c.consume()
                                             break

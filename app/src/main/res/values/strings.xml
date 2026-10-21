@@ -230,7 +230,7 @@
     <string name="local_delete">Delete mask</string>
     <string name="local_feather">Feather</string>
     <string name="guide_local_title">Masks</string>
-    <string name="guide_local_body">In Retouch, Masks adjust only part of the photo. A linear gradient darkens a bright sky or lightens a foreground; a radial one brings out a subject; with the brush you paint the area yourself, and Erase fixes any overflow. Drag the points on the photo to move and shape it, use {icon} to see where it applies, and Invert to change everything else instead. Under Range a mask can be narrowed to the brightest or darkest parts, or to one color picked by tapping the photo; Whole photo with a range adjusts, say, every bright sky or every green at once.</string>
+    <string name="guide_local_body">In Retouch, Masks adjust only part of the photo. A linear gradient darkens a bright sky or lightens a foreground; a radial one brings out a subject; with the brush you paint the area yourself, and Erase fixes any overflow. Subject finds the main subject with AI; tap an object on the photo to select that one instead. Drag the points on the photo to move and shape it, use {icon} to see where it applies, and Invert to change everything else instead. Under Range a mask can be narrowed to the brightest or darkest parts, or to one color picked by tapping the photo; Whole photo with a range adjusts, say, every bright sky or every green at once.</string>
     <string name="local_add_brush">Brush</string>
     <string name="local_brush_n">Brush %1$d</string>
     <string name="brush_paint">Paint</string>
@@ -309,7 +309,9 @@
     <string name="local_subject_n">Subject %1$d</string>
     <string name="local_remove_background">Remove background</string>
     <string name="local_finding_subject">Finding the subject…</string>
-    <string name="local_hint_subject">The subject is found by an AI model on the phone. Paint to add to it, erase to take away; use two fingers to zoom.</string>
+    <string name="local_hint_subject">The subject is found by an AI model on the phone. Tap an object to select it instead, and with Erase tap a part to leave out. Paint to add to it, erase to take away; use two fingers to zoom.</string>
+    <string name="local_selecting_object">Selecting the object…</string>
+    <string name="local_clear_object">Back to the main subject</string>
     <string name="background_title">Background</string>
     <string name="background_keep">Keep</string>
     <string name="background_transparent">Transparent</string>

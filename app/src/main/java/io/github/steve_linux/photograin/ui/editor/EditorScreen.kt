@@ -361,6 +361,8 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit, onGuide: (topi
                             picking = state.picker == Picker.MASK_COLOR,
                             onPicking = { viewModel.setPicker(if (it) Picker.MASK_COLOR else Picker.NONE) },
                             findingSubject = state.findingSubject,
+                            selectingObject = state.selectingObject,
+                            onClearObject = viewModel::clearObject,
                             onRemoveBackground = viewModel::removeBackground,
                             onBackground = viewModel::setMaskBackground,
                         )

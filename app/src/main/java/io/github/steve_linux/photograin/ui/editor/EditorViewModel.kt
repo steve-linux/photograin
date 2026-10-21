@@ -23,6 +23,7 @@ import io.github.steve_linux.photograin.data.RegionSource
 import io.github.steve_linux.photograin.data.Retoucher
 import io.github.steve_linux.photograin.data.SaveLocation
 import io.github.steve_linux.photograin.data.SettingsStore
+import io.github.steve_linux.photograin.data.ObjectSelector
 import io.github.steve_linux.photograin.data.SubjectSegmenter
 import io.github.steve_linux.photograin.model.Adjustments
 import io.github.steve_linux.photograin.model.AspectRatio
@@ -43,7 +44,7 @@ import io.github.steve_linux.photograin.model.LocalAdjustment
 import io.github.steve_linux.photograin.model.LocalParamSpec
 import io.github.steve_linux.photograin.model.Mask
 import io.github.steve_linux.photograin.model.Background
-import io.github.steve_linux.photograin.model.SubjectMask
+import io.github.steve_linux.photograin.model.Subjects
 import io.github.steve_linux.photograin.model.WhiteBalance
 import io.github.steve_linux.photograin.model.RangeType
 import io.github.steve_linux.photograin.model.MaskRange
@@ -116,10 +117,12 @@ data class EditorUiState(
     val lassoDraft: List<Float>? = null,
     /** The preview with the healing and clone spots drawn in, or null when there are none. */
     val retouchedPreview: Bitmap? = null,
-    /** The photo's subject, found once a subject mask needs it; null until then. */
-    val subject: SubjectMask? = null,
+    /** What the subject masks cover: the photo's subject and the objects tapped, found once needed. */
+    val subjects: Subjects = Subjects(),
     /** The segmentation model is looking for the subject. */
     val findingSubject: Boolean = false,
+    /** The selection model is looking for an object tapped. */
+    val selectingObject: Boolean = false,
     /** In the Retouch tab: false for masks, true for healing and clone. */
     val retouchMode: Boolean = false,
     /** The spot being edited, by index in [EditState.retouch]. */
@@ -184,8 +187,9 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
     private var history = History(EditState())
     private var loadJob: Job? = null
 
-    /** The preview [EditorUiState.subject] was found in. */
+    /** The previews the main subject and the objects of [EditorUiState.subjects] were found in. */
     private var subjectFor: Bitmap? = null
+    private var objectsFor: Bitmap? = null
 
     /** Recipe writes run one at a time, in order. */
     private val saveDispatcher = Dispatchers.IO.limitedParallelism(1)
@@ -201,6 +205,7 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         }
         watchRetouch()
         watchSubject()
+        watchObjects()
         // Load the LUT whenever the edit points at a different one (open, undo, paste, preset).
         viewModelScope.launch {
             _state.map { it.edit.adjustments.look.lutId }.distinctUntilChanged().collectLatest { id ->
@@ -551,6 +556,25 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
 
     fun endStroke() = setMaskDragging(false)
 
+    /**
+     * A tap on the selected subject mask at source-normalized ([x], [y]): it selects the
+     * object there, or with the eraser leaves that part out of the object.
+     */
+    fun tapObject(x: Float, y: Float) {
+        if (!ObjectSelector.available) return
+        val points = _state.value.activeMask?.let { _state.value.edit.masks[it].mask.points } ?: return
+        // Leaving something out only means something once there is an object.
+        val include = _state.value.brush.erase.not() || points.isEmpty()
+        updateMask { it.copy(mask = it.mask.copy(points = it.mask.points + listOf(x, y, if (include) 1f else 0f))) }
+        commit()
+    }
+
+    /** Goes back from the object tapped to the photo's main subject. */
+    fun clearObject() {
+        updateMask { it.copy(mask = it.mask.copy(points = emptyList())) }
+        commit()
+    }
+
     /** Starts tracing a lasso on the selected brush mask at source-normalized ([x], [y]). */
     fun beginLasso(x: Float, y: Float) = _state.update { it.copy(lassoDraft = listOf(x, y)) }
 
@@ -810,11 +834,11 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
      */
     private fun watchSubject() {
         viewModelScope.launch {
-            _state.map { s -> s.image?.preview?.takeIf { s.edit.masks.any { it.mask.type == MaskType.SUBJECT } } }
+            _state.map { s -> s.image?.preview?.takeIf { s.edit.masks.any { it.mask.type == MaskType.SUBJECT && it.mask.points.isEmpty() } } }
                 .distinctUntilChanged()
                 .collectLatest { preview ->
                     val image = _state.value.image ?: return@collectLatest
-                    if (preview == null || _state.value.subject?.let { subjectFor === preview } == true) {
+                    if (preview == null || _state.value.subjects.main?.let { subjectFor === preview } == true) {
                         _state.update { it.copy(findingSubject = false) }
                         return@collectLatest
                     }
@@ -827,7 +851,70 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
                     if (_state.value.image?.preview !== preview) return@collectLatest
                     subjectFor = preview
                     _state.update {
-                        it.copy(subject = subject, findingSubject = false, message = if (subject == null) Message.SUBJECT_FAILED else it.message)
+                        it.copy(
+                            subjects = Subjects(subject, it.subjects.objects),
+                            findingSubject = false,
+                            message = if (subject == null) Message.SUBJECT_FAILED else it.message,
+                        )
+                    }
+                }
+        }
+    }
+
+    /**
+     * What was found in [preview] for the subject masks of [edit], if it covers them all; the
+     * export uses it so it cuts out what the screen showed.
+     */
+    private fun previewSubjects(edit: EditState, preview: Bitmap): Subjects? {
+        val subjects = _state.value.subjects
+        val masks = edit.masks.filter { it.mask.type == MaskType.SUBJECT }.map { it.mask }
+        val main = masks.none { it.points.isEmpty() } || (subjects.main != null && subjectFor === preview)
+        val objects = masks.all { it.points.isEmpty() || it.points in subjects.objects } &&
+            (masks.all { it.points.isEmpty() } || objectsFor === preview)
+        return subjects.takeIf { main && objects }
+    }
+
+    /**
+     * Selects the objects tapped on subject masks in the preview, one set of points at a
+     * time, whenever the points change. The model reads the preview once; each selection after
+     * that is quick. Selections no mask uses any more are dropped.
+     */
+    private fun watchObjects() {
+        viewModelScope.launch {
+            _state.map { s ->
+                val points = s.edit.masks.filter { it.mask.type == MaskType.SUBJECT && it.mask.points.isNotEmpty() }
+                    .map { it.mask.points }.distinct()
+                s.image?.preview?.takeIf { points.isNotEmpty() }?.let { it to points }
+            }
+                .distinctUntilChanged()
+                .collectLatest { wanted ->
+                    val image = _state.value.image ?: return@collectLatest
+                    val (preview, points) = wanted ?: run {
+                        _state.update { it.copy(subjects = Subjects(it.subjects.main), selectingObject = false) }
+                        return@collectLatest
+                    }
+                    if (objectsFor !== preview) {
+                        objectsFor = preview
+                        _state.update { it.copy(subjects = Subjects(it.subjects.main)) }
+                    }
+                    for (p in points) {
+                        if (p in _state.value.subjects.objects) continue
+                        _state.update { it.copy(selectingObject = true) }
+                        val selected = withContext(Dispatchers.Default) {
+                            runCatching { ObjectSelector.select(getApplication(), preview, image.base, p) }
+                                .onFailure { Log.e(TAG, "Cannot select the object", it) }
+                                .getOrNull()
+                        }
+                        if (_state.value.image?.preview !== preview) return@collectLatest
+                        if (selected == null) {
+                            _state.update { it.copy(selectingObject = false, message = Message.SUBJECT_FAILED) }
+                            return@collectLatest
+                        }
+                        _state.update { it.copy(subjects = Subjects(it.subjects.main, it.subjects.objects + (p to selected))) }
+                    }
+                    _state.update { s ->
+                        val kept = s.subjects.objects.filterKeys { it in points }
+                        s.copy(subjects = Subjects(s.subjects.main, kept), selectingObject = false)
                     }
                 }
         }
@@ -1100,9 +1187,8 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
                 try {
                     val original = RegionSource.open(app, image.uri)
                     // The subject found on the preview, so the export cuts out what the screen showed.
-                    val subject = try {
-                        _state.value.subject?.takeIf { subjectFor === image.preview }
-                            ?: SubjectSegmenter.forEdit(app, original, image.base, edit)
+                    val subjects = try {
+                        previewSubjects(edit, image.preview) ?: SubjectSegmenter.forEdit(app, original, image.base, edit)
                     } catch (e: Throwable) {
                         original.close()
                         throw e
@@ -1111,7 +1197,7 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
                     val bitmap = source.use {
                         Exporter.render(
                             it, image.base, edit, lut, render.maxLongEdge, render.colorProfile, render.upscale, render.format.deep,
-                            subject = subject, opaque = !render.format.alpha, inpaint = ObjectRemover.with(app),
+                            subjects = subjects, opaque = !render.format.alpha, inpaint = ObjectRemover.with(app),
                         ) { p ->
                             _state.update { s -> s.copy(exportProgress = p) }
                         }

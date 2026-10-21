@@ -217,7 +217,7 @@
     <string name="local_delete">Elimina maschera</string>
     <string name="local_feather">Sfumatura</string>
     <string name="guide_local_title">Maschere</string>
-    <string name="guide_local_body">In Ritocco, con Maschere regoli solo una parte della foto. Una sfumatura lineare scurisce un cielo troppo chiaro o schiarisce il primo piano; una circolare fa risaltare un soggetto; col pennello dipingi tu la zona, e Cancella corregge le sbavature. Trascina i punti sulla foto per spostarla e darle forma, usa {icon} per vedere dove agisce e Inverti per cambiare tutto il resto. In Intervallo puoi limitare la maschera alle parti più chiare o più scure, o a un colore scelto toccando la foto; Foto intera con un intervallo regola, per esempio, tutto il cielo chiaro o tutto il verde in un colpo.</string>
+    <string name="guide_local_body">In Ritocco, con Maschere regoli solo una parte della foto. Una sfumatura lineare scurisce un cielo troppo chiaro o schiarisce il primo piano; una circolare fa risaltare un soggetto; col pennello dipingi tu la zona, e Cancella corregge le sbavature. Soggetto trova con l\'IA il soggetto principale; tocca un oggetto sulla foto per selezionare quello. Trascina i punti sulla foto per spostarla e darle forma, usa {icon} per vedere dove agisce e Inverti per cambiare tutto il resto. In Intervallo puoi limitare la maschera alle parti più chiare o più scure, o a un colore scelto toccando la foto; Foto intera con un intervallo regola, per esempio, tutto il cielo chiaro o tutto il verde in un colpo.</string>
     <string name="local_add_brush">Pennello</string>
     <string name="local_brush_n">Pennello %1$d</string>
     <string name="brush_paint">Dipingi</string>
@@ -296,7 +296,9 @@
     <string name="local_subject_n">Soggetto %1$d</string>
     <string name="local_remove_background">Rimuovi sfondo</string>
     <string name="local_finding_subject">Cerco il soggetto…</string>
-    <string name="local_hint_subject">Il soggetto lo trova un modello di IA sul telefono. Dipingi per aggiungere, cancella per togliere; con due dita ingrandisci.</string>
+    <string name="local_hint_subject">Il soggetto lo trova un modello di IA sul telefono. Tocca un oggetto per selezionare quello, e con Cancella tocca una parte da escludere. Dipingi per aggiungere, cancella per togliere; con due dita ingrandisci.</string>
+    <string name="local_selecting_object">Seleziono l\'oggetto…</string>
+    <string name="local_clear_object">Torna al soggetto principale</string>
     <string name="background_title">Sfondo</string>
     <string name="background_keep">Mantieni</string>
     <string name="background_transparent">Trasparente</string>

@@ -137,3 +137,12 @@ class SubjectMask(val width: Int, val height: Int, val data: ByteArray) {
         }
     }
 }
+
+/**
+ * What the subject masks of an edit cover before their strokes: the main subject for those
+ * without [Mask.points], and the object selected by each set of points.
+ */
+class Subjects(val main: SubjectMask? = null, val objects: Map<List<Float>, SubjectMask> = emptyMap()) {
+    /** The base of the subject mask [mask], or null until it is known. */
+    fun of(mask: Mask): SubjectMask? = if (mask.points.isEmpty()) main else objects[mask.points]
+}

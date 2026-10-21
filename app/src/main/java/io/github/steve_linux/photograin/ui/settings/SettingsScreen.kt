@@ -73,6 +73,7 @@ private val LIBRARIES = listOf(
     "Real-ESRGAN (realesr-general-x4v3)" to "BSD-3-Clause",
     "U²-Net (u2netp)" to "Apache-2.0",
     "MI-GAN (Picsart AI Research)" to "MIT",
+    "MobileSAM (Segment Anything)" to "Apache-2.0",
     "AndroidX, Jetpack Compose, Material" to "Apache-2.0",
     "Kotlin, kotlinx.coroutines, kotlinx.serialization" to "Apache-2.0",
 )

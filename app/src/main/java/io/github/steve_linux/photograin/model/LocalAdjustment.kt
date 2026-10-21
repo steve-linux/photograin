@@ -124,8 +124,9 @@ data class BrushStroke(
  * Radial: an ellipse centered on (x0, y0), turned by [angle] radians (clockwise on screen).
  * Brush: painted with [strokes], rasterized by [BrushRaster].
  * Full: the whole photo, useful with a [range].
- * Subject: the main subject, found by the segmentation model (see [SubjectMask]); [strokes]
- * add to it or take from it, as on a brush mask.
+ * Subject: the main subject, found by the segmentation model (see [SubjectMask]), or with
+ * [points] the object they tap (see [ObjectSelection]); [strokes] add to it or take from it,
+ * as on a brush mask.
  */
 @Serializable
 data class Mask(
@@ -142,6 +143,8 @@ data class Mask(
     val invert: Boolean = false,
     val strokes: List<BrushStroke> = emptyList(),
     val range: MaskRange = MaskRange(),
+    /** Subject only: taps on the object to select, as x, y, include (1, or 0 to leave out) triples. */
+    val points: List<Float> = emptyList(),
 ) {
     /**
      * Strength 0..1 at source-normalized ([x], [y]) for a source of width / long edge [aspectX]

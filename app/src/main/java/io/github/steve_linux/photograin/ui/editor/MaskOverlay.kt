@@ -239,7 +239,19 @@ private fun DrawScope.drawSelected(m: Mask, space: MaskSpace, dragging: Boolean)
                 val mid = handles.getValue(MaskHandle.MOVE)
                 drawLine(line, mid - perp, mid + perp, strokeWidth = width, pathEffect = dashed)
             }
-            MaskType.BRUSH, MaskType.FULL, MaskType.SUBJECT -> Unit
+            MaskType.BRUSH, MaskType.FULL -> Unit
+            MaskType.SUBJECT -> for (k in 0 until m.points.size / 3) {
+                // The taps that select the object: a plus where it is, a minus where it is not.
+                val p = space.toScreen(m.points[3 * k].toDouble(), m.points[3 * k + 1].toDouble())
+                val r = 7.dp.toPx()
+                drawCircle(Color.Black.copy(alpha = 0.45f), radius = r + 1.5.dp.toPx(), center = p)
+                drawCircle(Color.White, radius = r, center = p, style = Stroke(2.dp.toPx()))
+                val arm = r * 0.55f
+                drawLine(Color.White, p - Offset(arm, 0f), p + Offset(arm, 0f), strokeWidth = 2.dp.toPx())
+                if (m.points[3 * k + 2] > 0.5f) {
+                    drawLine(Color.White, p - Offset(0f, arm), p + Offset(0f, arm), strokeWidth = 2.dp.toPx())
+                }
+            }
             MaskType.RADIAL -> {
                 drawPath(path(space.ellipse(m, 1.0)), line, style = Stroke(width))
                 if (m.feather > 0.02f) {

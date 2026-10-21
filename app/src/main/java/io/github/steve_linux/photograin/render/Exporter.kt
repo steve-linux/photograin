@@ -25,7 +25,7 @@ import io.github.steve_linux.photograin.model.FrameStyle
 import io.github.steve_linux.photograin.model.GeometryMapper
 import io.github.steve_linux.photograin.model.PxSize
 import io.github.steve_linux.photograin.model.RetouchSpot
-import io.github.steve_linux.photograin.model.SubjectMask
+import io.github.steve_linux.photograin.model.Subjects
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.ceil
@@ -102,7 +102,7 @@ object Exporter {
     }
 
     /**
-     * Renders [edit] of [source]. [subject] is the photo's subject for subject masks (see
+     * Renders [edit] of [source]. [subjects] is what its subject masks cover (see
      * SubjectSegmenter.forEdit). With [opaque], for formats without transparency, what a
      * cutout leaves transparent turns white. [inpaint] fills the object removal spots (see
      * ObjectRemover.with); without it they are left out.
@@ -116,7 +116,7 @@ object Exporter {
         output: ColorProfile,
         upscale: Int = 1,
         deep: Boolean = false,
-        subject: SubjectMask? = null,
+        subjects: Subjects? = null,
         opaque: Boolean = false,
         inpaint: Retoucher.Inpaint? = null,
         onProgress: (Float) -> Unit,
@@ -217,7 +217,7 @@ object Exporter {
                         posToSource = mapper.normalizedOutputToSource(),
                         sourceWidth = source.width,
                         sourceHeight = source.height,
-                        subject = subject,
+                        subjects = subjects,
                     )
 
                     pixels.clear()

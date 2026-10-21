@@ -39,7 +39,8 @@ Editor fotografico non distruttivo per Android, libero (GPL-3.0-or-later) e pens
   quando c'è): il modello è incluso nell'app, nessuna connessione. Provenienza in [docs/MODELS.md](docs/MODELS.md).
 - **Scontorno con l'IA**: la maschera "Soggetto" trova da sola il soggetto principale
   ([U²-Net](https://github.com/xuebinqin/U-2-Net), versione leggera, eseguito da ncnn sul telefono)
-  e si rifinisce col pennello. Serve per regolare solo il soggetto o solo lo sfondo, oppure per
+  e si rifinisce col pennello; con un tocco sulla foto seleziona invece l'oggetto toccato
+  ([MobileSAM](https://github.com/ChaoningZhang/MobileSAM)). Serve per regolare solo il soggetto o solo lo sfondo, oppure per
   rimuovere lo sfondo: trasparente (PNG, WebP) o a tinta unita. Funziona anche nell'elaborazione
   in serie, dove ogni foto trova il proprio soggetto. Nessuna connessione.
 - **Rimozione oggetti con l'IA**: nel Ritocco, il pennello "Rimuovi" cancella persone, cavi o
@@ -103,5 +104,6 @@ LibRaw è distribuita con doppia licenza LGPL-2.1 o CDDL-1.0; Photograin la usa 
 compatibile con la GPL-3.0.
 libjxl (con highway, brotli e skcms), libavif e libaom sono BSD, compatibili con la GPL-3.0.
 ncnn (BSD-3-Clause) con glslang (licenze BSD/MIT/Apache-2.0), il modello Real-ESRGAN (BSD-3-Clause)
-il modello U²-Net (Apache-2.0) e il modello MI-GAN (MIT) sono compatibili con la GPL-3.0.
+il modello U²-Net (Apache-2.0), il modello MI-GAN (MIT) e il modello MobileSAM (Apache-2.0) sono
+compatibili con la GPL-3.0.
 Nessuna dipendenza da Google Play Services o servizi proprietari.

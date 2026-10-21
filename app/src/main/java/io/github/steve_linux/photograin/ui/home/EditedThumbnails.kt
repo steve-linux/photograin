@@ -42,9 +42,9 @@ object EditedThumbnails {
                 val base = ImageLoader.baseOrientation(context, uri)
                 val lut = edit.adjustments.look.lutId?.let { LookLibrary(context).loadLut(it) }
                 RegionSource.open(context, uri).use {
-                    val subject = SubjectSegmenter.forEdit(context, it, base, edit)
+                    val subjects = SubjectSegmenter.forEdit(context, it, base, edit)
                     Exporter.render(
-                        it, base, edit, lut, size, ColorProfile.SRGB, subject = subject, inpaint = ObjectRemover.with(context),
+                        it, base, edit, lut, size, ColorProfile.SRGB, subjects = subjects, inpaint = ObjectRemover.with(context),
                     ) {}
                 }.also { cache.put(key, it) }
             } catch (e: Exception) {
