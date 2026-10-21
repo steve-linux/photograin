@@ -680,7 +680,7 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
                     patches.clear()
                     patchesFor = preview
                 }
-                val removing = spots.any { it.type == RetouchType.REMOVE && it !in patches }
+                val removing = spots.any { it.type == RetouchType.REMOVE && !patches.containsKey(it) }
                 if (removing) _state.update { it.copy(removing = true) }
                 val result = try {
                     withContext(Dispatchers.Default) {
