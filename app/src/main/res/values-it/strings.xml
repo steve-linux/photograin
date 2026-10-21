@@ -383,13 +383,14 @@
     <string name="text_font">Carattere</string>
     <string name="versions_title">Versioni</string>
     <string name="version_number">Versione %d</string>
-    <string name="versions_hint">Tocca una versione per aprirla, tienila premuta per confrontarla con questa.</string>
     <string name="version_duplicate">Duplica</string>
     <string name="version_new">Nuova dall\'originale</string>
     <string name="version_rename">Rinomina</string>
     <string name="version_delete">Elimina</string>
-    <string name="version_compare_title">%1$s e %2$s</string>
     <string name="version_open">Apri %s</string>
     <string name="version_delete_title">Eliminare %s?</string>
     <string name="version_delete_body">La sua modifica va persa; la foto originale e le altre versioni restano come sono.</string>
+    <string name="version_compare">Confronta</string>
+    <string name="version_keep_editing">Continua con %s</string>
+    <string name="version_editing">%s · aperta</string>
 </resources>
