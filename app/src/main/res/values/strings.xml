@@ -299,6 +299,17 @@
     <string name="guide_decor_body">In Effects, Frame adds a border around the photo, or a polaroid with room for a caption. Text adds captions, dates or a signature: drag them on the photo to place them, and pick size, font and color. In Shapes you add lines, arrows, rectangles and ellipses. A text with Repeat as watermark covers the whole photo, see-through and slanted.</string>
     <string name="local_add_full">Whole photo</string>
     <string name="local_full_n">Whole photo %1$d</string>
+    <string name="local_add_subject">Subject</string>
+    <string name="local_subject_n">Subject %1$d</string>
+    <string name="local_remove_background">Remove background</string>
+    <string name="local_finding_subject">Finding the subject…</string>
+    <string name="local_hint_subject">The subject is found by an AI model on the phone. Paint to add to it, erase to take away; use two fingers to zoom.</string>
+    <string name="background_title">Background</string>
+    <string name="background_keep">Keep</string>
+    <string name="background_transparent">Transparent</string>
+    <string name="background_color">Color</string>
+    <string name="background_transparent_hint">PNG and WebP keep the transparency; other formats get a white background.</string>
+    <string name="msg_subject_failed">Could not find the subject</string>
     <string name="range_title">Range</string>
     <string name="range_none">None</string>
     <string name="range_luminance">Luminance</string>

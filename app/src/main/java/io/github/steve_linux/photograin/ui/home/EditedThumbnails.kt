@@ -10,6 +10,7 @@ import io.github.steve_linux.photograin.data.ImageLoader
 import io.github.steve_linux.photograin.data.LookLibrary
 import io.github.steve_linux.photograin.data.RecipeStore
 import io.github.steve_linux.photograin.data.RegionSource
+import io.github.steve_linux.photograin.data.SubjectSegmenter
 import io.github.steve_linux.photograin.model.ColorProfile
 import io.github.steve_linux.photograin.model.EditState
 import io.github.steve_linux.photograin.render.Exporter
@@ -40,7 +41,8 @@ internal object EditedThumbnails {
                 val base = ImageLoader.baseOrientation(context, uri)
                 val lut = edit.adjustments.look.lutId?.let { LookLibrary(context).loadLut(it) }
                 RegionSource.open(context, uri).use {
-                    Exporter.render(it, base, edit, lut, size, ColorProfile.SRGB) {}
+                    val subject = SubjectSegmenter.forEdit(context, it, base, edit)
+                    Exporter.render(it, base, edit, lut, size, ColorProfile.SRGB, subject = subject) {}
                 }.also { cache.put(key, it) }
             } catch (e: Exception) {
                 Log.w(TAG, "Cannot render $uri", e)

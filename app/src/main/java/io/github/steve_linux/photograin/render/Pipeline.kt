@@ -12,6 +12,7 @@ import io.github.steve_linux.photograin.model.LocalAdjustment
 import io.github.steve_linux.photograin.model.MaskType
 import io.github.steve_linux.photograin.model.Mat3
 import io.github.steve_linux.photograin.model.PxSize
+import io.github.steve_linux.photograin.model.SubjectMask
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.ceil
@@ -137,6 +138,7 @@ internal class Pipeline {
      * @param output the color space to write: sRGB for the screen, the chosen profile for export.
      * @param masks local adjustments; [posToSource] maps output positions (0..1) to source
      *   positions (0..1), and [sourceWidth] x [sourceHeight] gives the source's shape.
+     * @param subject the photo's subject, for subject masks; until it is known they are empty.
      * @param showMask index of the mask to tint red, or -1.
      */
     fun renderColor(
@@ -156,6 +158,7 @@ internal class Pipeline {
         posToSource: Homography = Homography.IDENTITY,
         sourceWidth: Int = 1,
         sourceHeight: Int = 1,
+        subject: SubjectMask? = null,
         showMask: Int = -1,
     ) {
         val geoTarget = checkNotNull(geo) { "renderIntermediate() must run first" }
@@ -226,7 +229,7 @@ internal class Pipeline {
         val shown = if (showMask in 0 until mu.count) showMask else -1
         p.int("uShowMask", shown)
         GLES30.glActiveTexture(GLES30.GL_TEXTURE4)
-        GLES30.glBindTexture(GLES30.GL_TEXTURE_2D_ARRAY, brushTexture(masks, sourceWidth, sourceHeight))
+        GLES30.glBindTexture(GLES30.GL_TEXTURE_2D_ARRAY, brushTexture(masks, sourceWidth, sourceHeight, subject))
         p.int("uBrush", 4)
         if (mu.count > 0 || shown >= 0) {
             p.mat3("uPosToSrc", posToSource.toGlMat3())
@@ -238,6 +241,9 @@ internal class Pipeline {
             p.vec4Array("uLocA", mu.locA)
             p.vec4Array("uLocB", mu.locB)
         }
+        val cutout = LocalAdjustment.cutoutIndex(masks).takeIf { it < mu.count } ?: -1
+        p.int("uCutout", cutout)
+        p.vec4("uCutoutFill", if (cutout >= 0) ShaderParams.cutoutFill(masks[cutout], working) else FloatArray(4))
         p.float("uCompare", compareSplit)
         p.float("uComposite", if (composite) 1f else 0f)
         p.vec3("uBg", background[0], background[1], background[2])
@@ -289,12 +295,12 @@ internal class Pipeline {
     }
 
     /**
-     * Texture array with one layer per mask index, holding the rasters of the brush masks.
-     * Layers are re-uploaded only when their strokes change. Without brush masks it is a
-     * 1x1 texture, so the sampler stays valid.
+     * Texture array with one layer per mask index, holding the rasters of the brush and
+     * subject masks. Layers are re-uploaded only when their strokes or [subject] change.
+     * Without such masks it is a 1x1 texture, so the sampler stays valid.
      */
-    private fun brushTexture(masks: List<LocalAdjustment>, sourceWidth: Int, sourceHeight: Int): Int {
-        val hasBrush = masks.take(LocalAdjustment.MAX).any { it.mask.type == MaskType.BRUSH }
+    private fun brushTexture(masks: List<LocalAdjustment>, sourceWidth: Int, sourceHeight: Int, subject: SubjectMask?): Int {
+        val hasBrush = masks.take(LocalAdjustment.MAX).any { LocalAdjustment.usesRaster(it.mask.type) }
         val size = if (hasBrush) {
             BrushRaster.size(sourceWidth, sourceHeight)
         } else {
@@ -321,11 +327,12 @@ internal class Pipeline {
         GLES30.glBindTexture(GLES30.GL_TEXTURE_2D_ARRAY, brushTexture)
         GLES30.glPixelStorei(GLES30.GL_UNPACK_ALIGNMENT, 1)
         masks.take(LocalAdjustment.MAX).forEachIndexed { i, local ->
-            if (local.mask.type != MaskType.BRUSH) return@forEachIndexed
+            if (!LocalAdjustment.usesRaster(local.mask.type)) return@forEachIndexed
             // A new raster is uploaded even when empty: the layer may hold another photo's paint.
             val created = brushRasters[i] == null
             val raster = brushRasters[i] ?: BrushRaster(sourceWidth, sourceHeight).also { brushRasters[i] = it }
-            if (raster.sync(local.mask.strokes) || created) {
+            val base = if (local.mask.type == MaskType.SUBJECT) subject?.resizedTo(raster.width, raster.height)?.data else null
+            if (raster.sync(local.mask.strokes, base) || created) {
                 val buffer = brushUpload?.takeIf { it.capacity() == raster.data.size }
                     ?: ByteBuffer.allocateDirect(raster.data.size).also { brushUpload = it }
                 buffer.clear()

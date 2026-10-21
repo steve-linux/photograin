@@ -286,6 +286,17 @@
     <string name="guide_decor_body">In Effetti, Cornice aggiunge un bordo intorno alla foto, o una polaroid con lo spazio per una didascalia. Testo aggiunge didascalie, date o una firma: trascinale sulla foto per posizionarle e scegli dimensione, carattere e colore. In Forme aggiungi linee, frecce, rettangoli ed ellissi. Un testo con Ripeti come filigrana copre tutta la foto, trasparente e inclinato.</string>
     <string name="local_add_full">Foto intera</string>
     <string name="local_full_n">Foto intera %1$d</string>
+    <string name="local_add_subject">Soggetto</string>
+    <string name="local_subject_n">Soggetto %1$d</string>
+    <string name="local_remove_background">Rimuovi sfondo</string>
+    <string name="local_finding_subject">Cerco il soggetto…</string>
+    <string name="local_hint_subject">Il soggetto lo trova un modello di IA sul telefono. Dipingi per aggiungere, cancella per togliere; con due dita ingrandisci.</string>
+    <string name="background_title">Sfondo</string>
+    <string name="background_keep">Mantieni</string>
+    <string name="background_transparent">Trasparente</string>
+    <string name="background_color">Colore</string>
+    <string name="background_transparent_hint">PNG e WebP mantengono la trasparenza; gli altri formati ricevono uno sfondo bianco.</string>
+    <string name="msg_subject_failed">Impossibile trovare il soggetto</string>
     <string name="range_title">Intervallo</string>
     <string name="range_none">Nessuno</string>
     <string name="range_luminance">Luminosità</string>

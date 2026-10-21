@@ -67,7 +67,7 @@ class MaskSpace(
     }
 
     fun handles(m: Mask): Map<MaskHandle, Offset> = when (m.type) {
-        MaskType.BRUSH, MaskType.FULL -> emptyMap()
+        MaskType.BRUSH, MaskType.FULL, MaskType.SUBJECT -> emptyMap()
         MaskType.LINEAR -> mapOf(
             MaskHandle.START to toScreen(m.x0.toDouble(), m.y0.toDouble()),
             MaskHandle.END to toScreen(m.x1.toDouble(), m.y1.toDouble()),
@@ -92,7 +92,7 @@ class MaskSpace(
             val mid = it.pointCount / 2
             toScreen(it.points[2 * mid].toDouble(), it.points[2 * mid + 1].toDouble())
         }
-        MaskType.FULL -> null
+        MaskType.FULL, MaskType.SUBJECT -> null
         else -> handles(m).getValue(MaskHandle.MOVE)
     }
 
@@ -183,7 +183,7 @@ fun MaskOverlay(
 ) {
     Canvas(Modifier.fillMaxSize()) {
         // While painting, the other masks' pins would only be in the way.
-        val painting = selected?.let { masks.getOrNull(it) }?.mask?.type == MaskType.BRUSH
+        val painting = selected?.let { masks.getOrNull(it) }?.mask?.type?.let(LocalAdjustment::usesRaster) == true
         masks.forEachIndexed { i, local ->
             if (i == selected) {
                 drawSelected(local.mask, space, dragging)
@@ -221,7 +221,7 @@ private fun DrawScope.drawSelected(m: Mask, space: MaskSpace, dragging: Boolean)
                 val mid = handles.getValue(MaskHandle.MOVE)
                 drawLine(line, mid - perp, mid + perp, strokeWidth = width, pathEffect = dashed)
             }
-            MaskType.BRUSH, MaskType.FULL -> Unit
+            MaskType.BRUSH, MaskType.FULL, MaskType.SUBJECT -> Unit
             MaskType.RADIAL -> {
                 drawPath(path(space.ellipse(m, 1.0)), line, style = Stroke(width))
                 if (m.feather > 0.02f) {

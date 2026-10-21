@@ -2,10 +2,13 @@
 package io.github.steve_linux.photograin.render
 
 import io.github.steve_linux.photograin.model.Adjustments
+import io.github.steve_linux.photograin.model.Background
+import io.github.steve_linux.photograin.model.ColorProfile
 import io.github.steve_linux.photograin.model.HslBand
 import io.github.steve_linux.photograin.model.LocalAdjustment
 import io.github.steve_linux.photograin.model.MaskRange
 import io.github.steve_linux.photograin.model.MaskType
+import io.github.steve_linux.photograin.model.Mat3
 import io.github.steve_linux.photograin.model.RangeType
 import kotlin.math.ceil
 import kotlin.math.log2
@@ -94,11 +97,12 @@ object ShaderParams {
             opt[k] = when (m.type) {
                 MaskType.LINEAR -> 0f
                 MaskType.RADIAL -> 1f
-                MaskType.BRUSH -> 2f
+                // A subject mask is a brush mask seeded with the model's result.
+                MaskType.BRUSH, MaskType.SUBJECT -> 2f
                 MaskType.FULL -> 3f
             }
             // A brush mask is drawn into the layer of the brush texture matching its index.
-            opt[k + 1] = if (m.type == MaskType.BRUSH) i.toFloat() else m.angle
+            opt[k + 1] = if (LocalAdjustment.usesRaster(m.type)) i.toFloat() else m.angle
             opt[k + 2] = m.feather
             opt[k + 3] = if (m.invert) 1f else 0f
             val r = m.range
@@ -116,5 +120,23 @@ object ShaderParams {
             locB[k] = l.temperature; locB[k + 1] = l.tint; locB[k + 2] = l.saturation; locB[k + 3] = l.clarity
         }
         return MaskUniforms(n, geo, opt, range, locA, locB)
+    }
+
+    /**
+     * What replaces the photo outside the cutout mask [local], for the shader's uCutoutFill:
+     * the background color in the working space [working], encoded with the sRGB curve like
+     * the pixels it mixes with, and 1 in the fourth value; all 0 for a transparent background.
+     */
+    fun cutoutFill(local: LocalAdjustment, working: ColorProfile): FloatArray {
+        if (local.background != Background.COLOR) return FloatArray(4)
+        val c = local.backgroundColor
+        val srgb = doubleArrayOf((c shr 16 and 0xFF) / 255.0, (c shr 8 and 0xFF) / 255.0, (c and 0xFF) / 255.0)
+        val linear = Mat3.apply(ColorProfile.SRGB.conversionTo(working), DoubleArray(3) { ColorProfile.SRGB.decode(srgb[it]) })
+        return floatArrayOf(
+            ColorProfile.SRGB.encode(linear[0]).toFloat(),
+            ColorProfile.SRGB.encode(linear[1]).toFloat(),
+            ColorProfile.SRGB.encode(linear[2]).toFloat(),
+            1f,
+        )
     }
 }

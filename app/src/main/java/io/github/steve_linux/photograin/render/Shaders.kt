@@ -162,6 +162,10 @@ uniform vec4 uLocA[8];
 uniform vec4 uLocB[8];
 // Index of the mask to tint red on screen, or -1.
 uniform int uShowMask;
+// Index of the mask that cuts the photo out, or -1. Outside it the photo becomes uCutoutFill.rgb
+// (working space, sRGB curve) when uCutoutFill.a is 1, or transparent when it is 0.
+uniform int uCutout;
+uniform vec4 uCutoutFill;
 
 // Pixels left of this x (0..1 in the output) show the original. -1 disables comparison.
 uniform float uCompare;
@@ -454,13 +458,24 @@ vec3 toOutput(vec3 v) {
 void main() {
     vec4 src = texture(uGeo, vCoord);
     vec2 pos = uImgMap.xy + vCoord * uImgMap.zw;
-    vec3 rgb = pos.x < uCompare ? src.rgb : process(src.rgb, pos);
+    bool original = pos.x < uCompare;
+    vec3 rgb = original ? src.rgb : process(src.rgb, pos);
+    // How much of the photo the cutout keeps; the original side of the comparison keeps it all.
+    float keep = uCutout >= 0 && !original ? maskWeight(uCutout, pos, src.rgb) : 1.0;
+    if (uCutoutFill.a > 0.5) {
+        rgb = mix(uCutoutFill.rgb, rgb, keep);
+        keep = 1.0;
+    }
     if (uShowMask >= 0) rgb = mix(rgb, vec3(1.0, 0.1, 0.1), 0.6 * maskWeight(uShowMask, pos, src.rgb));
     if (uOutConvert > 0.5) rgb = toOutput(rgb);
     if (uComposite > 0.5) {
-        oColor = vec4(mix(uBg, rgb, src.a), 1.0);
+        // A transparent background shows as a checkerboard on screen.
+        vec2 cell = floor(gl_FragCoord.xy / 12.0);
+        vec3 bg = keep < 1.0 ? mix(vec3(0.42), vec3(0.58), mod(cell.x + cell.y, 2.0)) : uBg;
+        oColor = vec4(mix(uBg, mix(bg, rgb, keep), src.a), 1.0);
     } else {
-        oColor = vec4(rgb, 1.0);
+        // Premultiplied, as Android bitmaps hold their pixels.
+        oColor = vec4(rgb * keep, keep);
     }
 }
 """

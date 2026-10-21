@@ -13,7 +13,7 @@ import kotlin.math.min
 import kotlin.math.sin
 
 @Serializable
-enum class MaskType { LINEAR, RADIAL, BRUSH, FULL }
+enum class MaskType { LINEAR, RADIAL, BRUSH, FULL, SUBJECT }
 
 @Serializable
 enum class RangeType { NONE, LUMINANCE, COLOR }
@@ -121,6 +121,8 @@ data class BrushStroke(
  * Radial: an ellipse centered on (x0, y0), turned by [angle] radians (clockwise on screen).
  * Brush: painted with [strokes], rasterized by [BrushRaster].
  * Full: the whole photo, useful with a [range].
+ * Subject: the main subject, found by the segmentation model (see [SubjectMask]); [strokes]
+ * add to it or take from it, as on a brush mask.
  */
 @Serializable
 data class Mask(
@@ -140,8 +142,8 @@ data class Mask(
 ) {
     /**
      * Strength 0..1 at source-normalized ([x], [y]) for a source of width / long edge [aspectX]
-     * and height / long edge [aspectY]. Mirrors maskWeight() in the color shader. Brush masks
-     * need their raster (see [BrushRaster]) and read as 0 here.
+     * and height / long edge [aspectY]. Mirrors maskWeight() in the color shader. Brush and
+     * subject masks need their raster (see [BrushRaster]) and read as 0 here.
      */
     fun weight(x: Float, y: Float, aspectX: Float, aspectY: Float): Float {
         val qx = x * aspectX
@@ -164,14 +166,24 @@ data class Mask(
                 val v = (-sn * dx + cs * dy) / max(radiusY, 1e-5f)
                 1f - smoothstep(1f - max(feather, 0.001f), 1f, hypot(u, v))
             }
-            MaskType.BRUSH -> 0f
+            MaskType.BRUSH, MaskType.SUBJECT -> 0f
             MaskType.FULL -> 1f
         }
         return if (invert) 1f - w else w
     }
 }
 
-/** Adjustments applied through a [Mask], added to the global ones where the mask is strong. */
+/** What becomes of the photo outside a mask: by default nothing. */
+@Serializable
+enum class Background { KEEP, TRANSPARENT, COLOR }
+
+/**
+ * Adjustments applied through a [Mask], added to the global ones where the mask is strong.
+ *
+ * With a [background] other than [Background.KEEP], the photo is cut out along the mask:
+ * outside it the result is transparent or [backgroundColor] (sRGB). Only the first such
+ * mask of an edit cuts out.
+ */
 @Serializable
 data class LocalAdjustment(
     val mask: Mask = Mask(),
@@ -183,8 +195,19 @@ data class LocalAdjustment(
     val tint: Float = 0f,
     val saturation: Float = 0f,
     val clarity: Float = 0f,
+    val background: Background = Background.KEEP,
+    val backgroundColor: Int = WHITE,
 ) {
     companion object {
+        const val WHITE = 0xFFFFFFFF.toInt()
+
+        /** Index of the mask that cuts the photo out (see [background]), or -1. */
+        fun cutoutIndex(masks: List<LocalAdjustment>): Int =
+            masks.take(MAX).indexOfFirst { it.background != Background.KEEP }
+
+        /** Whether the mask of [type] is drawn into a raster rather than computed from its shape. */
+        fun usesRaster(type: MaskType) = type == MaskType.BRUSH || type == MaskType.SUBJECT
+
         /** Most masks per photo; the shader has room for this many. */
         const val MAX = 8
 
@@ -208,6 +231,7 @@ data class LocalAdjustment(
             val viewW = hypot(wx, wy)
             val viewH = hypot((ey.x - o.x) * ax, (ey.y - o.y) * ay)
             if (type == MaskType.BRUSH) return LocalAdjustment(mask = Mask(MaskType.BRUSH), exposure = 0.5f)
+            if (type == MaskType.SUBJECT) return LocalAdjustment(mask = Mask(MaskType.SUBJECT), exposure = 0.3f)
             // The whole photo only makes sense narrowed to a range: start with the highlights.
             if (type == MaskType.FULL) {
                 return LocalAdjustment(mask = Mask(MaskType.FULL, range = MaskRange(RangeType.LUMINANCE)), exposure = -0.5f)

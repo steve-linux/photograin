@@ -94,11 +94,11 @@ if(ANDROID)
     target_link_options(photograin_codec PRIVATE "-Wl,-z,max-page-size=16384")
 endif()
 
-# --- AI upscaling ----------------------------------------------------------------------------
+# --- AI models -------------------------------------------------------------------------------
 # ncnn (BSD-3-Clause), pinned as a git submodule, runs Real-ESRGAN on the GPU through Vulkan
-# (its glslang submodule compiles the shaders on the device) or on the CPU. Only the layers
-# the bundled model and ncnn's own convolution paths use are built.
-set(NCNN_LAYERS Input Convolution PReLU PixelShuffle Interp BinaryOp Split
+# (its glslang submodule compiles the shaders on the device) or on the CPU, and U^2-Net-p on
+# the CPU. Only the layers the bundled models and ncnn's own convolution paths use are built.
+set(NCNN_LAYERS Input Convolution PReLU PixelShuffle Interp BinaryOp Split Pooling
                 Packing Cast Padding Crop Flatten Reshape Gemm InnerProduct ReLU Clip Sigmoid Swish HardSwish
                 HardSigmoid Mish ELU Eltwise Concat)
 file(STRINGS ncnn/src/CMakeLists.txt NCNN_LAYER_LINES REGEX "^ncnn_add_layer\\(")
@@ -127,13 +127,14 @@ endif()
 add_subdirectory(ncnn EXCLUDE_FROM_ALL)
 
 # Portable core, like raw_core.
-add_library(upscale_core STATIC upscaler.cpp)
-target_link_libraries(upscale_core PUBLIC ncnn)
-target_compile_options(upscale_core PRIVATE -Wall -O2)
+add_library(ai_core STATIC upscaler.cpp segmenter.cpp)
+target_link_libraries(ai_core PUBLIC ncnn)
+target_compile_options(ai_core PRIVATE -Wall -O2)
 
 if(ANDROID)
-    add_library(photograin_upscale SHARED upscale_jni.cpp)
-    target_link_libraries(photograin_upscale PRIVATE upscale_core android jnigraphics log)
-    target_compile_options(photograin_upscale PRIVATE -Wall)
-    target_link_options(photograin_upscale PRIVATE "-Wl,-z,max-page-size=16384")
+    # One library for every model, so ncnn is linked in once.
+    add_library(photograin_ai SHARED ai_jni.cpp)
+    target_link_libraries(photograin_ai PRIVATE ai_core android jnigraphics log)
+    target_compile_options(photograin_ai PRIVATE -Wall)
+    target_link_options(photograin_ai PRIVATE "-Wl,-z,max-page-size=16384")
 endif()

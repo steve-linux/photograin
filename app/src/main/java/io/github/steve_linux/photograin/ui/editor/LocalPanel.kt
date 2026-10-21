@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.AutoFixOff
 import androidx.compose.material.icons.outlined.Brush
 import androidx.compose.material.icons.outlined.Colorize
@@ -30,6 +31,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconToggleButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -41,6 +43,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.steve_linux.photograin.R
+import io.github.steve_linux.photograin.model.Background
 import io.github.steve_linux.photograin.model.LocalAdjustment
 import io.github.steve_linux.photograin.model.LocalParamSpec
 import io.github.steve_linux.photograin.model.LocalParams
@@ -50,7 +53,10 @@ import io.github.steve_linux.photograin.model.MaskType
 import io.github.steve_linux.photograin.model.RangeType
 import java.util.Locale
 
-/** Linear and radial masks: the list, and the sliders of the selected one. */
+/**
+ * Local adjustments: the list of masks, and the controls of the selected one. A subject mask
+ * waits for [findingSubject]; any mask can cut the photo out with [onBackground].
+ */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun LocalPanel(
@@ -70,6 +76,9 @@ fun LocalPanel(
     onBrush: (BrushSettings) -> Unit,
     picking: Boolean,
     onPicking: (Boolean) -> Unit,
+    findingSubject: Boolean,
+    onRemoveBackground: () -> Unit,
+    onBackground: (Background, Int?) -> Unit,
 ) {
     Column(
         Modifier
@@ -95,6 +104,13 @@ fun LocalPanel(
                     leadingIcon = { Icon(Icons.Outlined.Add, contentDescription = null, Modifier.size(18.dp)) },
                 )
             }
+            // The quickest way to a cutout: the subject, with the background made transparent.
+            AssistChip(
+                enabled = canAdd,
+                onClick = onRemoveBackground,
+                label = { Text(stringResource(R.string.local_remove_background)) },
+                leadingIcon = { Icon(Icons.Outlined.AutoAwesome, contentDescription = null, Modifier.size(18.dp)) },
+            )
         }
         val index = selected?.takeIf { it in masks.indices }
         if (index == null) {
@@ -120,10 +136,19 @@ fun LocalPanel(
                 Icon(Icons.Outlined.Delete, contentDescription = stringResource(R.string.local_delete))
             }
         }
-        if (local.mask.type == MaskType.BRUSH) {
+        if (local.mask.type == MaskType.SUBJECT && findingSubject) {
+            Text(
+                stringResource(R.string.local_finding_subject),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 4.dp),
+            )
+            LinearProgressIndicator(Modifier.fillMaxWidth().padding(bottom = 8.dp))
+        }
+        if (LocalAdjustment.usesRaster(local.mask.type)) {
             if (local.mask.strokes.isEmpty()) {
                 Text(
-                    stringResource(R.string.local_hint_brush),
+                    stringResource(if (local.mask.type == MaskType.SUBJECT) R.string.local_hint_subject else R.string.local_hint_brush),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 4.dp),
@@ -179,6 +204,7 @@ fun LocalPanel(
                 },
             )
         }
+        BackgroundSection(local, onBackground)
         RangeSection(local.mask, onShape, onChangeFinished, picking, onPicking)
         for (spec in LocalParams.all) {
             val value = spec.get(local)
@@ -204,6 +230,41 @@ private fun formatLocal(spec: LocalParamSpec, value: Float): String {
     } else {
         String.format(Locale.getDefault(), if (shown > 0) "+%.${spec.decimals}f" else "%.${spec.decimals}f", shown)
     }
+}
+
+/** Cuts the photo out along the mask: outside it, transparency or a color. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun BackgroundSection(local: LocalAdjustment, onBackground: (Background, Int?) -> Unit) {
+    Text(
+        stringResource(R.string.background_title),
+        style = MaterialTheme.typography.labelLarge,
+        modifier = Modifier.padding(top = 8.dp),
+    )
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        for (b in Background.entries) {
+            FilterChip(
+                selected = local.background == b,
+                onClick = { onBackground(b, null) },
+                label = { Text(stringResource(backgroundLabel(b))) },
+            )
+        }
+    }
+    when (local.background) {
+        Background.KEEP -> Unit
+        Background.TRANSPARENT -> Text(
+            stringResource(R.string.background_transparent_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Background.COLOR -> ColorRow(local.backgroundColor) { onBackground(Background.COLOR, it) }
+    }
+}
+
+private fun backgroundLabel(b: Background): Int = when (b) {
+    Background.KEEP -> R.string.background_keep
+    Background.TRANSPARENT -> R.string.background_transparent
+    Background.COLOR -> R.string.background_color
 }
 
 /** Narrows the mask to a brightness or color range; the color comes from a tap on the photo. */
@@ -316,6 +377,7 @@ private fun maskName(type: MaskType): Int = when (type) {
     MaskType.RADIAL -> R.string.local_radial_n
     MaskType.BRUSH -> R.string.local_brush_n
     MaskType.FULL -> R.string.local_full_n
+    MaskType.SUBJECT -> R.string.local_subject_n
 }
 
 private fun addLabel(type: MaskType): Int = when (type) {
@@ -323,4 +385,5 @@ private fun addLabel(type: MaskType): Int = when (type) {
     MaskType.RADIAL -> R.string.local_add_radial
     MaskType.BRUSH -> R.string.local_add_brush
     MaskType.FULL -> R.string.local_add_full
+    MaskType.SUBJECT -> R.string.local_add_subject
 }
