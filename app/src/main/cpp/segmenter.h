@@ -29,6 +29,12 @@ public:
     /** Loads an ncnn model from memory. It runs on the CPU in fp32: the model is small, and fp16 shifts the mask. */
     bool load(const std::string& param, std::vector<unsigned char> model, std::string* error);
 
+    /**
+     * Loads an ncnn model from the files [paramPath] and [modelPath], for the large models of
+     * the packs: ncnn copies the weights as it reads them, so the file is never held whole.
+     */
+    bool loadFiles(const std::string& paramPath, const std::string& modelPath, std::string* error);
+
     int size() const { return size_; }
 
     /**
@@ -38,6 +44,9 @@ public:
     bool run(const uint8_t* rgba, int w, int h, int stride, uint8_t* out, std::string* error);
 
 private:
+    /** A new net with the options for this model. */
+    void configure();
+
     int size_;
     float mean_[3];
     float deviation_[3];

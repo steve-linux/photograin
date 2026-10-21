@@ -210,3 +210,11 @@ sulla stessa immagine, eseguendo `segmenter.cpp` con ncnn compilato con gli stes
 dell'app: la maschera differisce in media di 0,0008 (su 1) e coincide su più del 99,9% dei
 pixel. Sul PC (4 thread) richiede circa 2,5 secondi. La conversione è riproducibile: due
 esecuzioni danno lo stesso zip.
+
+A 1024 pixel le attivazioni sono grandi: con le convoluzioni veloci di ncnn (Winograd e sgemm)
+il picco di memoria arriva a 2,3 GB sul PC, e su un Galaxy A52s (5,5 GB) il sistema chiudeva
+l'app. `segmenter.cpp` le disattiva per i modelli dei pacchetti, legge i pesi dal file senza
+tenerne una copia intera e, su ARM, conserva le attivazioni in fp16 (calcoli sempre in fp32): il
+picco scende a circa 0,5 GB, misurato con ncnn compilato per aarch64 ed eseguito in qemu, con la
+maschera ancora uguale a onnxruntime sul 99,96% dei pixel (differenza media 0,001). Se il
+telefono ha meno di 1 GB libero, l'app usa U²-Net-p per quella volta.

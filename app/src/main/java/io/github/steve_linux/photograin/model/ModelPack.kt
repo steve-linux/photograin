@@ -36,6 +36,12 @@ data class ModelPack(
         /** The pack whose file has checksum [sha256], or null if the file is not a known pack. */
         fun bySha256(sha256: String): ModelPack? = all.firstOrNull { it.sha256.equals(sha256, ignoreCase = true) }
 
+        /**
+         * The pack a file of [bytes] bytes was meant to be, if its checksum did not match: a
+         * download of the right size with some bytes wrong, rather than some other file.
+         */
+        fun bySize(bytes: Long): ModelPack? = all.firstOrNull { it.bytes == bytes }
+
         /** [bytes] as lowercase hex. */
         fun hex(bytes: ByteArray): String = bytes.joinToString("") { "%02x".format(it.toInt() and 0xFF) }
     }

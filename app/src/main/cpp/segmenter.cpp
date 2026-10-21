@@ -22,14 +22,42 @@ Segmenter::~Segmenter() {
     net_.reset();
 }
 
-bool Segmenter::load(const std::string& param, std::vector<unsigned char> model, std::string* error) {
+void Segmenter::configure() {
     net_ = std::make_unique<ncnn::Net>();
-    model_ = std::move(model);
     net_->opt.use_vulkan_compute = false;
     net_->opt.use_fp16_packed = false;
     net_->opt.use_fp16_storage = false;
     net_->opt.use_fp16_arithmetic = false;
     net_->opt.use_bf16_storage = false;
+    if (size_ > kSize) {
+        // At 1024 pixels the faster convolutions' work buffers take gigabytes (IS-Net peaks at
+        // 2.3 GB with them, 1.1 GB without), enough to get the app killed; without them it
+        // is even a little faster at this size.
+        net_->opt.use_winograd_convolution = false;
+        net_->opt.use_sgemm_convolution = false;
+        // Activations stored as fp16 where the CPU has it (ARM), still computed in fp32:
+        // half the memory again, about 0.5 GB for IS-Net.
+        net_->opt.use_fp16_storage = true;
+        net_->opt.use_fp16_packed = true;
+    }
+}
+
+bool Segmenter::loadFiles(const std::string& paramPath, const std::string& modelPath, std::string* error) {
+    configure();
+    if (net_->load_param(paramPath.c_str()) != 0) {
+        *error = "Cannot read the model description";
+        return false;
+    }
+    if (net_->load_model(modelPath.c_str()) != 0) {
+        *error = "Cannot read the model weights";
+        return false;
+    }
+    return true;
+}
+
+bool Segmenter::load(const std::string& param, std::vector<unsigned char> model, std::string* error) {
+    configure();
+    model_ = std::move(model);
     if (net_->load_param_mem(param.c_str()) != 0) {
         *error = "Cannot read the model description";
         return false;

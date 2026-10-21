@@ -18,6 +18,12 @@ class ModelPackTest {
     }
 
     @Test
+    fun damagedDownloadsAreKnownByTheirSize() {
+        assertSame(ModelPack.ISNET, ModelPack.bySize(ModelPack.ISNET.bytes))
+        assertNull(ModelPack.bySize(ModelPack.ISNET.bytes - 1))
+    }
+
+    @Test
     fun checksumsAreHex() {
         val empty = MessageDigest.getInstance("SHA-256").digest(ByteArray(0))
         assertEquals("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", ModelPack.hex(empty))

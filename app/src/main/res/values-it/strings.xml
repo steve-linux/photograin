@@ -177,6 +177,7 @@
     <string name="settings_model_remove">Rimuovi</string>
     <string name="settings_model_importing">Importo il modello…</string>
     <string name="settings_model_imported">Modello importato</string>
+    <string name="settings_model_damaged">Il file si è danneggiato durante il download: riscaricalo e importa la nuova copia</string>
     <string name="settings_model_unknown">Questo file non è un pacchetto di modelli di Photograin</string>
     <string name="settings_model_failed">Impossibile importare il modello</string>
     <string name="settings_about">Informazioni</string>

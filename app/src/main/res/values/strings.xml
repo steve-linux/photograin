@@ -190,6 +190,7 @@
     <string name="settings_model_remove">Remove</string>
     <string name="settings_model_importing">Importing the model…</string>
     <string name="settings_model_imported">Model imported</string>
+    <string name="settings_model_damaged">The file was damaged while downloading: download it again and import the new copy</string>
     <string name="settings_model_unknown">This file is not a Photograin model pack</string>
     <string name="settings_model_failed">Could not import the model</string>
     <string name="settings_about">About</string>
