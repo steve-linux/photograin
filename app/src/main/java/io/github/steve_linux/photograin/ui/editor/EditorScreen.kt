@@ -109,10 +109,10 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit, onGuide: (topi
     var lightCurves by rememberSaveable { mutableStateOf(false) }
     var colorHsl by rememberSaveable { mutableStateOf(false) }
 
-    // The button on the photo, or a tap on it where a tap has no other use, hides the bars and
-    // panels so the photo fills the screen; the same again, or back, brings them back.
+    // The full screen button in the top bar, there in every tool, hides the bars and panels so the
+    // photo fills the screen; the button on the photo, or back, brings them back. A tap on the photo
+    // does not do it: people tapped to edit and lost the controls.
     var fullPhoto by rememberSaveable { mutableStateOf(false) }
-    val photoOnly = state.tool in PHOTO_ONLY_TOOLS && state.picker == Picker.NONE
 
     BackHandler(onBack = onClose)
     BackHandler(enabled = fullPhoto) { fullPhoto = false }
@@ -282,8 +282,8 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit, onGuide: (topi
                     CircularProgressIndicator()
                 } else {
                     val bg = if (MaterialTheme.colorScheme.background.luminance() < 0.5f) PhotoBackgroundDark else PhotoBackgroundLight
-                    PhotoView(state, viewModel, bg, onTap = if (photoOnly) ({ fullPhoto = !fullPhoto }) else null)
-                    // With the bars hidden, this is the way back where a tap on the photo is taken.
+                    PhotoView(state, viewModel, bg)
+                    // With the bars hidden, this is the way back.
                     if (fullPhoto) {
                         FilledTonalIconButton(
                             onClick = { fullPhoto = false },
@@ -541,12 +541,6 @@ private class CreateImageDocument : ActivityResultContract<Pair<String, String>,
 
     override fun parseResult(resultCode: Int, intent: Intent?): Uri? = intent?.data
 }
-
-/**
- * Tools where a tap on the photo has no other use, so it can hide the controls. In Effects, text
- * and shapes claim the touches that land on them, so a tap elsewhere still hides the controls.
- */
-private val PHOTO_ONLY_TOOLS = setOf(ToolGroup.LOOK, ToolGroup.LIGHT, ToolGroup.COLOR, ToolGroup.DETAIL, ToolGroup.EFFECTS)
 
 /**
  * Calls [action] when the element is held down, without consuming the touch, so the element's own
