@@ -170,7 +170,8 @@ fun hitMask(space: MaskSpace, masks: List<LocalAdjustment>, selected: Int?, p: O
 
 /**
  * Draws every mask: the selected one with its handles, the others as pins to tap. While a
- * brush mask is painted, [brushCursor] is the finger and [brushRadius] the brush, in pixels.
+ * brush mask is painted, [brushCursor] is the finger and [brushRadius] the brush, in pixels;
+ * [lasso] is the outline being traced, source-normalized.
  */
 @Composable
 fun MaskOverlay(
@@ -180,6 +181,7 @@ fun MaskOverlay(
     dragging: Boolean,
     brushCursor: Offset?,
     brushRadius: Float,
+    lasso: List<Float>? = null,
 ) {
     Canvas(Modifier.fillMaxSize()) {
         // While painting, the other masks' pins would only be in the way.
@@ -194,6 +196,22 @@ fun MaskOverlay(
         brushCursor?.let {
             drawCircle(Color.Black.copy(alpha = 0.4f), radius = brushRadius, center = it, style = Stroke(3.dp.toPx()))
             drawCircle(Color.White, radius = brushRadius, center = it, style = Stroke(1.5.dp.toPx()))
+        }
+        if (lasso != null && lasso.size >= 4) {
+            // Closed back to the start, as it will be filled.
+            val path = Path().apply {
+                for (k in 0 until lasso.size / 2) {
+                    val p = space.toScreen(lasso[2 * k].toDouble(), lasso[2 * k + 1].toDouble())
+                    if (k == 0) moveTo(p.x, p.y) else lineTo(p.x, p.y)
+                }
+                close()
+            }
+            drawPath(path, Color.White.copy(alpha = 0.25f))
+            drawPath(path, Color.Black.copy(alpha = 0.4f), style = Stroke(3.dp.toPx()))
+            drawPath(
+                path, Color.White,
+                style = Stroke(1.5.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 5.dp.toPx()))),
+            )
         }
     }
 }

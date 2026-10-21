@@ -235,6 +235,8 @@
     <string name="local_brush_n">Brush %1$d</string>
     <string name="brush_paint">Paint</string>
     <string name="brush_erase">Erase</string>
+    <string name="brush_lasso">Lasso</string>
+    <string name="brush_lasso_hint">Trace around an area: when you lift your finger it is filled, or cleared with Erase. Tap Lasso again to go back to the brush.</string>
     <string name="brush_size">Brush size</string>
     <string name="brush_hardness">Hardness</string>
     <string name="local_hint_brush">Paint on the photo with one finger; use two fingers to zoom.</string>

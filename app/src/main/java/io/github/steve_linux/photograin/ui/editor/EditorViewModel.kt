@@ -111,6 +111,8 @@ data class EditorUiState(
     /** A mask handle is being dragged: the mask is shown while it moves. */
     val maskDragging: Boolean = false,
     val brush: BrushSettings = BrushSettings(),
+    /** The lasso being traced on the selected brush mask, as x, y pairs; filled when the finger lifts. */
+    val lassoDraft: List<Float>? = null,
     /** The preview with the healing and clone spots drawn in, or null when there are none. */
     val retouchedPreview: Bitmap? = null,
     /** The photo's subject, found once a subject mask needs it; null until then. */
@@ -156,7 +158,13 @@ data class EditorUiState(
  * The brush used to paint masks. [size] (0..1) sets the radius relative to the screen, so
  * zooming in paints finer detail; [hardness] (0..1) is the part painted at full strength.
  */
-data class BrushSettings(val size: Float = 0.35f, val hardness: Float = 0.4f, val erase: Boolean = false)
+data class BrushSettings(
+    val size: Float = 0.35f,
+    val hardness: Float = 0.4f,
+    val erase: Boolean = false,
+    /** Trace an outline that is filled when the finger lifts, instead of painting. */
+    val lasso: Boolean = false,
+)
 
 /** What a tap on the photo picks a color for. */
 enum class Picker { NONE, MASK_COLOR, WHITE_BALANCE }
@@ -483,6 +491,27 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun endStroke() = setMaskDragging(false)
+
+    /** Starts tracing a lasso on the selected brush mask at source-normalized ([x], [y]). */
+    fun beginLasso(x: Float, y: Float) = _state.update { it.copy(lassoDraft = listOf(x, y)) }
+
+    /** Extends the lasso, skipping points too close to the last one. */
+    fun extendLasso(x: Float, y: Float) = _state.update { s ->
+        val points = s.lassoDraft ?: return@update s
+        val dx = x - points[points.size - 2]
+        val dy = y - points[points.size - 1]
+        if (dx * dx + dy * dy < LASSO_STEP * LASSO_STEP) s else s.copy(lassoDraft = points + listOf(x, y))
+    }
+
+    /** Closes the lasso and fills (or, with the eraser, clears) what it surrounds. */
+    fun endLasso() {
+        val points = _state.value.lassoDraft ?: return
+        _state.update { it.copy(lassoDraft = null) }
+        if (points.size < 6) return
+        val stroke = BrushStroke(points, radius = 0f, erase = _state.value.brush.erase, fill = true)
+        updateMask { it.copy(mask = it.mask.copy(strokes = it.mask.strokes + stroke)) }
+        commit()
+    }
 
     fun setShowMask(show: Boolean) = _state.update { it.copy(showMask = show) }
 
@@ -1067,5 +1096,8 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
 
     private companion object {
         const val TAG = "EditorViewModel"
+
+        /** Least distance between lasso points, source-normalized. */
+        const val LASSO_STEP = 0.002f
     }
 }

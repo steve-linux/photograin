@@ -100,7 +100,9 @@ private fun smoothstep(e0: Float, e1: Float, x: Float): Float {
 /**
  * One brush stroke of a [MaskType.BRUSH] mask: [points] are x, y pairs in source-normalized
  * coordinates, [radius] is in source long-edge units. [hardness] is the part of the radius
- * painted at full strength; [erase] removes paint instead of adding it.
+ * painted at full strength; [erase] removes paint instead of adding it. With [fill], drawn
+ * with the lasso, the points outline a closed area that is filled whole, with a smooth edge;
+ * [radius] and [hardness] do not apply.
  */
 @Serializable
 data class BrushStroke(
@@ -108,6 +110,7 @@ data class BrushStroke(
     val radius: Float,
     val hardness: Float = 0.5f,
     val erase: Boolean = false,
+    val fill: Boolean = false,
 ) {
     val pointCount get() = points.size / 2
 }

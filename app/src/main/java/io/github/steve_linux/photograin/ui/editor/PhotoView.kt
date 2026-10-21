@@ -212,7 +212,7 @@ fun PhotoView(
             if (space != null && maskMode) {
                 MaskOverlay(
                     state.edit.masks, state.activeMask, space, state.maskDragging,
-                    brushCursor, brushRadiusPx(state.brush.size, density),
+                    brushCursor, brushRadiusPx(state.brush.size, density), state.lassoDraft,
                 )
             }
             Box(
@@ -426,21 +426,32 @@ fun PhotoView(
                                             break
                                         }
                                     }
-                                    val radiusPx = brushRadiusPx(currentBrush.size, this)
+                                    val lasso = currentBrush.lasso
                                     val (x, y) = sp.toSource(down.position)
-                                    viewModel.beginStroke(x.toFloat(), y.toFloat(), sp.unitsFor(down.position, radiusPx).toFloat())
+                                    if (lasso) {
+                                        viewModel.beginLasso(x.toFloat(), y.toFloat())
+                                    } else {
+                                        val radiusPx = brushRadiusPx(currentBrush.size, this)
+                                        viewModel.beginStroke(x.toFloat(), y.toFloat(), sp.unitsFor(down.position, radiusPx).toFloat())
+                                        brushCursor = down.position
+                                    }
                                     painting = true
-                                    brushCursor = down.position
                                     drag(down.id) { change ->
                                         val (cx, cy) = sp.toSource(change.position)
-                                        viewModel.extendStroke(cx.toFloat(), cy.toFloat())
-                                        brushCursor = change.position
+                                        if (lasso) {
+                                            viewModel.extendLasso(cx.toFloat(), cy.toFloat())
+                                        } else {
+                                            viewModel.extendStroke(cx.toFloat(), cy.toFloat())
+                                            brushCursor = change.position
+                                        }
                                         change.consume()
                                     }
                                 } finally {
                                     handleHeld = false
                                     brushCursor = null
-                                    if (painting) viewModel.endStroke()
+                                    if (painting) {
+                                        if (currentBrush.lasso) viewModel.endLasso() else viewModel.endStroke()
+                                    }
                                 }
                                 return@awaitEachGesture
                             }

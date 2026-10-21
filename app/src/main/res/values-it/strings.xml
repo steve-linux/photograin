@@ -222,6 +222,8 @@
     <string name="local_brush_n">Pennello %1$d</string>
     <string name="brush_paint">Dipingi</string>
     <string name="brush_erase">Cancella</string>
+    <string name="brush_lasso">Lazo</string>
+    <string name="brush_lasso_hint">Traccia il contorno di una zona: quando sollevi il dito si riempie, o si svuota con Cancella. Tocca di nuovo Lazo per tornare al pennello.</string>
     <string name="brush_size">Dimensione pennello</string>
     <string name="brush_hardness">Durezza</string>
     <string name="local_hint_brush">Dipingi sulla foto con un dito; con due dita ingrandisci.</string>
