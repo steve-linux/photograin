@@ -180,6 +180,18 @@
     <string name="settings_language_hint">Opens the system language settings for Photograin</string>
     <string name="settings_show_tips">Show tips again</string>
     <string name="settings_show_tips_done">They will appear on the home screen</string>
+    <string name="settings_models">AI models</string>
+    <string name="settings_models_hint">Larger, more precise models, downloaded separately so the app stays small and never goes online: download a pack with the browser, then import the file here.</string>
+    <string name="settings_models_download">Download model packs</string>
+    <string name="settings_model_isnet">Precise cutout (IS-Net)</string>
+    <string name="settings_model_isnet_desc">Finer edges on hair and fur for the Subject mask and Remove background. Slower: up to half a minute per photo. %1$s</string>
+    <string name="settings_model_installed">Installed, in use</string>
+    <string name="settings_model_import">Import file…</string>
+    <string name="settings_model_remove">Remove</string>
+    <string name="settings_model_importing">Importing the model…</string>
+    <string name="settings_model_imported">Model imported</string>
+    <string name="settings_model_unknown">This file is not a Photograin model pack</string>
+    <string name="settings_model_failed">Could not import the model</string>
     <string name="settings_about">About</string>
     <string name="settings_version">Version %1$s</string>
     <string name="settings_license">License</string>
@@ -217,7 +229,7 @@
     <string name="guide_export_title">Save the photo</string>
     <string name="guide_export_body">Tap {icon} to save a copy. Choose format, quality and size (TIFF keeps 16 bits per color): you can also enlarge the photo 2× or 4×, with AI to restore detail. The sRGB color profile is right for sharing; Display P3 and Adobe RGB keep more color for printing. Under the shooting data you choose what goes with the photo: date, camera, settings, author, location (off by default). Photo information in the ⋮ menu shows what the original contains.</string>
     <string name="guide_settings_title">Settings</string>
-    <string name="guide_settings_body">With {icon} you choose where to save (Pictures/Photograin to begin with), how files are named, the default format, whether to remove the GPS location, and a light or dark theme.</string>
+    <string name="guide_settings_body">With {icon} you choose where to save (Pictures/Photograin to begin with), how files are named, the default format, whether to remove the GPS location, and a light or dark theme. Under AI models you can import larger models, such as a more precise cutout, downloaded separately with the browser.</string>
     <string name="tool_local">Retouch</string>
     <string name="local_add_linear">Linear</string>
     <string name="local_add_radial">Radial</string>

@@ -163,3 +163,50 @@ l'encoder richiede circa 2 secondi e il decoder 0,08. La conversione è riproduc
 
 Per F-Droid, anche `mobilesam_encoder.ncnn.bin`, `mobilesam_decoder.ncnn.bin` e
 `mobilesam_prompt.bin` vanno aggiunti a `scanignore`.
+
+# Pacchetti di modelli (da importare)
+
+I modelli più grandi non sono nell'APK: si scaricano col browser dalla release
+[`models-1`](https://github.com/steve-linux/photograin/releases/tag/models-1) e si importano da
+Impostazioni → Modelli IA. L'app non ha il permesso INTERNET e non scarica nulla da sola.
+
+Un pacchetto è uno zip, non compresso e con date fisse, che contiene i file ncnn del modello.
+L'app lo accetta solo se il suo SHA-256 è quello scritto in
+[`ModelPack.kt`](../app/src/main/java/io/github/steve_linux/photograin/model/ModelPack.kt),
+così esegue esattamente il file pubblicato qui; lo estrae nella memoria privata dell'app, da cui
+si può rimuovere in qualsiasi momento.
+
+## IS-Net (scontorno preciso)
+
+`photograin-isnet.zip` contiene `isnet.ncnn.param` e `isnet.ncnn.bin`: il modello **IS-Net**
+(Xuebin Qin et al., «Highly Accurate Dichotomous Image Segmentation», ECCV 2022), nella versione
+«general use» addestrata per lo scontorno di oggetti e persone, convertito per ncnn con pesi in
+fp16. Quando è installato, la maschera «Soggetto» e «Rimuovi sfondo» usano lui invece di
+U²-Net-p: i bordi su capelli e pelo sono più fini, ma lavora su 1024×1024 pixel e richiede circa
+320 miliardi di operazioni, quindi sul telefono da qualche secondo a mezzo minuto.
+
+- **Licenza**: Apache-2.0, come il codice e i pesi di [DIS](https://github.com/xuebinqin/DIS).
+- **Pesi originali**: l'esportazione ONNX di `isnet-general-use` pubblicata da
+  [rembg](https://github.com/danielgatis/rembg) (MIT):
+  <https://github.com/danielgatis/rembg/releases/download/v0.0.0/isnet-general-use.onnx>
+  SHA-256 `60920e99c45464f2ba57bee2ad08c919a52bbf852739e96947fbb4358c0d964a`.
+  Ingresso: RGB 1024×1024, `v / 255 - 0,5`; uscita: la maschera 0..1 (la prima delle sette).
+- **Conversione**: [`tools/isnet/convert.sh`](../tools/isnet/convert.sh) con pnnx 20260526.
+- **File prodotti**:
+  - `isnet_general_use.ncnn.param` SHA-256 `57e6bbcd1add009257da9c0821c57a159a7ed9fc92f4a07bd593d7f918d2abaa`
+  - `isnet_general_use.ncnn.bin` SHA-256 `f623708a9a0b58acb4d1edbf9387a7ef0359a8d441bde451494f99328dc7f7fb`
+  - `photograin-isnet.zip` (88 MB) SHA-256 `bfbde8053f32c2fdcd5115a0d7818ee1b2d0c49f3ec935028e7453ce6b180e73`
+
+Per rigenerarlo:
+
+```sh
+cd tools/isnet
+curl -LO https://github.com/danielgatis/rembg/releases/download/v0.0.0/isnet-general-use.onnx
+sh convert.sh
+```
+
+e caricare `photograin-isnet.zip` nella release `models-1`. Verificato rispetto a onnxruntime
+sulla stessa immagine, eseguendo `segmenter.cpp` con ncnn compilato con gli stessi livelli
+dell'app: la maschera differisce in media di 0,0008 (su 1) e coincide su più del 99,9% dei
+pixel. Sul PC (4 thread) richiede circa 2,5 secondi. La conversione è riproducibile: due
+esecuzioni danno lo stesso zip.

@@ -7,6 +7,7 @@
 #include <jni.h>
 
 #include <algorithm>
+#include <cstdio>
 #include <string>
 #include <vector>
 
@@ -33,6 +34,22 @@ bool readAsset(AAssetManager* assets, const char* name, std::vector<unsigned cha
     out->resize(AAsset_getLength(asset));
     bool ok = AAsset_read(asset, out->data(), out->size()) == static_cast<int>(out->size());
     AAsset_close(asset);
+    return ok;
+}
+
+bool readFile(JNIEnv* env, jstring path, std::vector<unsigned char>* out) {
+    const char* chars = env->GetStringUTFChars(path, nullptr);
+    FILE* file = std::fopen(chars, "rb");
+    env->ReleaseStringUTFChars(path, chars);
+    if (file == nullptr) return false;
+    bool ok = std::fseek(file, 0, SEEK_END) == 0;
+    long size = ok ? std::ftell(file) : -1;
+    ok = size >= 0 && std::fseek(file, 0, SEEK_SET) == 0;
+    if (ok) {
+        out->resize(static_cast<size_t>(size));
+        ok = std::fread(out->data(), 1, out->size(), file) == out->size();
+    }
+    std::fclose(file);
     return ok;
 }
 
@@ -134,16 +151,52 @@ Java_io_github_steve_1linux_photograin_data_SubjectSegmenter_nativeLoad(
     return reinterpret_cast<jlong>(segmenter);
 }
 
-/** The subject of [input] as Segmenter::kSize squared bytes, or null after throwing. */
+/**
+ * Loads a segmentation model from the files [param] and [model] (a model pack), for a [size]
+ * square input normalized with [mean] and [deviation]; returns a handle, or 0 after throwing.
+ */
+JNIEXPORT jlong JNICALL
+Java_io_github_steve_1linux_photograin_data_SubjectSegmenter_nativeLoadFile(
+        JNIEnv* env, jobject, jstring param, jstring model, jint size, jfloatArray mean, jfloatArray deviation) {
+    std::vector<unsigned char> paramData, modelData;
+    if (!readFile(env, param, &paramData) || !readFile(env, model, &modelData)) {
+        throwIo(env, "Cannot read the model pack");
+        return 0;
+    }
+    if (env->GetArrayLength(mean) != 3 || env->GetArrayLength(deviation) != 3) {
+        throwIo(env, "Expected three values for each channel");
+        return 0;
+    }
+    float m[3], d[3];
+    env->GetFloatArrayRegion(mean, 0, 3, m);
+    env->GetFloatArrayRegion(deviation, 0, 3, d);
+    auto* segmenter = new Segmenter(size, m, d);
+    std::string error;
+    if (!segmenter->load(std::string(paramData.begin(), paramData.end()), std::move(modelData), &error)) {
+        delete segmenter;
+        throwIo(env, error);
+        return 0;
+    }
+    return reinterpret_cast<jlong>(segmenter);
+}
+
+/** Frees a segmentation model loaded by nativeLoad or nativeLoadFile. */
+JNIEXPORT void JNICALL
+Java_io_github_steve_1linux_photograin_data_SubjectSegmenter_nativeFree(JNIEnv*, jobject, jlong handle) {
+    delete reinterpret_cast<Segmenter*>(handle);
+}
+
+/** The subject of [input] as size() squared bytes, or null after throwing. */
 JNIEXPORT jbyteArray JNICALL
 Java_io_github_steve_1linux_photograin_data_SubjectSegmenter_nativeRun(
         JNIEnv* env, jobject, jlong handle, jobject input) {
     AndroidBitmapInfo info;
     uint8_t* in = lock(env, input, &info);
     if (in == nullptr) return nullptr;
-    std::vector<uint8_t> mask(Segmenter::kSize * Segmenter::kSize);
+    auto* segmenter = reinterpret_cast<Segmenter*>(handle);
+    std::vector<uint8_t> mask(static_cast<size_t>(segmenter->size()) * segmenter->size());
     std::string error;
-    bool ok = reinterpret_cast<Segmenter*>(handle)->run(in, static_cast<int>(info.width), static_cast<int>(info.height),
+    bool ok = segmenter->run(in, static_cast<int>(info.width), static_cast<int>(info.height),
                                                         static_cast<int>(info.stride), mask.data(), &error);
     AndroidBitmap_unlockPixels(env, input);
     if (!ok) {

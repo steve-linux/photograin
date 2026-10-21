@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
@@ -29,16 +30,20 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -51,10 +56,16 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.steve_linux.photograin.R
 import io.github.steve_linux.photograin.data.ExportDestination
 import io.github.steve_linux.photograin.data.FileNaming
+import io.github.steve_linux.photograin.data.ModelPacks
 import io.github.steve_linux.photograin.data.SaveLocation
 import io.github.steve_linux.photograin.data.SettingsStore
 import io.github.steve_linux.photograin.data.ThemeMode
+import io.github.steve_linux.photograin.model.ModelPack
 import io.github.steve_linux.photograin.ui.editor.ExportOptionsEditor
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.util.Locale
 
 private const val SOURCE_URL = "https://github.com/steve-linux/photograin"
 private const val LICENSE_URL = "https://www.gnu.org/licenses/gpl-3.0.html"
@@ -74,6 +85,7 @@ private val LIBRARIES = listOf(
     "U²-Net (u2netp)" to "Apache-2.0",
     "MI-GAN (Picsart AI Research)" to "MIT",
     "MobileSAM (Segment Anything)" to "Apache-2.0",
+    "IS-Net (DIS), model pack" to "Apache-2.0",
     "AndroidX, Jetpack Compose, Material" to "Apache-2.0",
     "Kotlin, kotlinx.coroutines, kotlinx.serialization" to "Apache-2.0",
 )
@@ -203,6 +215,8 @@ fun SettingsScreen(onClose: () -> Unit, onShowTips: () -> Unit) {
                 },
             )
 
+            ModelsSection()
+
             Section(R.string.settings_about)
             InfoRow(title = stringResource(R.string.app_name), subtitle = stringResource(R.string.settings_version, versionName(context)))
             InfoRow(
@@ -239,6 +253,89 @@ fun SettingsScreen(onClose: () -> Unit, onShowTips: () -> Unit) {
             confirmButton = {
                 TextButton(onClick = { showLibraries = false }) { Text(stringResource(android.R.string.ok)) }
             },
+        )
+    }
+}
+
+/** The model packs (see [ModelPack]): where to get them, and importing or removing each one. */
+@Composable
+private fun ModelsSection() {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val installed by ModelPacks.state.collectAsStateWithLifecycle()
+    var importing by remember { mutableStateOf(false) }
+    var result by remember { mutableStateOf<Int?>(null) }
+    LaunchedEffect(Unit) { withContext(Dispatchers.IO) { ModelPacks.installed(context) } }
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        importing = true
+        result = null
+        scope.launch {
+            result = withContext(Dispatchers.IO) {
+                try {
+                    ModelPacks.install(context, uri)
+                    R.string.settings_model_imported
+                } catch (_: ModelPacks.UnknownPack) {
+                    R.string.settings_model_unknown
+                } catch (_: Exception) {
+                    R.string.settings_model_failed
+                }
+            }
+            importing = false
+        }
+    }
+
+    Section(R.string.settings_models)
+    Text(
+        stringResource(R.string.settings_models_hint),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(horizontal = 16.dp),
+    )
+    InfoRow(
+        title = stringResource(R.string.settings_models_download),
+        subtitle = ModelPack.RELEASES_URL.removePrefix("https://"),
+        onClick = { open(context, Intent(Intent.ACTION_VIEW, Uri.parse(ModelPack.RELEASES_URL))) },
+    )
+    for (pack in ModelPack.all) {
+        val isInstalled = installed?.contains(pack.id) == true
+        val size = String.format(Locale.getDefault(), "%.0f MB", pack.bytes / 1e6)
+        InfoRow(
+            title = stringResource(R.string.settings_model_isnet),
+            subtitle = if (isInstalled) {
+                stringResource(R.string.settings_model_installed)
+            } else {
+                stringResource(R.string.settings_model_isnet_desc, size)
+            },
+        )
+        Row(Modifier.padding(horizontal = 16.dp)) {
+            OutlinedButton(enabled = !importing, onClick = { picker.launch(arrayOf("application/zip", "application/octet-stream", "*/*")) }) {
+                Text(stringResource(R.string.settings_model_import))
+            }
+            if (isInstalled) {
+                Spacer(Modifier.width(8.dp))
+                TextButton(enabled = !importing, onClick = {
+                    scope.launch { withContext(Dispatchers.IO) { ModelPacks.remove(context, pack) } }
+                }) {
+                    Text(stringResource(R.string.settings_model_remove))
+                }
+            }
+        }
+    }
+    if (importing) {
+        Text(
+            stringResource(R.string.settings_model_importing),
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp),
+        )
+        LinearProgressIndicator(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp))
+    }
+    result?.let {
+        Text(
+            stringResource(it),
+            style = MaterialTheme.typography.bodySmall,
+            color = if (it == R.string.settings_model_imported) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp),
         )
     }
 }

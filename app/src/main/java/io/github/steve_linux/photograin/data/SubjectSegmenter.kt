@@ -9,31 +9,53 @@ import io.github.steve_linux.photograin.model.BaseOrientation
 import io.github.steve_linux.photograin.model.BrushRaster
 import io.github.steve_linux.photograin.model.EditState
 import io.github.steve_linux.photograin.model.MaskType
+import io.github.steve_linux.photograin.model.ModelPack
 import io.github.steve_linux.photograin.model.SubjectMask
 import io.github.steve_linux.photograin.model.Subjects
 import java.io.IOException
 import kotlin.math.max
 
 /**
- * Finds the main subject of a photo with U^2-Net-p through ncnn, on the CPU: the model is
- * small enough to take about a second. It ships in the app's assets; docs/MODELS.md says
- * where it comes from.
+ * Finds the main subject of a photo through ncnn, on the CPU: with U^2-Net-p, small enough to
+ * take about a second and shipped in the app's assets, or with IS-Net once its model pack is
+ * imported (see [ModelPacks]), finer but much slower. docs/MODELS.md says where they come from.
  */
 object SubjectSegmenter {
     private const val PARAM = "models/u2netp.ncnn.param"
     private const val MODEL = "models/u2netp.ncnn.bin"
 
+    /** IS-Net sees a 1024 square, with each channel as v / 255 - 0.5. */
+    private const val ISNET_SIZE = 1024
+    private val ISNET_MEAN = floatArrayOf(0.5f, 0.5f, 0.5f)
+    private val ISNET_DEVIATION = floatArrayOf(1f, 1f, 1f)
+
     private val loaded by lazy { runCatching { System.loadLibrary("photograin_ai") }.isSuccess }
     private var handle = 0L
 
+    /** The pack [handle] was loaded from, or null for the bundled model. */
+    private var handlePack: ModelPack? = null
+    private var size = SubjectMask.MODEL_SIZE
+
     val available: Boolean get() = loaded
 
-    /** Loads the model once; later calls reuse it. */
+    /** Loads the best model installed; later calls reuse it until the packs change. */
     @Synchronized
     private fun handle(context: Context): Long {
-        if (handle != 0L) return handle
+        val pack = ModelPack.ISNET.takeIf { ModelPacks.isInstalled(context, it) }
+        if (handle != 0L && pack == handlePack) return handle
         if (!loaded) throw IOException("Subject detection is not available on this device")
-        handle = nativeLoad(context.applicationContext.assets, PARAM, MODEL)
+        if (handle != 0L) nativeFree(handle)
+        handle = 0L
+        if (pack != null) {
+            val param = ModelPacks.file(context, pack, "isnet.ncnn.param") ?: throw IOException("The model pack is gone")
+            val model = ModelPacks.file(context, pack, "isnet.ncnn.bin") ?: throw IOException("The model pack is gone")
+            handle = nativeLoadFile(param.path, model.path, ISNET_SIZE, ISNET_MEAN, ISNET_DEVIATION)
+            size = ISNET_SIZE
+        } else {
+            handle = nativeLoad(context.applicationContext.assets, PARAM, MODEL)
+            size = SubjectMask.MODEL_SIZE
+        }
+        handlePack = pack
         return handle
     }
 
@@ -49,12 +71,12 @@ object SubjectSegmenter {
         val pixels = IntArray(grid.width * grid.height)
         scaled.getPixels(pixels, 0, grid.width, 0, 0, grid.width, grid.height)
         if (scaled !== image) scaled.recycle()
-        val n = SubjectMask.MODEL_SIZE
+        val n = size
         val input = Bitmap.createBitmap(n, n, Bitmap.Config.ARGB_8888)
         try {
-            input.setPixels(SubjectMask.modelInput(pixels, grid.width, grid.height, base), 0, n, 0, 0, n, n)
+            input.setPixels(SubjectMask.modelInput(pixels, grid.width, grid.height, base, n), 0, n, 0, 0, n, n)
             val raw = nativeRun(h, input) ?: throw IOException("Subject detection failed")
-            return SubjectMask.fromModel(raw, base, grid.width, grid.height)
+            return SubjectMask.fromModel(raw, base, grid.width, grid.height, n)
         } finally {
             input.recycle()
         }
@@ -82,5 +104,7 @@ object SubjectSegmenter {
     }
 
     @JvmStatic private external fun nativeLoad(assets: AssetManager, param: String, model: String): Long
+    @JvmStatic private external fun nativeLoadFile(param: String, model: String, size: Int, mean: FloatArray, deviation: FloatArray): Long
+    @JvmStatic private external fun nativeFree(handle: Long)
     @JvmStatic private external fun nativeRun(handle: Long, input: Bitmap): ByteArray?
 }

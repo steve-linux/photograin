@@ -33,7 +33,7 @@ class SubjectMask(val width: Int, val height: Int, val data: ByteArray) {
     }
 
     companion object {
-        /** The model sees the photo squeezed to this square. */
+        /** The bundled model sees the photo squeezed to this square; a model pack may use another. */
         const val MODEL_SIZE = 320
 
         /**
@@ -46,11 +46,10 @@ class SubjectMask(val width: Int, val height: Int, val data: ByteArray) {
 
         /**
          * The model's input from the [w] x [h] ARGB [pixels] of a photo stored with orientation
-         * [base]: squeezed to [MODEL_SIZE] squared, each value the average of the pixels it
-         * covers, and turned upright, the way the model was trained to see subjects.
+         * [base]: squeezed to [n] squared, each value the average of the pixels it covers,
+         * and turned upright, the way the model was trained to see subjects.
          */
-        fun modelInput(pixels: IntArray, w: Int, h: Int, base: BaseOrientation): IntArray {
-            val n = MODEL_SIZE
+        fun modelInput(pixels: IntArray, w: Int, h: Int, base: BaseOrientation, n: Int = MODEL_SIZE): IntArray {
             val stored = IntArray(n * n)
             for (ty in 0 until n) {
                 val y0 = ty * h / n
@@ -72,18 +71,17 @@ class SubjectMask(val width: Int, val height: Int, val data: ByteArray) {
                         ((g + count / 2) / count shl 8) or ((b + count / 2) / count)
                 }
             }
-            val upright = uprightToStored(base)
+            val upright = uprightToStored(base, n)
             return IntArray(n * n) { stored[upright[it]] }
         }
 
         /**
          * The mask for a source whose [BrushRaster] grid is [width] x [height], from the
-         * model's upright output [raw] ([MODEL_SIZE] squared bytes) for orientation [base].
+         * model's upright output [raw] ([n] squared bytes) for orientation [base].
          */
-        fun fromModel(raw: ByteArray, base: BaseOrientation, width: Int, height: Int): SubjectMask {
-            val n = MODEL_SIZE
+        fun fromModel(raw: ByteArray, base: BaseOrientation, width: Int, height: Int, n: Int = MODEL_SIZE): SubjectMask {
             require(raw.size == n * n) { "Expected ${n * n} model values, got ${raw.size}" }
-            val upright = uprightToStored(base)
+            val upright = uprightToStored(base, n)
             val stored = FloatArray(n * n)
             for (i in 0 until n * n) stored[upright[i]] = (raw[i].toInt() and 0xFF) / 255f
             val out = ByteArray(width * height)
@@ -105,8 +103,7 @@ class SubjectMask(val width: Int, val height: Int, val data: ByteArray) {
          * as stored. Upright is the stored image mirrored if [BaseOrientation.mirror], then
          * turned clockwise [BaseOrientation.quarterTurns] times.
          */
-        fun uprightToStored(base: BaseOrientation): IntArray {
-            val n = MODEL_SIZE
+        fun uprightToStored(base: BaseOrientation, n: Int = MODEL_SIZE): IntArray {
             val turns = base.quarterTurns.mod(4)
             return IntArray(n * n) { i ->
                 var x = i % n

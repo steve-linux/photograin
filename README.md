@@ -42,7 +42,9 @@ Editor fotografico non distruttivo per Android, libero (GPL-3.0-or-later) e pens
   e si rifinisce col pennello; con un tocco sulla foto seleziona invece l'oggetto toccato
   ([MobileSAM](https://github.com/ChaoningZhang/MobileSAM)). Serve per regolare solo il soggetto o solo lo sfondo, oppure per
   rimuovere lo sfondo: trasparente (PNG, WebP) o a tinta unita. Funziona anche nell'elaborazione
-  in serie, dove ogni foto trova il proprio soggetto. Nessuna connessione.
+  in serie, dove ogni foto trova il proprio soggetto. Nessuna connessione. Per bordi più fini si
+  può importare dalle Impostazioni il pacchetto [IS-Net](https://github.com/xuebinqin/DIS) (88 MB),
+  scaricato col browser dalle [release](https://github.com/steve-linux/photograin/releases/tag/models-1).
 - **Rimozione oggetti con l'IA**: nel Ritocco, il pennello "Rimuovi" cancella persone, cavi o
   scritte dipingendoci sopra; [MI-GAN](https://github.com/Picsart-AI-Research/MI-GAN), eseguito
   da ncnn sul telefono, ricostruisce lo sfondo. Le pennellate restano nella ricetta e si ricalcolano
@@ -105,5 +107,5 @@ compatibile con la GPL-3.0.
 libjxl (con highway, brotli e skcms), libavif e libaom sono BSD, compatibili con la GPL-3.0.
 ncnn (BSD-3-Clause) con glslang (licenze BSD/MIT/Apache-2.0), il modello Real-ESRGAN (BSD-3-Clause)
 il modello U²-Net (Apache-2.0), il modello MI-GAN (MIT) e il modello MobileSAM (Apache-2.0) sono
-compatibili con la GPL-3.0.
+compatibili con la GPL-3.0, come il pacchetto facoltativo IS-Net (Apache-2.0).
 Nessuna dipendenza da Google Play Services o servizi proprietari.

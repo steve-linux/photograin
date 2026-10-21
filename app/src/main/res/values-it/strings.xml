@@ -167,6 +167,18 @@
     <string name="settings_language_hint">Apre le impostazioni di sistema della lingua di Photograin</string>
     <string name="settings_show_tips">Mostra di nuovo i suggerimenti</string>
     <string name="settings_show_tips_done">Compariranno nella schermata iniziale</string>
+    <string name="settings_models">Modelli IA</string>
+    <string name="settings_models_hint">Modelli più grandi e precisi, da scaricare a parte così l\'app resta leggera e non va mai in rete: scarica un pacchetto col browser, poi importa qui il file.</string>
+    <string name="settings_models_download">Scarica i pacchetti di modelli</string>
+    <string name="settings_model_isnet">Scontorno preciso (IS-Net)</string>
+    <string name="settings_model_isnet_desc">Bordi più fini su capelli e pelo per la maschera Soggetto e Rimuovi sfondo. Più lento: fino a mezzo minuto per foto. %1$s</string>
+    <string name="settings_model_installed">Installato, in uso</string>
+    <string name="settings_model_import">Importa file…</string>
+    <string name="settings_model_remove">Rimuovi</string>
+    <string name="settings_model_importing">Importo il modello…</string>
+    <string name="settings_model_imported">Modello importato</string>
+    <string name="settings_model_unknown">Questo file non è un pacchetto di modelli di Photograin</string>
+    <string name="settings_model_failed">Impossibile importare il modello</string>
     <string name="settings_about">Informazioni</string>
     <string name="settings_version">Versione %1$s</string>
     <string name="settings_license">Licenza</string>
@@ -204,7 +216,7 @@
     <string name="guide_export_title">Salva la foto</string>
     <string name="guide_export_body">Tocca {icon} per salvare una copia. Scegli formato, qualità e dimensione (TIFF conserva 16 bit per colore): puoi anche ingrandire la foto 2× o 4×, con l\'IA per recuperare i dettagli. Il profilo colore sRGB va bene per condividere; Display P3 e Adobe RGB conservano più colori per la stampa. Sotto i dati di scatto scegli cosa accompagna la foto: data, fotocamera, impostazioni, autore, posizione (esclusa di base). Informazioni foto nel menu ⋮ mostra cosa contiene l\'originale.</string>
     <string name="guide_settings_title">Impostazioni</string>
-    <string name="guide_settings_body">Con {icon} scegli dove salvare (per iniziare in Immagini/Photograin), come chiamare i file, il formato predefinito, se togliere la posizione GPS e il tema chiaro o scuro.</string>
+    <string name="guide_settings_body">Con {icon} scegli dove salvare (per iniziare in Immagini/Photograin), come chiamare i file, il formato predefinito, se togliere la posizione GPS e il tema chiaro o scuro. In Modelli IA puoi importare modelli più grandi, come uno scontorno più preciso, scaricati a parte col browser.</string>
     <string name="tool_local">Ritocco</string>
     <string name="local_add_linear">Lineare</string>
     <string name="local_add_radial">Circolare</string>
