@@ -64,6 +64,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import io.github.steve_linux.photograin.R
 import io.github.steve_linux.photograin.data.ImageLoader
+import io.github.steve_linux.photograin.ui.editor.QuickAction
+import io.github.steve_linux.photograin.ui.editor.QuickActionsCard
 import io.github.steve_linux.photograin.ui.guide.GuideEntry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -74,6 +76,7 @@ fun HomeScreen(
     recents: List<Uri>,
     onOpenPicker: () -> Unit,
     onOpen: (Uri) -> Unit,
+    onQuickAction: (QuickAction) -> Unit,
     onBatch: () -> Unit,
     showTip: Boolean,
     onDismissTip: () -> Unit,
@@ -134,6 +137,8 @@ fun HomeScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.height(24.dp))
+                QuickActionsCard(onQuickAction)
+                Spacer(Modifier.height(12.dp))
                 GuideEntry(onGuide)
                 if (showTip) {
                     Spacer(Modifier.height(12.dp))
@@ -148,6 +153,7 @@ fun HomeScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxSize().padding(padding),
             ) {
+                item(span = { GridItemSpan(maxLineSpan) }) { QuickActionsCard(onQuickAction) }
                 item(span = { GridItemSpan(maxLineSpan) }) { GuideEntry(onGuide) }
                 if (showTip) {
                     item(span = { GridItemSpan(maxLineSpan) }) { PresetTip(onDismissTip) }

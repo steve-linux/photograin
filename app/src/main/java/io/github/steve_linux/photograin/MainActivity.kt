@@ -24,6 +24,7 @@ import io.github.steve_linux.photograin.ui.batch.BatchScreen
 import io.github.steve_linux.photograin.ui.batch.BatchViewModel
 import io.github.steve_linux.photograin.ui.editor.EditorScreen
 import io.github.steve_linux.photograin.ui.editor.EditorViewModel
+import io.github.steve_linux.photograin.ui.editor.QuickAction
 import io.github.steve_linux.photograin.ui.guide.GuideScreen
 import io.github.steve_linux.photograin.ui.home.HomeScreen
 import io.github.steve_linux.photograin.ui.settings.SettingsScreen
@@ -51,8 +52,11 @@ class MainActivity : ComponentActivity() {
                 var showSettings by rememberSaveable { mutableStateOf(false) }
                 var showGuide by rememberSaveable { mutableStateOf(false) }
                 var guideFocus by rememberSaveable { mutableStateOf<Int?>(null) }
+                // A quick action picked on the home screen waits here for its photo.
+                var pickedAction by rememberSaveable { mutableStateOf<QuickAction?>(null) }
                 val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-                    uri?.let(editor::open)
+                    uri?.let { editor.open(it, pickedAction) }
+                    pickedAction = null
                 }
                 val multiPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
                     if (uris.isNotEmpty()) batch.start(uris)
@@ -88,7 +92,11 @@ class MainActivity : ComponentActivity() {
                     HomeScreen(
                         recents = recents,
                         onOpenPicker = { picker.launch(OPEN_TYPES) },
-                        onOpen = editor::open,
+                        onOpen = { editor.open(it) },
+                        onQuickAction = { action ->
+                            pickedAction = action
+                            picker.launch(OPEN_TYPES)
+                        },
                         onBatch = { multiPicker.launch(OPEN_TYPES) },
                         showTip = showTip,
                         onDismissTip = {

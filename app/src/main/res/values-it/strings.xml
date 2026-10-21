@@ -184,6 +184,11 @@
     <string name="export_upscale_ai_hint">Una rete neurale addestrata sulle foto ricostruisce dettagli plausibili e toglie il rumore di compressione. Molto più lenta; ideale per foto piccole o vecchie.</string>
     <string name="guide_entry_title">Sfrutta al massimo Photograin</string>
     <string name="guide_entry_body">Una guida breve a tutte le funzioni</string>
+    <string name="quick_title">Strumenti IA</string>
+    <string name="quick_body">Scegli cosa fare, poi la foto.</string>
+    <string name="quick_remove_background">Rimuovi sfondo</string>
+    <string name="quick_remove_object">Cancella oggetto</string>
+    <string name="quick_enhance">Migliora qualità</string>
     <string name="guide_title">Guida</string>
     <string name="guide_open_title">Apri una foto</string>
     <string name="guide_open_body">Tocca «Apri foto» oppure condividi una foto con Photograin da un\'altra app. Funziona con JPEG, PNG, WebP, HEIC, AVIF, JPEG XL e con i file RAW delle fotocamere. L\'originale non viene mai modificato: le modifiche si salvano da sole e le ritrovi riaprendo la foto dalle recenti.</string>
