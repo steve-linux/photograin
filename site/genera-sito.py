@@ -12,10 +12,11 @@ BASE = pathlib.Path(__file__).resolve().parent
 OUT = BASE / "website"
 SITE = "https://photograin.netlify.app"
 REPO = "https://github.com/steve-linux/photograin"
-RELEASE = REPO + "/releases/latest"
 # La versione è quella dell'app (versionName in app/build.gradle.kts), così il sito non resta indietro
 VERSION = re.search(r'versionName\s*=\s*"([^"]+)"',
                     (BASE.parent / "app" / "build.gradle.kts").read_text(encoding="utf-8")).group(1)
+# Non /releases/latest: anche le release dei modelli IA (models-N) diventano «latest»
+RELEASE = REPO + "/releases/tag/v" + VERSION
 PKG = "io.github.steve_linux.photograin"
 NB = "F&#8209;Droid"  # trattino che non va a capo
 FDROID = False  # True quando l'app è pubblicata su F-Droid
@@ -23,21 +24,21 @@ FDROID = False  # True quando l'app è pubblicata su F-Droid
 IT = {
     "lang": "it", "og_locale": "it_IT", "og_alt": "en_GB", "root": "", "shots": "img/it/", "img": "img/",
     "title": "Photograin – Editor fotografico libero per Android, non distruttivo, con RAW e anteprima in tempo reale",
-    "desc": "Photograin è un editor fotografico libero e gratuito per Android: regolazioni in tempo reale sulla GPU, file RAW, maschere, ritocco, prospettiva ed esportazione in JPEG XL, AVIF e TIFF a 16 bit. Nessun permesso, nessuna pubblicità.",
+    "desc": "Photograin è un editor fotografico libero e gratuito per Android: regolazioni in tempo reale sulla GPU, file RAW, IA sul telefono per togliere lo sfondo e cancellare oggetti, maschere, ritocco ed esportazione in JPEG XL, AVIF e TIFF a 16 bit. Nessun permesso, nessuna pubblicità.",
     "og_title": "Photograin – Editor fotografico libero per Android",
-    "og_desc": "Regolazioni in tempo reale sulla GPU, RAW, maschere, ritocco ed esportazione a piena qualità. Software libero GPL-3.0, senza permessi né pubblicità.",
+    "og_desc": "Regolazioni in tempo reale sulla GPU, RAW, IA sul telefono per sfondi e oggetti, maschere ed esportazione a piena qualità. Software libero GPL-3.0, senza permessi né pubblicità.",
     "og_img": "og-it.jpg",
     "menu_open": "Apri il menu", "menu_close": "Chiudi il menu", "lang_label": "Lingua", "close": "Chiudi", "details": "Dettagli",
-    "nav_features": "Funzionalità", "nav_tools": "Strumenti", "nav_export": "Esportazione", "nav_gallery": "Galleria", "nav_download": "Scarica",
+    "nav_features": "Funzionalità", "nav_ai": "IA", "nav_tools": "Strumenti", "nav_export": "Esportazione", "nav_gallery": "Galleria", "nav_download": "Scarica",
     "badge": "Libero e gratuito · licenza GPL-3.0",
     "h1": "Le tue foto, <em>sviluppate come si deve.</em>",
-    "lead": "Photograin è un editor fotografico per Android pensato per chi fotografa: ogni regolazione si vede subito grazie alla GPU, i file RAW si sviluppano direttamente sul telefono e l'originale non viene mai toccato.",
+    "lead": "Photograin è un editor fotografico per Android pensato per chi fotografa: ogni regolazione si vede subito grazie alla GPU, i file RAW si sviluppano direttamente sul telefono, l'IA toglie sfondi e oggetti senza mandare nulla in rete e l'originale non viene mai toccato.",
     "cta_get": "Scarica l'app", "cta_more": "Scopri le funzioni",
     "fact1": "Nessun permesso", "fact2": "Funziona senza internet", "fact3": "Niente pubblicità né tracciamento",
     "hero_alt": "Editor di Photograin con una foto di un lago e i cursori di esposizione, contrasto e luci",
     "feat_eyebrow": "Funzionalità", "feat_h2": "Uno studio fotografico in tasca",
     "feat_p": "Gli strumenti di un programma da computer, con comandi pensati per le dita.",
-    "c1_h": "Non distruttivo", "c1_p": "Le modifiche sono una «ricetta» salvata a parte: riapri la foto quando vuoi e continui da dove eri, con annulla e ripeti illimitati.",
+    "c1_h": "Non distruttivo, con versioni", "c1_p": "Le modifiche sono una «ricetta» salvata a parte, con annulla e ripeti illimitati. Tieni più versioni della stessa foto e confrontale a schermo intero, come nella camera oscura di Darktable.",
     "c2_h": "Anteprima in tempo reale", "c2_p": "Luce, curve, colore, HSL, nitidezza, chiarezza, foschia, riduzione del rumore, vignettatura e grana: tutto calcolato sulla GPU mentre muovi il cursore.",
     "c3_h": "RAW e colori ampi", "c3_p": "DNG, CR2, CR3, NEF, ARW, RAF, ORF, RW2 e altri, sviluppati con LibRaw a 16 bit per canale. Le foto Display P3 e Adobe RGB conservano i colori più saturi.",
     "c4_h": "Stili e LUT", "c4_p": "Preset pronti con intensità regolabile, i tuoi preset personali e l'importazione di LUT .cube da altri programmi.",
@@ -64,12 +65,24 @@ IT = {
     "d5_title": "Maschere locali",
     "d5_intro": "In Ritocco, con Maschere regoli solo una parte della foto, con tutti i cursori di luce, colore e dettaglio.",
     "d5_list": [
+        ("Soggetto:", "l'IA trova il soggetto principale; tocca un altro oggetto sulla foto per selezionare quello."),
         ("Lineare:", "scurisce un cielo troppo chiaro o schiarisce il primo piano."),
         ("Circolare:", "fa risaltare un soggetto o crea una vignettatura su misura."),
-        ("Pennello:", "dipingi la zona con un dito; Cancella corregge le sbavature, con due dita ingrandisci."),
+        ("Pennello e lazo:", "dipingi la zona con un dito o tracciane il contorno; Cancella corregge le sbavature, con due dita ingrandisci."),
         ("Intervallo:", "limita la maschera alle parti chiare, scure o a un colore scelto toccando la foto."),
     ],
     "d5_note": "Mostra maschera evidenzia dove agisce la regolazione; Inverti la applica a tutto il resto.",
+    "ai_eyebrow": "Intelligenza artificiale", "ai_h2": "L'IA lavora sul telefono, non nel cloud",
+    "ai_p": "Gli strumenti più richiesti sono a un tocco, dalla schermata iniziale o dall'editor. I modelli sono dentro l'app e la foto non lascia mai il telefono.",
+    "ai1_h": "Rimuovi sfondo", "ai1_p": "Isola il soggetto e lascia lo sfondo trasparente o di un colore a scelta. PNG e WebP conservano la trasparenza.",
+    "ai2_h": "Cancella oggetto", "ai2_p": "Dipingi sopra una persona, un cartello o un'auto: l'IA ricostruisce lo sfondo al suo posto.",
+    "ai3_h": "Seleziona con un tocco", "ai3_p": "Su una maschera Soggetto tocchi un oggetto e viene selezionato da solo, pronto da regolare o ritagliare.",
+    "ai4_h": "Migliora qualità", "ai4_p": "Ingrandisce 2× o 4× ricostruendo i dettagli e toglie il rumore di compressione: ideale per foto piccole o vecchie.",
+    "ai_note": "Vuoi bordi più fini su capelli e pelo? In Impostazioni › Modelli IA puoi importare IS-Net, uno scontorno più preciso: lo scarichi col browser dalla <a href=\"https://github.com/steve-linux/photograin/releases/tag/models-1\" rel=\"noopener\">pagina dei modelli</a>, perché l'app non si collega a internet.",
+    "ai_models": "Modelli: U²-Net-p, MI-GAN, MobileSAM, Real-ESRGAN, tutti con licenze libere.",
+    "g_ia_sfondo": "Rimuovi sfondo", "g_ia_sfondo_alt": "Soggetto isolato con lo sfondo rimosso",
+    "g_ia_oggetto": "Cancella oggetto", "g_ia_oggetto_alt": "Pennello Rimuovi su un oggetto da cancellare",
+    "g_versioni": "Versioni", "g_versioni_alt": "Versioni della stessa foto a schermo intero",
     "crop_eyebrow": "Ritaglio e prospettiva", "crop_h2": "Linee dritte, anche quando non lo erano",
     "crop_p": "Formati predefiniti, rotazione e specchio, raddrizzamento a mano o automatico dalle linee della foto. Con la prospettiva raddrizzi palazzi che pendono e squadri un quadro, un documento o un'insegna fotografati di sbieco.",
     "crop_c1": "Raddrizza automaticamente", "crop_c1s": "Livella l'orizzonte leggendo le linee della foto.",
@@ -81,9 +94,10 @@ IT = {
     "ret_c1": "Correttivo", "ret_c1s": "Fonde la zona copiata con quella intorno.",
     "ret_c2": "Clona", "ret_c2s": "Una copia esatta, quando serve precisione.",
     "ret_c3": "Occhi rossi", "ret_c3s": "Un tocco per pupilla: il cerchio si adatta al rosso da solo.",
+    "ret_c4": "Rimuovi con l'IA", "ret_c4s": "Per una persona o un cartello: dipingici sopra e l'IA riempie la zona.",
     "ret_alt": "Correttivo su una ninfea: un cerchio sulla macchia e un cerchio tratteggiato sulla zona da cui viene copiata",
     "cmp_h3": "Prima e dopo, a colpo d'occhio",
-    "cmp_p": "Trascina la linea per confrontare l'originale con la versione modificata, oppure tieni premuto sulla foto.",
+    "cmp_p": "Trascina la linea per confrontare l'originale con la versione modificata, oppure tieni premuto sulla foto. Nella schermata iniziale vedi originali e modifiche affiancati.",
     "cmp_alt": "Vista divisa su un mercato: a sinistra la foto originale, a destra la stessa foto con la LUT Teal Orange",
     "exp_eyebrow": "Esportazione", "exp_h2": "Piena qualità, nei formati di oggi",
     "exp_p": "Le foto vengono elaborate a tasselli alla massima risoluzione, anche oltre il limite della GPU. Scegli formato, qualità, dimensione e profilo colore, e decidi quali dati di scatto tenere: la posizione è esclusa per impostazione predefinita.",
@@ -93,7 +107,7 @@ IT = {
     "exp_alt": "Finestra di esportazione con i formati JPEG, PNG, WebP, AVIF, JPEG XL e TIFF, qualità e profilo colore",
     "gal_eyebrow": "Galleria", "gal_h2": "L'app in azione",
     "gal_p": "Material You con tema chiaro, scuro o di sistema. Tocca un'immagine per ingrandirla.",
-    "g_home": "Foto recenti", "g_home_alt": "Schermata iniziale con le foto recenti e i pulsanti Apri e In serie",
+    "g_home": "Foto recenti", "g_home_alt": "Schermata iniziale con le foto recenti",
     "g_luce": "Luce", "g_luce_alt": "Pannello Luce con i cursori di esposizione, contrasto e luci",
     "g_confronto": "Confronto", "g_confronto_alt": "Vista divisa prima/dopo con uno stile LUT",
     "g_prospettiva": "Prospettiva", "g_prospettiva_alt": "Prospettiva a 4 punti su una fila di negozi",
@@ -114,7 +128,7 @@ IT = {
     "req_sys": "Sistema", "req_sys_v": "Android 8.0 o successivo",
     "req_ver": "Versione", "req_lic": "Licenza", "req_lic_v": "GNU GPL v3 o successiva",
     "chk1": "Nessun permesso", "chk1s": "Le foto si aprono e si salvano con le finestre di sistema.",
-    "chk2": "Nessun accesso a internet", "chk2s": "Anche l'IA per l'ingrandimento gira sul telefono.",
+    "chk2": "Nessun accesso a internet", "chk2s": "Tutta l'IA gira sul telefono, con i modelli inclusi nell'app.",
     "chk3": "Nessun servizio Google", "chk3s": "Solo componenti liberi: LibRaw, libjxl, libavif, libaom, ncnn.",
     "src": "Codice sorgente su GitHub",
     "foot_lic": "Distribuito con licenza", "foot_src": "Codice sorgente", "foot_issue": "Segnala un problema",
@@ -124,21 +138,21 @@ IT = {
 EN = {
     "lang": "en", "og_locale": "en_GB", "og_alt": "it_IT", "root": "../", "shots": "../img/en/", "img": "../img/",
     "title": "Photograin – Free, non-destructive photo editor for Android with RAW and real-time preview",
-    "desc": "Photograin is a free and open source photo editor for Android: real-time GPU adjustments, RAW files, masks, retouching, perspective and export to JPEG XL, AVIF and 16-bit TIFF. No permissions, no ads.",
+    "desc": "Photograin is a free and open source photo editor for Android: real-time GPU adjustments, RAW files, on-device AI to remove backgrounds and erase objects, masks, retouching and export to JPEG XL, AVIF and 16-bit TIFF. No permissions, no ads.",
     "og_title": "Photograin – Free photo editor for Android",
-    "og_desc": "Real-time GPU adjustments, RAW, masks, retouching and full-quality export. Free software under GPL-3.0, with no permissions and no ads.",
+    "og_desc": "Real-time GPU adjustments, RAW, on-device AI for backgrounds and objects, masks and full-quality export. Free software under GPL-3.0, with no permissions and no ads.",
     "og_img": "og-en.jpg",
     "menu_open": "Open menu", "menu_close": "Close menu", "lang_label": "Language", "close": "Close", "details": "Details",
-    "nav_features": "Features", "nav_tools": "Tools", "nav_export": "Export", "nav_gallery": "Gallery", "nav_download": "Download",
+    "nav_features": "Features", "nav_ai": "AI", "nav_tools": "Tools", "nav_export": "Export", "nav_gallery": "Gallery", "nav_download": "Download",
     "badge": "Free and open source · GPL-3.0 license",
     "h1": "Your photos, <em>developed properly.</em>",
-    "lead": "Photograin is a photo editor for Android built for photographers: every adjustment shows up instantly thanks to the GPU, RAW files are developed right on your phone, and your original is never touched.",
+    "lead": "Photograin is a photo editor for Android built for photographers: every adjustment shows up instantly thanks to the GPU, RAW files are developed right on your phone, AI removes backgrounds and objects without sending anything online, and your original is never touched.",
     "cta_get": "Get the app", "cta_more": "See the features",
     "fact1": "No permissions", "fact2": "Works offline", "fact3": "No ads, no tracking",
     "hero_alt": "Photograin editor with a lake photo and the exposure, contrast and highlights sliders",
     "feat_eyebrow": "Features", "feat_h2": "A photo studio in your pocket",
     "feat_p": "The tools of a desktop editor, with controls made for fingers.",
-    "c1_h": "Non-destructive", "c1_p": "Edits are a recipe saved separately: reopen a photo any time and pick up where you left off, with unlimited undo and redo.",
+    "c1_h": "Non-destructive, with versions", "c1_p": "Edits are a recipe saved separately, with unlimited undo and redo. Keep several versions of the same photo and compare them full screen, like Darktable's darkroom.",
     "c2_h": "Real-time preview", "c2_p": "Light, curves, color, HSL, sharpening, clarity, dehaze, noise reduction, vignette and grain: all computed on the GPU as you move the slider.",
     "c3_h": "RAW and wide color", "c3_p": "DNG, CR2, CR3, NEF, ARW, RAF, ORF, RW2 and more, developed with LibRaw at 16 bits per channel. Display P3 and Adobe RGB photos keep their most saturated colors.",
     "c4_h": "Styles and LUTs", "c4_p": "Ready-made presets with adjustable strength, your own presets, and .cube LUTs imported from other apps.",
@@ -165,12 +179,24 @@ EN = {
     "d5_title": "Local masks",
     "d5_intro": "In Retouch, Masks let you adjust just part of the photo, with every light, color and detail slider.",
     "d5_list": [
+        ("Subject:", "AI finds the main subject; tap another object in the photo to select that one instead."),
         ("Linear:", "darken a sky that is too bright or lift the foreground."),
         ("Radial:", "make a subject stand out or build a custom vignette."),
-        ("Brush:", "paint the area with a finger; Erase fixes overspill, pinch to zoom."),
+        ("Brush and lasso:", "paint the area with a finger or trace its outline; Erase fixes overspill, pinch to zoom."),
         ("Range:", "limit the mask to bright or dark areas, or to a color picked by tapping the photo."),
     ],
     "d5_note": "Show mask highlights where the adjustment applies; Invert applies it to everything else.",
+    "ai_eyebrow": "Artificial intelligence", "ai_h2": "AI that runs on your phone, not in the cloud",
+    "ai_p": "The most wanted tools are one tap away, from the home screen or the editor. The models live inside the app and your photo never leaves the phone.",
+    "ai1_h": "Remove background", "ai1_p": "Isolates the subject and makes the background transparent or a color you pick. PNG and WebP keep the transparency.",
+    "ai2_h": "Erase objects", "ai2_p": "Paint over a person, a sign or a car: AI rebuilds the background in its place.",
+    "ai3_h": "Select with a tap", "ai3_p": "On a Subject mask, tap an object and it gets selected by itself, ready to adjust or cut out.",
+    "ai4_h": "Improve quality", "ai4_p": "Upscales 2× or 4× while rebuilding detail and removing compression noise: ideal for small or old photos.",
+    "ai_note": "Want finer edges on hair and fur? In Settings › AI models you can import IS-Net, a more precise cutout model: download it with your browser from the <a href=\"https://github.com/steve-linux/photograin/releases/tag/models-1\" rel=\"noopener\">models page</a>, since the app never connects to the internet.",
+    "ai_models": "Models: U²-Net-p, MI-GAN, MobileSAM, Real-ESRGAN, all under free licenses.",
+    "g_ia_sfondo": "Remove background", "g_ia_sfondo_alt": "Subject isolated with the background removed",
+    "g_ia_oggetto": "Erase objects", "g_ia_oggetto_alt": "Remove brush over an object to erase",
+    "g_versioni": "Versions", "g_versioni_alt": "Versions of the same photo full screen",
     "crop_eyebrow": "Crop and perspective", "crop_h2": "Straight lines, even when they weren't",
     "crop_p": "Aspect ratio presets, rotate and flip, straighten by hand or automatically from the lines in the photo. Perspective correction fixes leaning buildings and squares up a painting, a document or a sign shot at an angle.",
     "crop_c1": "Auto straighten", "crop_c1s": "Levels the horizon by reading the lines in the photo.",
@@ -182,9 +208,10 @@ EN = {
     "ret_c1": "Heal", "ret_c1s": "Blends the copied area into its surroundings.",
     "ret_c2": "Clone", "ret_c2s": "An exact copy, when you need precision.",
     "ret_c3": "Red eye", "ret_c3s": "One tap per pupil: the circle fits the red by itself.",
+    "ret_c4": "Remove with AI", "ret_c4s": "For a person or a sign: paint over it and AI fills the area.",
     "ret_alt": "Heal on a water lily: a circle on the spot and a dashed circle on the area it copies from",
     "cmp_h3": "Before and after, at a glance",
-    "cmp_p": "Drag the line to compare the original with the edited version, or press and hold the photo.",
+    "cmp_p": "Drag the line to compare the original with the edited version, or press and hold the photo. The home screen shows originals and edits side by side.",
     "cmp_alt": "Split view of a market: the original photo on the left, the same photo with the Teal Orange LUT on the right",
     "exp_eyebrow": "Export", "exp_h2": "Full quality, in today's formats",
     "exp_p": "Photos are rendered tile by tile at full resolution, even beyond the GPU's limit. Choose format, quality, size and color profile, and decide which shooting data to keep: location is removed by default.",
@@ -194,7 +221,7 @@ EN = {
     "exp_alt": "Export dialog with JPEG, PNG, WebP, AVIF, JPEG XL and TIFF formats, quality and color profile",
     "gal_eyebrow": "Gallery", "gal_h2": "The app in action",
     "gal_p": "Material You with light, dark or system theme. Tap an image to enlarge it.",
-    "g_home": "Recent photos", "g_home_alt": "Home screen with recent photos and the Open and Batch buttons",
+    "g_home": "Recent photos", "g_home_alt": "Home screen with recent photos",
     "g_luce": "Light", "g_luce_alt": "Light panel with exposure, contrast and highlights sliders",
     "g_confronto": "Compare", "g_confronto_alt": "Before/after split view with a LUT style",
     "g_prospettiva": "Perspective", "g_prospettiva_alt": "4-point perspective on a row of shops",
@@ -215,7 +242,7 @@ EN = {
     "req_sys": "System", "req_sys_v": "Android 8.0 or later",
     "req_ver": "Version", "req_lic": "License", "req_lic_v": "GNU GPL v3 or later",
     "chk1": "No permissions", "chk1s": "Photos are opened and saved through the system dialogs.",
-    "chk2": "No internet access", "chk2s": "Even the AI upscaler runs on the phone.",
+    "chk2": "No internet access", "chk2s": "All the AI runs on the phone, with the models built into the app.",
     "chk3": "No Google services", "chk3s": "Only free components: LibRaw, libjxl, libavif, libaom, ncnn.",
     "src": "Source code on GitHub",
     "foot_lic": "Released under the", "foot_src": "Source code", "foot_issue": "Report a problem",
@@ -318,6 +345,12 @@ h3{font-size:1.22rem;font-weight:800;letter-spacing:-.01em}
 .split{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center}
 .split + .split{margin-top:88px}
 @media (max-width:900px){.split{grid-template-columns:1fr;gap:36px}.split .media{order:-1}}
+.cards.four{grid-template-columns:repeat(4,1fr)}
+@media (max-width:1060px){.cards.four{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:600px){.cards.four{grid-template-columns:1fr}}
+.ai-note{max-width:52em;margin:32px auto 0;text-align:center;color:var(--muted)}
+.ai-note a{color:var(--acc)}
+.ai-note small{display:block;color:var(--dim);margin-top:8px}
 .split p{color:var(--muted);font-size:1.05rem;margin:14px 0 22px}
 .checks{list-style:none;display:grid;gap:10px;margin-top:6px}
 .checks li{display:flex;gap:10px;align-items:flex-start;color:var(--text)}
@@ -329,7 +362,7 @@ h3{font-size:1.22rem;font-weight:800;letter-spacing:-.01em}
 .link:hover{border-color:var(--acc);color:var(--acc)}
 
 /* Galleria */
-.gallery{display:grid;grid-template-columns:repeat(6,1fr);gap:18px;list-style:none}
+.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:18px;list-style:none}
 @media (max-width:1060px){.gallery{grid-template-columns:repeat(3,1fr)}}
 @media (max-width:640px){.gallery{grid-template-columns:repeat(2,1fr);gap:12px}}
 .shot{all:unset;cursor:zoom-in;display:block;width:100%}
@@ -396,6 +429,10 @@ ICONS = r"""
   <symbol id="i-lock" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
   <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></symbol>
   <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></symbol>
+  <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></symbol>
+  <symbol id="i-eraser" viewBox="0 0 24 24"><path d="M20 20H9l-5-5a2 2 0 0 1 0-2.8L13.2 3a2 2 0 0 1 2.8 0L21 8a2 2 0 0 1 0 2.8L12 20"/><line x1="7" y1="10" x2="14" y2="17"/></symbol>
+  <symbol id="i-pointer" viewBox="0 0 24 24"><path d="M9 11V4.5a1.5 1.5 0 0 1 3 0V10m0-1.5a1.5 1.5 0 0 1 3 0V11m0-1a1.5 1.5 0 0 1 3 0v5a7 7 0 0 1-7 7h-.5a7 7 0 0 1-5.6-2.8L4 16.5a1.6 1.6 0 0 1 2.4-2L9 17"/></symbol>
+  <symbol id="i-zoom" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16" y2="16"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></symbol>
   <symbol id="i-x" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
   <symbol id="i-menu" viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></symbol>
   <symbol id="i-right" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></symbol>
@@ -426,6 +463,19 @@ def checks(t, keys):
     return "\n".join(
         f'          <li><svg class="icon"><use href="#i-check"/></svg><div>{t[k]}<small>{t[k + "s"]}</small></div></li>'
         for k in keys)
+
+
+GALLERY = ("home", "ia_sfondo", "ia_oggetto", "luce", "confronto", "versioni", "prospettiva", "ritocco", "esporta")
+
+
+def ai_cards(t):
+    cards = (("ai1", "i-sparkle", "--acc"), ("ai2", "i-eraser", "--pink"), ("ai3", "i-pointer", "--blue"), ("ai4", "i-zoom", "--green"))
+    return "\n".join(
+        f"""      <article class="card" style="--accent:var({accent})">
+        <div class="ico"><svg class="icon"><use href="#{icon}"/></svg></div>
+        <h3>{t[k + '_h']}</h3>
+        <p>{t[k + '_p']}</p>
+      </article>""" for k, icon, accent in cards)
 
 
 def download_panel(t):
@@ -468,9 +518,11 @@ def page(t):
 })();
 </script>
 """
+    # Le schermate della 0.3.0 compaiono da sole quando i file ci sono in img/it/ e img/en/
+    shots = [n for n in GALLERY if (BASE / "img" / t["lang"] / f"{n}.jpg").exists()]
     gallery = "\n".join(
         f'      <li><button class="shot"><img src="{s}{n}.jpg" width="540" height="1200" loading="lazy" alt="{esc(t["g_" + n + "_alt"])}"><span>{t["g_" + n]}</span></button></li>'
-        for n in ("home", "luce", "confronto", "prospettiva", "ritocco", "esporta"))
+        for n in shots)
     formats = "".join(f"<li>{f}</li>" for f in ("JPEG", "PNG", "WebP", "AVIF", "JPEG XL", "TIFF 16 bit" if t["lang"] == "it" else "16-bit TIFF"))
 
     return f"""<!DOCTYPE html>
@@ -512,6 +564,7 @@ def page(t):
     <button class="menu-btn" aria-expanded="false" aria-controls="menu" aria-label="{t['menu_open']}" data-label-open="{t['menu_open']}" data-label-close="{t['menu_close']}"><svg class="icon"><use href="#i-menu"/></svg></button>
     <ul class="nav-links" id="menu">
       <li><a href="#features">{t['nav_features']}</a></li>
+      <li><a href="#ai">{t['nav_ai']}</a></li>
       <li><a href="#tools">{t['nav_tools']}</a></li>
       <li><a href="#export">{t['nav_export']}</a></li>
       <li><a href="#gallery">{t['nav_gallery']}</a></li>
@@ -589,7 +642,21 @@ def page(t):
   </div>
 </section>
 
-<section id="tools" class="alt">
+<section id="ai" class="alt">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow">{t['ai_eyebrow']}</div>
+      <h2>{t['ai_h2']}</h2>
+      <p>{t['ai_p']}</p>
+    </div>
+    <div class="cards four">
+{ai_cards(t)}
+    </div>
+    <p class="ai-note">{t['ai_note']}<small>{t['ai_models']}</small></p>
+  </div>
+</section>
+
+<section id="tools">
   <div class="wrap">
     <div class="split">
       <div>
@@ -609,7 +676,7 @@ def page(t):
         <h2>{t['ret_h2']}</h2>
         <p>{t['ret_p']}</p>
         <ul class="checks">
-{checks(t, ("ret_c1", "ret_c2", "ret_c3"))}
+{checks(t, ("ret_c1", "ret_c2", "ret_c3", "ret_c4"))}
         </ul>
         <h3 style="margin-top:36px">{t['cmp_h3']}</h3>
         <p>{t['cmp_p']}</p>
@@ -618,7 +685,7 @@ def page(t):
   </div>
 </section>
 
-<section id="export">
+<section id="export" class="alt">
   <div class="wrap">
     <div class="split">
       <div>
@@ -635,7 +702,7 @@ def page(t):
   </div>
 </section>
 
-<section id="gallery" class="alt">
+<section id="gallery">
   <div class="wrap">
     <div class="head">
       <div class="eyebrow">{t['gal_eyebrow']}</div>
@@ -648,7 +715,7 @@ def page(t):
   </div>
 </section>
 
-<section id="download">
+<section id="download" class="alt">
   <div class="wrap">
     <div class="head">
       <div class="eyebrow">{t['dl_eyebrow']}</div>
