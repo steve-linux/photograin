@@ -77,13 +77,17 @@ class BrushRaster(sourceWidth: Int, sourceHeight: Int) {
     }
 
     private fun extends(new: BrushStroke, old: BrushStroke): Boolean =
-        new.radius == old.radius && new.hardness == old.hardness && new.erase == old.erase &&
+        !new.fill && !old.fill && new.radius == old.radius && new.hardness == old.hardness && new.erase == old.erase &&
             new.points.size >= old.points.size && new.points.subList(0, old.points.size) == old.points
 
     /** Draws the segments of [stroke] that start at point [from] or later. */
     private fun draw(stroke: BrushStroke, from: Int) {
         val count = stroke.pointCount
         if (count == 0) return
+        if (stroke.fill) {
+            fill(stroke)
+            return
+        }
         val r = stroke.radius * scale
         if (count == 1) {
             stamp(px(stroke, 0), py(stroke, 0), r, stroke)
@@ -133,8 +137,72 @@ class BrushRaster(sourceWidth: Int, sourceHeight: Int) {
         }
     }
 
+    /**
+     * Fills the area a lasso stroke outlines (even-odd, so a loop drawn twice stays filled
+     * once). Each texel is covered by [SUBROWS] scanlines with exact horizontal coverage, which
+     * smooths the edge.
+     */
+    private fun fill(stroke: BrushStroke) {
+        val n = stroke.pointCount
+        if (n < 3) return
+        val xs = DoubleArray(n) { px(stroke, it) }
+        val ys = DoubleArray(n) { py(stroke, it) }
+        val y0 = max(0, floor(ys.min()).toInt())
+        val y1 = min(height - 1, ceil(ys.max()).toInt())
+        val coverage = FloatArray(width)
+        val hits = DoubleArray(n)
+        for (y in y0..y1) {
+            coverage.fill(0f)
+            var touched = false
+            for (sub in 0 until SUBROWS) {
+                val sy = y + (sub + 0.5) / SUBROWS
+                var count = 0
+                for (i in 0 until n) {
+                    val j = (i + 1) % n
+                    val ay = ys[i]
+                    val by = ys[j]
+                    if ((ay <= sy) == (by <= sy)) continue
+                    hits[count++] = xs[i] + (sy - ay) / (by - ay) * (xs[j] - xs[i])
+                }
+                if (count < 2) continue
+                hits.sort(0, count)
+                var k = 0
+                while (k + 1 < count) {
+                    addSpan(coverage, hits[k], hits[k + 1], 1f / SUBROWS)
+                    k += 2
+                }
+                touched = true
+            }
+            if (!touched) continue
+            val row = y * width
+            for (x in 0 until width) {
+                val v = (coverage[x].coerceIn(0f, 1f) * 255).roundToInt()
+                if (v == 0) continue
+                val old = data[row + x].toInt() and 0xFF
+                val new = if (stroke.erase) min(old, 255 - v) else max(old, v)
+                if (new != old) data[row + x] = new.toByte()
+            }
+        }
+    }
+
+    /** Adds [weight] times the part of each texel that the span from [a] to [b] covers. */
+    private fun addSpan(coverage: FloatArray, a: Double, b: Double, weight: Float) {
+        val l = a.coerceIn(0.0, width.toDouble())
+        val r = b.coerceIn(0.0, width.toDouble())
+        if (r <= l) return
+        val first = floor(l).toInt()
+        val last = min(width - 1, ceil(r).toInt() - 1)
+        for (x in first..last) {
+            val covered = min(r, x + 1.0) - max(l, x.toDouble())
+            if (covered > 0) coverage[x] += (covered * weight).toFloat()
+        }
+    }
+
     companion object {
         const val LONG_EDGE = 1024
+
+        /** Scanlines per texel row when filling a lasso. */
+        private const val SUBROWS = 4
 
         /** Grid size for a source of [sourceWidth] x [sourceHeight]. */
         fun size(sourceWidth: Int, sourceHeight: Int): PxSize {

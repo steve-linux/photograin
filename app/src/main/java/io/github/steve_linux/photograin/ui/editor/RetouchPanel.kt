@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AutoFixHigh
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Healing
@@ -20,6 +21,7 @@ import androidx.compose.material.icons.outlined.RemoveRedEye
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -31,13 +33,19 @@ import io.github.steve_linux.photograin.R
 import io.github.steve_linux.photograin.model.RetouchSpot
 import io.github.steve_linux.photograin.model.RetouchType
 
-/** Healing, clone and red eye: the type and size of the next spot, and the selected spot's settings. */
+/**
+ * Healing, clone, red eye and object removal: the type and size of the next spot, and the
+ * selected spot's settings. [canRemove] is false where the inpainting model cannot run;
+ * [removing] while it works.
+ */
 @Composable
 fun RetouchPanel(
     spots: List<RetouchSpot>,
     selected: Int?,
     type: RetouchType,
     size: Float,
+    canRemove: Boolean,
+    removing: Boolean,
     onType: (RetouchType) -> Unit,
     onSize: (Float) -> Unit,
     onSpot: (RetouchSpot) -> Unit,
@@ -80,6 +88,15 @@ fun RetouchPanel(
                     label = { Text(stringResource(R.string.retouch_red_eye)) },
                     leadingIcon = { Icon(Icons.Outlined.RemoveRedEye, contentDescription = null, Modifier.size(18.dp)) },
                 )
+                if (canRemove) {
+                    Spacer(Modifier.size(8.dp))
+                    FilterChip(
+                        selected = current == RetouchType.REMOVE,
+                        onClick = { onType(RetouchType.REMOVE) },
+                        label = { Text(stringResource(R.string.retouch_remove)) },
+                        leadingIcon = { Icon(Icons.Outlined.AutoFixHigh, contentDescription = null, Modifier.size(18.dp)) },
+                    )
+                }
             }
             if (index != null) {
                 IconButton(onClick = { onDelete(index) }) {
@@ -87,11 +104,21 @@ fun RetouchPanel(
                 }
             }
         }
+        if (removing) {
+            Text(
+                stringResource(R.string.retouch_removing),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(vertical = 4.dp),
+            )
+            LinearProgressIndicator(Modifier.fillMaxWidth().padding(bottom = 8.dp))
+        }
         if (spot == null) {
             Text(
                 stringResource(
                     when {
                         type == RetouchType.RED_EYE -> R.string.retouch_hint_red_eye
+                        type == RetouchType.REMOVE -> R.string.retouch_hint_remove
                         spots.isEmpty() -> R.string.retouch_hint_empty
                         else -> R.string.retouch_hint_select
                     },
@@ -110,6 +137,27 @@ fun RetouchPanel(
                 onChangeFinished = {},
                 onReset = { onSize(0.3f) },
             )
+            return@Column
+        }
+        if (spot.type == RetouchType.REMOVE) {
+            // Painted, not a circle: only how strongly it replaces the photo can change.
+            Text(
+                stringResource(R.string.retouch_hint_remove_more),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(vertical = 4.dp),
+            )
+            ParamSlider(
+                label = stringResource(R.string.brush_size),
+                help = helpFor(R.string.brush_size),
+                value = size,
+                range = 0f..1f,
+                display = "${Math.round(size * 100)}",
+                onChange = onSize,
+                onChangeFinished = {},
+                onReset = { onSize(0.3f) },
+            )
+            OpacitySlider(spot, onSpot, onChangeFinished)
             return@Column
         }
         ParamSlider(
@@ -135,20 +183,25 @@ fun RetouchPanel(
                 onChangeFinished()
             },
         )
-        ParamSlider(
-            label = stringResource(R.string.retouch_opacity),
-            help = helpFor(R.string.retouch_opacity),
-            value = spot.opacity,
-            range = 0f..1f,
-            display = "${Math.round(spot.opacity * 100)}",
-            onChange = { onSpot(spot.copy(opacity = it)) },
-            onChangeFinished = onChangeFinished,
-            onReset = {
-                onSpot(spot.copy(opacity = 1f))
-                onChangeFinished()
-            },
-        )
+        OpacitySlider(spot, onSpot, onChangeFinished)
     }
+}
+
+@Composable
+private fun OpacitySlider(spot: RetouchSpot, onSpot: (RetouchSpot) -> Unit, onChangeFinished: () -> Unit) {
+    ParamSlider(
+        label = stringResource(R.string.retouch_opacity),
+        help = helpFor(R.string.retouch_opacity),
+        value = spot.opacity,
+        range = 0f..1f,
+        display = "${Math.round(spot.opacity * 100)}",
+        onChange = { onSpot(spot.copy(opacity = it)) },
+        onChangeFinished = onChangeFinished,
+        onReset = {
+            onSpot(spot.copy(opacity = 1f))
+            onChangeFinished()
+        },
+    )
 }
 
 /** Radius range of a spot, in source long-edge units. */

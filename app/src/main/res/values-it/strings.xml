@@ -222,6 +222,8 @@
     <string name="local_brush_n">Pennello %1$d</string>
     <string name="brush_paint">Dipingi</string>
     <string name="brush_erase">Cancella</string>
+    <string name="brush_lasso">Lazo</string>
+    <string name="brush_lasso_hint">Traccia il contorno di una zona: quando sollevi il dito si riempie, o si svuota con Cancella. Tocca di nuovo Lazo per tornare al pennello.</string>
     <string name="brush_size">Dimensione pennello</string>
     <string name="brush_hardness">Durezza</string>
     <string name="local_hint_brush">Dipingi sulla foto con un dito; con due dita ingrandisci.</string>
@@ -230,13 +232,17 @@
     <string name="retouch_heal">Correttivo</string>
     <string name="retouch_clone">Clona</string>
     <string name="retouch_red_eye">Occhi rossi</string>
+    <string name="retouch_remove">Rimuovi</string>
     <string name="retouch_opacity">Opacità</string>
     <string name="retouch_delete">Elimina correzione</string>
     <string name="retouch_hint_empty">Tocca una macchia, un filo o un piccolo oggetto per toglierlo. Correttivo fonde la toppa con la foto; Clona la copia così com\'è.</string>
     <string name="retouch_hint_select">Tocca un altro punto per correggerlo. Trascina un cerchio per spostare la correzione, o il suo gemello tratteggiato per scegliere da dove prenderla.</string>
+    <string name="retouch_hint_remove">Dipingi sopra ciò che vuoi togliere: persone, cavi, scritte. L\'IA lo riempie con quello che c\'è intorno, sul telefono.</string>
+    <string name="retouch_hint_remove_more">Dipingi altre pennellate su questa rimozione per allargarla: si riempiono insieme. Dipingi lontano per una nuova.</string>
+    <string name="retouch_removing">Rimozione in corso…</string>
     <string name="retouch_hint_red_eye">Tocca ogni pupilla rossa: il cerchio si adatta al rosso e lo scurisce. Se resta del rosso sul bordo, allarga il cerchio con Dimensione pennello.</string>
     <string name="guide_heal_title">Togliere i difetti</string>
-    <string name="guide_heal_body">In Ritocco scegli Correggi e tocca quello che vuoi togliere: una macchia, un granello di polvere, un filo. Photograin lo copre con una zona vicina simile. Trascina il cerchio tratteggiato per scegliere un\'altra zona, e usa Clona per una copia esatta. Occhi rossi scurisce le pupille rosse del flash con un tocco ciascuna.</string>
+    <string name="guide_heal_body">In Ritocco scegli Correggi e tocca quello che vuoi togliere: una macchia, un granello di polvere, un filo. Photograin lo copre con una zona vicina simile. Trascina il cerchio tratteggiato per scegliere un\'altra zona, e usa Clona per una copia esatta. Occhi rossi scurisce le pupille rosse del flash con un tocco ciascuna. Per cose più grandi, come una persona o un cartello, scegli Rimuovi e dipingici sopra: l\'IA riempie la zona.</string>
     <string name="perspective_vertical">Prospettiva verticale</string>
     <string name="perspective_horizontal">Prospettiva orizzontale</string>
     <string name="straighten_auto">Raddrizza automaticamente</string>
@@ -297,6 +303,7 @@
     <string name="background_color">Colore</string>
     <string name="background_transparent_hint">PNG e WebP mantengono la trasparenza; gli altri formati ricevono uno sfondo bianco.</string>
     <string name="msg_subject_failed">Impossibile trovare il soggetto</string>
+    <string name="msg_remove_failed">Impossibile rimuovere l\'oggetto</string>
     <string name="range_title">Intervallo</string>
     <string name="range_none">Nessuno</string>
     <string name="range_luminance">Luminosità</string>

@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -24,6 +25,7 @@ import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.AutoFixOff
 import androidx.compose.material.icons.outlined.Brush
 import androidx.compose.material.icons.outlined.Colorize
+import androidx.compose.material.icons.outlined.Gesture
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.AssistChip
@@ -154,7 +156,7 @@ fun LocalPanel(
                     modifier = Modifier.padding(bottom = 4.dp),
                 )
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(
                     selected = !brush.erase,
                     onClick = { onBrush(brush.copy(erase = false)) },
@@ -167,27 +169,43 @@ fun LocalPanel(
                     label = { Text(stringResource(R.string.brush_erase)) },
                     leadingIcon = { Icon(Icons.Outlined.AutoFixOff, contentDescription = null, Modifier.size(18.dp)) },
                 )
+                FilterChip(
+                    selected = brush.lasso,
+                    onClick = { onBrush(brush.copy(lasso = !brush.lasso)) },
+                    label = { Text(stringResource(R.string.brush_lasso)) },
+                    leadingIcon = { Icon(Icons.Outlined.Gesture, contentDescription = null, Modifier.size(18.dp)) },
+                )
             }
-            ParamSlider(
-                label = stringResource(R.string.brush_size),
-                help = helpFor(R.string.brush_size),
-                value = brush.size,
-                range = 0f..1f,
-                display = "${Math.round(brush.size * 100)}",
-                onChange = { onBrush(brush.copy(size = it)) },
-                onChangeFinished = {},
-                onReset = { onBrush(brush.copy(size = BrushSettings().size)) },
-            )
-            ParamSlider(
-                label = stringResource(R.string.brush_hardness),
-                help = helpFor(R.string.brush_hardness),
-                value = brush.hardness,
-                range = 0f..1f,
-                display = "${Math.round(brush.hardness * 100)}",
-                onChange = { onBrush(brush.copy(hardness = it)) },
-                onChangeFinished = {},
-                onReset = { onBrush(brush.copy(hardness = BrushSettings().hardness)) },
-            )
+            if (brush.lasso) {
+                // The lasso fills what it surrounds: size and hardness do not apply.
+                Text(
+                    stringResource(R.string.brush_lasso_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(vertical = 4.dp),
+                )
+            } else {
+                ParamSlider(
+                    label = stringResource(R.string.brush_size),
+                    help = helpFor(R.string.brush_size),
+                    value = brush.size,
+                    range = 0f..1f,
+                    display = "${Math.round(brush.size * 100)}",
+                    onChange = { onBrush(brush.copy(size = it)) },
+                    onChangeFinished = {},
+                    onReset = { onBrush(brush.copy(size = BrushSettings().size)) },
+                )
+                ParamSlider(
+                    label = stringResource(R.string.brush_hardness),
+                    help = helpFor(R.string.brush_hardness),
+                    value = brush.hardness,
+                    range = 0f..1f,
+                    display = "${Math.round(brush.hardness * 100)}",
+                    onChange = { onBrush(brush.copy(hardness = it)) },
+                    onChangeFinished = {},
+                    onReset = { onBrush(brush.copy(hardness = BrushSettings().hardness)) },
+                )
+            }
         }
         if (local.mask.type == MaskType.RADIAL) {
             ParamSlider(

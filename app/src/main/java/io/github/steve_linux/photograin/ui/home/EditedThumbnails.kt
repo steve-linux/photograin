@@ -8,6 +8,7 @@ import android.util.Log
 import android.util.LruCache
 import io.github.steve_linux.photograin.data.ImageLoader
 import io.github.steve_linux.photograin.data.LookLibrary
+import io.github.steve_linux.photograin.data.ObjectRemover
 import io.github.steve_linux.photograin.data.RecipeStore
 import io.github.steve_linux.photograin.data.RegionSource
 import io.github.steve_linux.photograin.data.SubjectSegmenter
@@ -42,7 +43,9 @@ internal object EditedThumbnails {
                 val lut = edit.adjustments.look.lutId?.let { LookLibrary(context).loadLut(it) }
                 RegionSource.open(context, uri).use {
                     val subject = SubjectSegmenter.forEdit(context, it, base, edit)
-                    Exporter.render(it, base, edit, lut, size, ColorProfile.SRGB, subject = subject) {}
+                    Exporter.render(
+                        it, base, edit, lut, size, ColorProfile.SRGB, subject = subject, inpaint = ObjectRemover.with(context),
+                    ) {}
                 }.also { cache.put(key, it) }
             } catch (e: Exception) {
                 Log.w(TAG, "Cannot render $uri", e)

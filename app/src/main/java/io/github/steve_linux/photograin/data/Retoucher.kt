@@ -3,7 +3,10 @@ package io.github.steve_linux.photograin.data
 
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.Paint
 import android.graphics.Rect
+import android.graphics.RectF
+import io.github.steve_linux.photograin.model.Removal
 import io.github.steve_linux.photograin.model.Retouch
 import io.github.steve_linux.photograin.model.RetouchSpot
 import io.github.steve_linux.photograin.model.RetouchType
@@ -17,8 +20,24 @@ import kotlin.math.roundToInt
 
 /** Draws healing and clone spots into bitmaps of the original, for the preview and the export. */
 object Retoucher {
-    /** A finished spot: [bitmap] covers the source rectangle [rect] at the sample size it was made for. */
+    /**
+     * A finished spot: [bitmap] covers the source rectangle [rect], at the sample size it was
+     * made for or, for an object removal, at the size the inpainting worked at.
+     */
     class Patch(val bitmap: Bitmap, val rect: Rect)
+
+    /** The inpainting model, which removal spots need: see ObjectRemover. */
+    fun interface Inpaint {
+        /**
+         * [image] with the holes filled, as a new mutable ARGB_8888 bitmap of the same size and
+         * color space, its values taken as they are (no color conversion). [holes] gives the
+         * area to fill on a grid of a given size over the image, nonzero in the holes.
+         */
+        fun fill(image: Bitmap, holes: (Int, Int) -> ByteArray): Bitmap
+    }
+
+    /** Longest edge the area around a removal is worked on at: the model sees 512 pixels of it anyway. */
+    private const val REMOVE_WORK = 1024
 
     /**
      * Applies [spots] to [target], a mutable bitmap showing the source rectangle [region] (in
@@ -26,7 +45,7 @@ object Retoucher {
      * each spot and of its source come from [decode], which takes a source rectangle and the
      * sample size and must return a new bitmap each time (it is recycled after use).
      * [cache] keeps finished spots between export tiles, or between previews; its bitmaps are
-     * not recycled here.
+     * not recycled here. Removal spots are left out without [inpaint].
      */
     fun apply(
         target: Bitmap,
@@ -36,24 +55,87 @@ object Retoucher {
         sourceHeight: Int,
         spots: List<RetouchSpot>,
         cache: MutableMap<RetouchSpot, Patch>? = null,
+        inpaint: Inpaint? = null,
         decode: (Rect, Int) -> Bitmap,
     ) {
         if (spots.isEmpty()) return
         val canvas = Canvas(target)
+        val scaled = Paint(Paint.FILTER_BITMAP_FLAG)
         spots.take(Retouch.MAX_SPOTS).forEach { spot ->
-            val dest = destRect(spot, sourceWidth, sourceHeight, sample) ?: return@forEach
+            val remove = spot.type == RetouchType.REMOVE
+            if (remove && inpaint == null) return@forEach
+            val dest = (if (remove) removeRect(spot, sourceWidth, sourceHeight) else destRect(spot, sourceWidth, sourceHeight, sample))
+                ?: return@forEach
             if (!Rect.intersects(dest, region)) return@forEach
             val patch = cache?.get(spot)
-                ?: patch(spot, dest, sample, sourceWidth, sourceHeight, decode)?.also { cache?.put(spot, it) }
+                ?: (if (remove) {
+                    removal(spot, dest, sample, sourceWidth, sourceHeight, inpaint!!, decode)
+                } else {
+                    patch(spot, dest, sample, sourceWidth, sourceHeight, decode)
+                })?.also { cache?.put(spot, it) }
                 ?: return@forEach
-            canvas.drawBitmap(
-                patch.bitmap,
-                (patch.rect.left - region.left) / sample.toFloat(),
-                (patch.rect.top - region.top) / sample.toFloat(),
-                null,
-            )
+            val left = (patch.rect.left - region.left) / sample.toFloat()
+            val top = (patch.rect.top - region.top) / sample.toFloat()
+            if (remove) {
+                // Worked on at its own size: stretched over its area, its soft edge blending in.
+                val right = (patch.rect.right - region.left) / sample.toFloat()
+                val bottom = (patch.rect.bottom - region.top) / sample.toFloat()
+                canvas.drawBitmap(patch.bitmap, null, RectF(left, top, right, bottom), scaled)
+            } else {
+                canvas.drawBitmap(patch.bitmap, left, top, null)
+            }
             if (cache == null) patch.bitmap.recycle()
         }
+    }
+
+    /** What the inpainting model sees of a removal spot, in source pixels. */
+    private fun removeRect(spot: RetouchSpot, w: Int, h: Int): Rect? =
+        Removal.crop(spot.strokes, w, h)?.let { Rect(it[0], it[1], it[2], it[3]) }
+
+    /**
+     * A removal spot: the area around it filled by [inpaint] where the strokes paint, and
+     * transparent elsewhere, so only the painted part of the photo changes.
+     */
+    private fun removal(
+        spot: RetouchSpot,
+        dest: Rect,
+        sample: Int,
+        w: Int,
+        h: Int,
+        inpaint: Inpaint,
+        decode: (Rect, Int) -> Bitmap,
+    ): Patch? {
+        var work = sample
+        while (max(dest.width(), dest.height()) / work > REMOVE_WORK) work *= 2
+        val cw = max(1, ceil(dest.width() / work.toDouble()).toInt())
+        val ch = max(1, ceil(dest.height() / work.toDouble()).toInt())
+        val decoded = decode(dest, work)
+        // Some sources ignore the sample size: bring what they give to the size wanted.
+        val image = if (decoded.width == cw && decoded.height == ch) decoded else {
+            Bitmap.createScaledBitmap(decoded, cw, ch, true).also { if (it !== decoded) decoded.recycle() }
+        }
+        val crop = intArrayOf(dest.left, dest.top, dest.right, dest.bottom)
+        val filled = try {
+            inpaint.fill(image) { gw, gh -> Removal.raster(spot.strokes, crop, w, h, gw, gh, Removal.GROW) }
+        } finally {
+            image.recycle()
+        }
+        val alpha = Removal.raster(spot.strokes, crop, w, h, cw, ch)
+        val opacity = spot.opacity.coerceIn(0f, 1f)
+        val buffer = ByteBuffer.allocateDirect(filled.byteCount).order(ByteOrder.nativeOrder())
+        filled.copyPixelsToBuffer(buffer)
+        val stride = filled.rowBytes
+        // Premultiplied by the painted strength, as bitmaps with alpha are stored.
+        for (y in 0 until ch) for (x in 0 until cw) {
+            val a = (alpha[y * cw + x].toInt() and 0xFF) * opacity / 255f
+            val o = y * stride + x * 4
+            for (c in 0..2) buffer.put(o + c, ((buffer.get(o + c).toInt() and 0xFF) * a).roundToInt().toByte())
+            buffer.put(o + 3, (a * 255).roundToInt().toByte())
+        }
+        buffer.position(0)
+        filled.setHasAlpha(true)
+        filled.copyPixelsFromBuffer(buffer)
+        return Patch(filled, dest)
     }
 
     /** The square around a spot, with room outside the circle for healing to read, clamped to the image. */

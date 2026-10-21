@@ -104,7 +104,8 @@ object Exporter {
     /**
      * Renders [edit] of [source]. [subject] is the photo's subject for subject masks (see
      * SubjectSegmenter.forEdit). With [opaque], for formats without transparency, what a
-     * cutout leaves transparent turns white.
+     * cutout leaves transparent turns white. [inpaint] fills the object removal spots (see
+     * ObjectRemover.with); without it they are left out.
      */
     fun render(
         source: RegionSource,
@@ -117,6 +118,7 @@ object Exporter {
         deep: Boolean = false,
         subject: SubjectMask? = null,
         opaque: Boolean = false,
+        inpaint: Retoucher.Inpaint? = null,
         onProgress: (Float) -> Unit,
     ): Bitmap {
         val mapper = GeometryMapper(source.width, source.height, base, edit.geometry)
@@ -178,7 +180,7 @@ object Exporter {
                     val gh = th + 2 * margin
 
                     val region = sourceBounds(outToSource, gx, gy, gw, gh, source.width, source.height)
-                    val bitmap = retouched(source.decode(region, sample), region, sample, source, edit, patches)
+                    val bitmap = retouched(source.decode(region, sample), region, sample, source, edit, patches, inpaint)
                     sourceTexture = GlUtil.uploadBitmap(bitmap, sourceTexture)
                     val coveredW = bitmap.width * sample.toDouble()
                     val coveredH = bitmap.height * sample.toDouble()
@@ -270,7 +272,7 @@ object Exporter {
         for (i in 0 until w * h * 4) s.put(i, HalfFloats.fromFloat(f.get(i)))
     }
 
-    /** [bitmap] of the source [region] with the edit's healing and clone spots drawn in. */
+    /** [bitmap] of the source [region] with the edit's healing, clone and removal spots drawn in. */
     private fun retouched(
         bitmap: Bitmap,
         region: Rect,
@@ -278,10 +280,11 @@ object Exporter {
         source: RegionSource,
         edit: EditState,
         patches: MutableMap<RetouchSpot, Retoucher.Patch>,
+        inpaint: Retoucher.Inpaint?,
     ): Bitmap {
         if (edit.retouch.isEmpty()) return bitmap
         val target = if (bitmap.isMutable) bitmap else bitmap.copy(Bitmap.Config.ARGB_8888, true).also { bitmap.recycle() }
-        Retoucher.apply(target, region, sample, source.width, source.height, edit.retouch, patches) { rect, s ->
+        Retoucher.apply(target, region, sample, source.width, source.height, edit.retouch, patches, inpaint) { rect, s ->
             source.decode(rect, s)
         }
         return target
