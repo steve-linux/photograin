@@ -63,3 +63,42 @@ al più 0,5 livelli su 255. La conversione è riproducibile: due esecuzioni dann
 
 Per F-Droid, `u2netp.ncnn.bin` va aggiunto a `scanignore` nella ricetta di build, come il modello
 Real-ESRGAN.
+
+## MI-GAN (rimozione oggetti con IA)
+
+`app/src/main/assets/models/migan.ncnn.{param,bin}` è il modello **MI-GAN** di Picsart AI
+Research (Andranik Sargsyan et al., «MI-GAN: A Simple Baseline for Image Inpainting on Mobile
+Devices», ICCV 2023), addestrato su Places2 a 512×512, convertito per ncnn con pesi in fp16.
+Riempie con lo sfondo circostante la zona dipinta col pennello «Rimuovi»; l'app gli passa un
+quadrato attorno alle pennellate, ridotto o ingrandito a 512 pixel, e incolla solo la parte
+dipinta.
+
+- **Licenza**: MIT, come il codice e i pesi di [MI-GAN](https://github.com/Picsart-AI-Research/MI-GAN).
+- **Pesi originali**: l'esportazione TorchScript dei pesi Places2 a 512 pubblicata da
+  [IOPaint](https://github.com/Sanster/IOPaint) (Apache-2.0):
+  <https://github.com/Sanster/models/releases/download/migan/migan_traced.pt>
+  SHA-256 `038b82d90416f1d1af232486d76d07665aecdd988e0f16090b1e11a61820b800`.
+  Ingresso: 4 canali 512×512, cioè `0.5 - maschera` (1 nei buchi) e l'immagine RGB in -1..1 con
+  i buchi azzerati; uscita: l'immagine RGB in -1..1.
+- **Conversione**: [`tools/migan/convert.sh`](../tools/migan/convert.sh) con pnnx 20260526 e
+  torch 2.9.0 (`pip install torch==2.9.0 pnnx==20260526`).
+- **File prodotti**:
+  - `migan.ncnn.param` SHA-256 `8b61bfd2457b5621bcef343333240a0b146fe5ccc2fdb6b8df5e4a748ad4a692`
+  - `migan.ncnn.bin` SHA-256 `e63d3d1d6215b4c41994857dfc4f81bc5e6c7f0d4985230ba5a40adbf51be807`
+
+Per rigenerarli:
+
+```sh
+cd tools/migan
+curl -LO https://github.com/Sanster/models/releases/download/migan/migan_traced.pt
+sh convert.sh
+cp migan.ncnn.param migan.ncnn.bin ../../app/src/main/assets/models/
+```
+
+Verificato rispetto a PyTorch sulla stessa immagine con un buco di 150×140 pixel: con i pesi in
+fp32 l'uscita di ncnn differisce di al più 0,002 livelli su 255; con i pesi in fp16, quelli
+inclusi, di al più 11 livelli nella zona riempita (media 0,4), una differenza che non si vede in
+un'area inventata dal modello e che dimezza il file (15 MB invece di 27). La conversione è
+riproducibile: due esecuzioni danno file identici.
+
+Per F-Droid, anche `migan.ncnn.bin` va aggiunto a `scanignore`.

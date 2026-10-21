@@ -11,6 +11,7 @@ import io.github.steve_linux.photograin.data.ExportOptions
 import io.github.steve_linux.photograin.data.ExportWriter
 import io.github.steve_linux.photograin.data.ImageLoader
 import io.github.steve_linux.photograin.data.LookLibrary
+import io.github.steve_linux.photograin.data.ObjectRemover
 import io.github.steve_linux.photograin.data.Preferences
 import io.github.steve_linux.photograin.data.RecipeStore
 import io.github.steve_linux.photograin.data.RegionSource
@@ -166,7 +167,7 @@ class BatchViewModel(app: Application) : AndroidViewModel(app) {
         val bitmap = source.use {
             Exporter.render(
                 it, base, edit, lut, render.maxLongEdge, render.colorProfile, render.upscale, render.format.deep,
-                subject = subject, opaque = !render.format.alpha,
+                subject = subject, opaque = !render.format.alpha, inpaint = ObjectRemover.with(app),
             ) {}
         }
         try {

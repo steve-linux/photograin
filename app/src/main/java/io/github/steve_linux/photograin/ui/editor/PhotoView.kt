@@ -40,6 +40,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import io.github.steve_linux.photograin.model.CropRect
 import io.github.steve_linux.photograin.model.Frame
 import io.github.steve_linux.photograin.model.LocalAdjustment
+import io.github.steve_linux.photograin.model.RetouchType
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -203,7 +204,11 @@ fun PhotoView(
             val currentSpots by rememberUpdatedState(state.edit.retouch)
             val currentSpot by rememberUpdatedState(state.activeSpot)
             val currentSpotSize by rememberUpdatedState(state.spotSize)
-            if (space != null && retouchMode) RetouchOverlay(state.edit.retouch, state.activeSpot, space)
+            // A removal is painted rather than placed: so is the next one while one is selected.
+            val currentRemoving by rememberUpdatedState(
+                (state.activeSpot?.let { state.edit.retouch[it].type } ?: state.spotType) == RetouchType.REMOVE,
+            )
+            if (space != null && retouchMode) RetouchOverlay(state.edit.retouch, state.activeSpot, space, state.removeDraft)
             if (space != null && maskMode) {
                 MaskOverlay(
                     state.edit.masks, state.activeMask, space, state.maskDragging,
@@ -317,6 +322,48 @@ fun PhotoView(
                             val down = awaitFirstDown(requireUnconsumed = false)
                             val sp = currentSpace ?: return@awaitEachGesture
                             val spots = currentSpots
+                            if (currentRemoving) {
+                                // One finger paints what to remove, a tap picks a removal or removes a dot;
+                                // a second finger before it moves means zoom or pan.
+                                handleHeld = true
+                                var painting = false
+                                try {
+                                    while (true) {
+                                        val event = awaitPointerEvent()
+                                        if (event.changes.count { it.pressed } > 1) return@awaitEachGesture
+                                        val c = event.changes.firstOrNull { it.id == down.id } ?: return@awaitEachGesture
+                                        if (!c.pressed) {
+                                            val (x, y) = sp.toSource(down.position)
+                                            val hit = hitSpot(sp, spots, currentSpot, down.position, reach)
+                                            when {
+                                                hit != null -> viewModel.selectSpot(hit.first)
+                                                x in 0.0..1.0 && y in 0.0..1.0 -> {
+                                                    val radiusPx = brushRadiusPx(currentSpotSize, this)
+                                                    viewModel.addSpot(x.toFloat(), y.toFloat(), sp.unitsFor(down.position, radiusPx).toFloat())
+                                                }
+                                            }
+                                            return@awaitEachGesture
+                                        }
+                                        if ((c.position - down.position).getDistance() > viewConfiguration.touchSlop) {
+                                            c.consume()
+                                            break
+                                        }
+                                    }
+                                    val radiusPx = brushRadiusPx(currentSpotSize, this)
+                                    val (x, y) = sp.toSource(down.position)
+                                    viewModel.beginRemoval(x.toFloat(), y.toFloat(), sp.unitsFor(down.position, radiusPx).toFloat())
+                                    painting = true
+                                    drag(down.id) { change ->
+                                        val (cx, cy) = sp.toSource(change.position)
+                                        viewModel.extendRemoval(cx.toFloat(), cy.toFloat())
+                                        change.consume()
+                                    }
+                                } finally {
+                                    handleHeld = false
+                                    if (painting) viewModel.endRemoval()
+                                }
+                                return@awaitEachGesture
+                            }
                             val hit = hitSpot(sp, spots, currentSpot, down.position, reach)
                             if (hit != null) {
                                 val (index, part) = hit

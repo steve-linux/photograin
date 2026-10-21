@@ -82,6 +82,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.steve_linux.photograin.R
 import io.github.steve_linux.photograin.data.ExportOptions
+import io.github.steve_linux.photograin.data.ObjectRemover
 import io.github.steve_linux.photograin.data.SettingsStore
 import io.github.steve_linux.photograin.model.ToolGroup
 import io.github.steve_linux.photograin.ui.guide.guideTopicFor
@@ -312,6 +313,8 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit, onGuide: (topi
                             selected = state.activeSpot,
                             type = state.spotType,
                             size = state.spotSize,
+                            canRemove = ObjectRemover.available,
+                            removing = state.removing,
                             onType = viewModel::setSpotType,
                             onSize = viewModel::setSpotSize,
                             onSpot = viewModel::setSpot,
@@ -468,6 +471,7 @@ private fun messageText(m: Message): Int = when (m) {
     Message.PRESET_SAVED -> R.string.msg_preset_saved
     Message.HORIZON_NOT_FOUND -> R.string.msg_horizon_not_found
     Message.SUBJECT_FAILED -> R.string.msg_subject_failed
+    Message.REMOVE_FAILED -> R.string.msg_remove_failed
 }
 
 /** ACTION_CREATE_DOCUMENT with the MIME type chosen at launch time: input is (mimeType, fileName). */

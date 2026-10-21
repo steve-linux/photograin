@@ -15,6 +15,7 @@ import io.github.steve_linux.photograin.data.ImageLoader
 import io.github.steve_linux.photograin.data.LoadedImage
 import io.github.steve_linux.photograin.data.LookLibrary
 import io.github.steve_linux.photograin.data.LutEntry
+import io.github.steve_linux.photograin.data.ObjectRemover
 import io.github.steve_linux.photograin.data.Preferences
 import io.github.steve_linux.photograin.data.RecipeStore
 import io.github.steve_linux.photograin.data.RegionSource
@@ -51,6 +52,7 @@ import io.github.steve_linux.photograin.model.Look
 import io.github.steve_linux.photograin.model.ParamSpec
 import io.github.steve_linux.photograin.model.Preset
 import io.github.steve_linux.photograin.model.PxSize
+import io.github.steve_linux.photograin.model.Removal
 import io.github.steve_linux.photograin.model.Retouch
 import io.github.steve_linux.photograin.model.RetouchSpot
 import io.github.steve_linux.photograin.model.RetouchType
@@ -72,10 +74,12 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.IOException
 
 enum class Message {
     EXPORTED, EXPORTED_TO_PICTURES, EXPORTED_TO_DOWNLOADS, EXPORT_FAILED, LOAD_FAILED, ADJUSTMENTS_COPIED, ADJUSTMENTS_PASTED, OUT_OF_MEMORY,
     LUT_IMPORTED, LUT_INVALID, LUT_MISSING, PRESET_SAVED, HORIZON_NOT_FOUND, SUBJECT_FAILED,
+    REMOVE_FAILED,
 }
 
 data class EditorUiState(
@@ -120,6 +124,10 @@ data class EditorUiState(
     /** Type and size (0..1, relative to the screen) of the next spot. */
     val spotType: RetouchType = RetouchType.HEAL,
     val spotSize: Float = 0.3f,
+    /** The removal stroke being painted, shown until the finger lifts and it becomes a spot. */
+    val removeDraft: BrushStroke? = null,
+    /** The inpainting model is filling a removal spot. */
+    val removing: Boolean = false,
     /** In the Effects tab: 0 effects, 1 frame, 2 text, 3 shapes. */
     val effectsMode: Int = 0,
     /** The text being edited, by index in [EditState.texts]. */
@@ -502,6 +510,12 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         val image = s.image ?: return
         if (s.edit.retouch.size >= Retouch.MAX_SPOTS) return
         val type = s.spotType
+        if (type == RetouchType.REMOVE) {
+            // A tap removes what is under the brush.
+            beginRemoval(x, y, radius)
+            endRemoval()
+            return
+        }
         viewModelScope.launch {
             val bitmap = s.retouchedPreview ?: image.preview
             val spot = withContext(Dispatchers.Default) {
@@ -517,6 +531,50 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
             commit()
         }
     }
+
+    /** Starts painting over an object to remove, at source-normalized ([x], [y]). */
+    fun beginRemoval(x: Float, y: Float, radius: Float) =
+        _state.update { it.copy(removeDraft = BrushStroke(listOf(x, y), radius, Removal.HARDNESS)) }
+
+    /** Extends the removal stroke, skipping points too close to the last one. */
+    fun extendRemoval(x: Float, y: Float) = _state.update { s ->
+        val last = s.removeDraft ?: return@update s
+        val n = last.points.size
+        val dx = x - last.points[n - 2]
+        val dy = y - last.points[n - 1]
+        val step = last.radius * 0.2f
+        if (dx * dx + dy * dy < step * step) s else s.copy(removeDraft = last.copy(points = last.points + listOf(x, y)))
+    }
+
+    /**
+     * Turns the stroke just painted into a removal: added to the selected removal spot when it
+     * touches it, so a large object can be painted in several strokes and filled at once, or
+     * a new spot otherwise.
+     */
+    fun endRemoval() {
+        val s = _state.value
+        val stroke = s.removeDraft ?: return
+        _state.update { it.copy(removeDraft = null) }
+        val image = s.image ?: return
+        val w = image.preview.width
+        val h = image.preview.height
+        val selected = s.activeSpot?.let { s.edit.retouch[it] }?.takeIf { it.type == RetouchType.REMOVE }
+        val touches = selected != null && overlaps(Removal.bounds(selected.strokes, w, h), Removal.bounds(listOf(stroke), w, h))
+        val strokes = if (touches) selected!!.strokes + stroke else listOf(stroke)
+        val (cx, cy, r) = Removal.circle(strokes, w, h) ?: return
+        val spot = RetouchSpot(RetouchType.REMOVE, cx, cy, cx, cy, r, strokes = strokes)
+        if (touches) {
+            setSpot(spot)
+        } else {
+            if (s.edit.retouch.size >= Retouch.MAX_SPOTS) return
+            updateLive { it.copy(retouch = it.retouch + spot) }
+            _state.update { it.copy(selectedSpot = it.edit.retouch.lastIndex) }
+        }
+        commit()
+    }
+
+    private fun overlaps(a: DoubleArray?, b: DoubleArray?): Boolean =
+        a != null && b != null && a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3]
 
     /** Where a heal or clone spot at ([x], [y]) should take its patch from, source-normalized. */
     private fun findSpotSource(bitmap: Bitmap, x: Float, y: Float, radius: Float, type: RetouchType): Pair<Float, Float> {
@@ -584,6 +642,11 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         val spot = s.edit.retouch[index]
         when {
             type == spot.type -> return
+            // A removal is painted, the others are circles: neither turns into the other.
+            type == RetouchType.REMOVE || spot.type == RetouchType.REMOVE -> {
+                _state.update { it.copy(selectedSpot = null) }
+                return
+            }
             type == RetouchType.RED_EYE -> setSpot(spot.copy(type = type, sourceX = spot.x, sourceY = spot.y))
             spot.type == RetouchType.RED_EYE -> {
                 val bitmap = s.retouchedPreview ?: s.image?.preview ?: return
@@ -606,6 +669,7 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
     private fun watchRetouch() {
         val patches = java.util.concurrent.ConcurrentHashMap<RetouchSpot, Retoucher.Patch>()
         var patchesFor: Bitmap? = null
+        val inpaint = ObjectRemover.with(getApplication())
         viewModelScope.launch {
             _state.map { it.image?.preview to it.edit.retouch }.distinctUntilChanged().collectLatest { (preview, spots) ->
                 if (preview == null || spots.isEmpty()) {
@@ -616,16 +680,36 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
                     patches.clear()
                     patchesFor = preview
                 }
-                val result = withContext(Dispatchers.Default) {
-                    val w = preview.width
-                    val h = preview.height
-                    val copy = preview.copy(Bitmap.Config.ARGB_8888, true)
-                    Retoucher.apply(copy, Rect(0, 0, w, h), 1, w, h, spots, patches) { r, _ ->
-                        val part = Bitmap.createBitmap(preview, r.left, r.top, r.width(), r.height())
-                        if (part === preview) preview.copy(Bitmap.Config.ARGB_8888, false) else part
+                val removing = spots.any { it.type == RetouchType.REMOVE && it !in patches }
+                if (removing) _state.update { it.copy(removing = true) }
+                val result = try {
+                    withContext(Dispatchers.Default) {
+                        val w = preview.width
+                        val h = preview.height
+                        val copy = preview.copy(Bitmap.Config.ARGB_8888, true)
+                        Retoucher.apply(copy, Rect(0, 0, w, h), 1, w, h, spots, patches, inpaint) { r, _ ->
+                            val part = Bitmap.createBitmap(preview, r.left, r.top, r.width(), r.height())
+                            if (part === preview) preview.copy(Bitmap.Config.ARGB_8888, false) else part
+                        }
+                        patches.keys.retainAll(spots.toSet())
+                        copy
                     }
-                    patches.keys.retainAll(spots.toSet())
-                    copy
+                } catch (e: IOException) {
+                    // Only the inpainting model can fail here: the photo is shown without the removals.
+                    Log.e(TAG, "Cannot remove objects", e)
+                    _state.update { it.copy(message = Message.REMOVE_FAILED) }
+                    withContext(Dispatchers.Default) {
+                        val w = preview.width
+                        val h = preview.height
+                        val copy = preview.copy(Bitmap.Config.ARGB_8888, true)
+                        Retoucher.apply(copy, Rect(0, 0, w, h), 1, w, h, spots, patches) { r, _ ->
+                            val part = Bitmap.createBitmap(preview, r.left, r.top, r.width(), r.height())
+                            if (part === preview) preview.copy(Bitmap.Config.ARGB_8888, false) else part
+                        }
+                        copy
+                    }
+                } finally {
+                    if (removing) _state.update { it.copy(removing = false) }
                 }
                 _state.update { if (it.image?.preview === preview) it.copy(retouchedPreview = result) else it }
             }
@@ -938,7 +1022,7 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
                     val bitmap = source.use {
                         Exporter.render(
                             it, image.base, edit, lut, render.maxLongEdge, render.colorProfile, render.upscale, render.format.deep,
-                            subject = subject, opaque = !render.format.alpha,
+                            subject = subject, opaque = !render.format.alpha, inpaint = ObjectRemover.with(app),
                         ) { p ->
                             _state.update { s -> s.copy(exportProgress = p) }
                         }

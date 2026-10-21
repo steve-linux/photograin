@@ -7,9 +7,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
+import io.github.steve_linux.photograin.model.BrushStroke
 import io.github.steve_linux.photograin.model.RetouchSpot
 import io.github.steve_linux.photograin.model.RetouchType
 
@@ -47,8 +52,9 @@ fun hitSpot(space: MaskSpace, spots: List<RetouchSpot>, selected: Int?, p: Offse
     return null
 }
 
-/** [start] with [part] moved by the drag from screen point [from] to [to]. */
+/** [start] with [part] moved by the drag from screen point [from] to [to]. A removal stays where it was painted. */
 fun dragSpot(space: MaskSpace, start: RetouchSpot, part: SpotPart, from: Offset, to: Offset): RetouchSpot {
+    if (start.type == RetouchType.REMOVE) return start
     val (fx, fy) = space.toSource(from)
     val (tx, ty) = space.toSource(to)
     val dx = (tx - fx).toFloat()
@@ -59,14 +65,21 @@ fun dragSpot(space: MaskSpace, start: RetouchSpot, part: SpotPart, from: Offset,
     }
 }
 
-/** Every spot as a circle; the selected one also shows its source (red eye has none), joined by a line. */
+/**
+ * Every spot as a circle; the selected one also shows its source (red eye has none), joined by
+ * a line, or for a removal the strokes it was painted with. [draft] is the removal being painted.
+ */
 @Composable
-fun RetouchOverlay(spots: List<RetouchSpot>, selected: Int?, space: MaskSpace) {
+fun RetouchOverlay(spots: List<RetouchSpot>, selected: Int?, space: MaskSpace, draft: BrushStroke?) {
     Canvas(Modifier.fillMaxSize()) {
         val shadow = Color.Black.copy(alpha = 0.4f)
         spots.forEachIndexed { i, s ->
             val c = circles(space, s)
-            if (i == selected && s.type != RetouchType.RED_EYE) {
+            if (i == selected && s.type == RetouchType.REMOVE) {
+                s.strokes.forEach { drawRemoval(space, it) }
+                drawCircle(shadow, c.radius, c.spot, style = Stroke(4.dp.toPx()))
+                drawCircle(Color.White, c.radius, c.spot, style = Stroke(2.5.dp.toPx()))
+            } else if (i == selected && s.type != RetouchType.RED_EYE) {
                 val dashed = PathEffect.dashPathEffect(floatArrayOf(5.dp.toPx(), 4.dp.toPx()))
                 val d = c.source - c.spot
                 val len = d.getDistance()
@@ -86,5 +99,26 @@ fun RetouchOverlay(spots: List<RetouchSpot>, selected: Int?, space: MaskSpace) {
                 drawCircle(Color.White.copy(alpha = 0.8f), c.radius, c.spot, style = Stroke(1.5.dp.toPx()))
             }
         }
+        draft?.let { drawRemoval(space, it) }
     }
+}
+
+/** A removal stroke as the brush painted it, in translucent red. */
+private fun DrawScope.drawRemoval(space: MaskSpace, stroke: BrushStroke) {
+    if (stroke.pointCount == 0) return
+    val first = space.toScreen(stroke.points[0].toDouble(), stroke.points[1].toDouble())
+    val width = 2 * stroke.radius * (space.unitsToScreen(1.0, 0.0) - space.unitsToScreen(0.0, 0.0)).getDistance()
+    val red = Color(0xFFFF3B30).copy(alpha = 0.45f)
+    if (stroke.pointCount == 1) {
+        drawCircle(red, width / 2, first)
+        return
+    }
+    val path = Path().apply {
+        moveTo(first.x, first.y)
+        for (k in 1 until stroke.pointCount) {
+            val p = space.toScreen(stroke.points[2 * k].toDouble(), stroke.points[2 * k + 1].toDouble())
+            lineTo(p.x, p.y)
+        }
+    }
+    drawPath(path, red, style = Stroke(width, cap = StrokeCap.Round, join = StrokeJoin.Round))
 }

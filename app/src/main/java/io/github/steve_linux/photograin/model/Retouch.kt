@@ -13,7 +13,7 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 
 @Serializable
-enum class RetouchType { HEAL, CLONE, RED_EYE }
+enum class RetouchType { HEAL, CLONE, RED_EYE, REMOVE }
 
 /**
  * A circle of the photo replaced by another part of it. Positions are source-normalized
@@ -23,7 +23,9 @@ enum class RetouchType { HEAL, CLONE, RED_EYE }
  * [RetouchType.CLONE] copies the source as it is; [RetouchType.HEAL] also carries over the
  * brightness and color around the spot, so the patch blends in. [RetouchType.RED_EYE] takes
  * nothing from elsewhere (its source is the spot itself): it turns the red of a flash-lit pupil
- * back to dark.
+ * back to dark. [RetouchType.REMOVE] paints over an object with [strokes] and lets the
+ * inpainting model fill that area from its surroundings (see [Removal]); its circle only
+ * surrounds the strokes, for picking it, and its source is the spot itself.
  */
 @Serializable
 data class RetouchSpot(
@@ -36,6 +38,8 @@ data class RetouchSpot(
     /** The outer part of the circle that fades into the photo, 0..1. */
     val feather: Float = 0.5f,
     val opacity: Float = 1f,
+    /** The painted area of a [RetouchType.REMOVE] spot; empty for the others. */
+    val strokes: List<BrushStroke> = emptyList(),
 )
 
 /**
@@ -65,6 +69,8 @@ object Retouch {
             RetouchType.HEAL -> heal(dst, src, w, h, cx, cy, r)
             RetouchType.CLONE -> src
             RetouchType.RED_EYE -> redEye(dst)
+            // Filled by the inpainting model instead, in Retoucher.
+            RetouchType.REMOVE -> dst
         }
         val out = FloatArray(dst.size)
         val inner = r * (1 - spot.feather.coerceIn(0f, 1f))

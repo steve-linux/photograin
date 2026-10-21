@@ -42,6 +42,10 @@ Editor fotografico non distruttivo per Android, libero (GPL-3.0-or-later) e pens
   e si rifinisce col pennello. Serve per regolare solo il soggetto o solo lo sfondo, oppure per
   rimuovere lo sfondo: trasparente (PNG, WebP) o a tinta unita. Funziona anche nell'elaborazione
   in serie, dove ogni foto trova il proprio soggetto. Nessuna connessione.
+- **Rimozione oggetti con l'IA**: nel Ritocco, il pennello "Rimuovi" cancella persone, cavi o
+  scritte dipingendoci sopra; [MI-GAN](https://github.com/Picsart-AI-Research/MI-GAN), eseguito
+  da ncnn sul telefono, ricostruisce lo sfondo. Le pennellate restano nella ricetta e si ricalcolano
+  all'esportazione. Nessuna connessione.
 - **Impostazioni**: le foto si salvano in `Immagini/Photograin` (o in una cartella a scelta, o chiedendo
   ogni volta), con nome originale o data e ora; formato, qualità, dimensione, profilo colore e dati
   EXIF/GPS predefiniti; tema chiaro, scuro o di sistema; lingua.
@@ -99,5 +103,5 @@ LibRaw è distribuita con doppia licenza LGPL-2.1 o CDDL-1.0; Photograin la usa 
 compatibile con la GPL-3.0.
 libjxl (con highway, brotli e skcms), libavif e libaom sono BSD, compatibili con la GPL-3.0.
 ncnn (BSD-3-Clause) con glslang (licenze BSD/MIT/Apache-2.0), il modello Real-ESRGAN (BSD-3-Clause)
-e il modello U²-Net (Apache-2.0) sono compatibili con la GPL-3.0.
+il modello U²-Net (Apache-2.0) e il modello MI-GAN (MIT) sono compatibili con la GPL-3.0.
 Nessuna dipendenza da Google Play Services o servizi proprietari.

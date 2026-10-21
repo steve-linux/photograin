@@ -1,16 +1,19 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // JNI glue between the AI models and io.github.steve_linux.photograin.data: upscaler for
-// AiUpscaler, segmenter for SubjectSegmenter.
+// AiUpscaler, segmenter for SubjectSegmenter, inpainter for ObjectRemover.
 #include <android/asset_manager_jni.h>
 #include <android/bitmap.h>
 #include <jni.h>
 
+#include <algorithm>
 #include <string>
 #include <vector>
 
+#include "inpainter.h"
 #include "segmenter.h"
 #include "upscaler.h"
 
+using photograin::Inpainter;
 using photograin::Segmenter;
 using photograin::Upscaler;
 
@@ -146,6 +149,52 @@ Java_io_github_steve_1linux_photograin_data_SubjectSegmenter_nativeRun(
         env->SetByteArrayRegion(out, 0, static_cast<jsize>(mask.size()), reinterpret_cast<const jbyte*>(mask.data()));
     }
     return out;
+}
+
+/** Loads the inpainting model from the app's assets; returns a handle, or 0 after throwing. */
+JNIEXPORT jlong JNICALL
+Java_io_github_steve_1linux_photograin_data_ObjectRemover_nativeLoad(
+        JNIEnv* env, jobject, jobject assetManager, jstring param, jstring model) {
+    std::vector<unsigned char> paramData, modelData;
+    if (!readModel(env, assetManager, param, model, &paramData, &modelData)) return 0;
+    auto* inpainter = new Inpainter();
+    std::string error;
+    if (!inpainter->load(std::string(paramData.begin(), paramData.end()), std::move(modelData), &error)) {
+        delete inpainter;
+        throwIo(env, error);
+        return 0;
+    }
+    return reinterpret_cast<jlong>(inpainter);
+}
+
+/**
+ * Fills the holes of [image], an Inpainter::kSize square, in place; [mask] has one byte per
+ * pixel, nonzero in the holes.
+ */
+JNIEXPORT void JNICALL
+Java_io_github_steve_1linux_photograin_data_ObjectRemover_nativeRun(
+        JNIEnv* env, jobject, jlong handle, jobject image, jbyteArray mask) {
+    constexpr int n = Inpainter::kSize;
+    if (env->GetArrayLength(mask) != n * n) {
+        throwIo(env, "The mask has the wrong size");
+        return;
+    }
+    AndroidBitmapInfo info;
+    uint8_t* pixels = lock(env, image, &info);
+    if (pixels == nullptr) return;
+    std::string error;
+    bool ok = static_cast<int>(info.width) == n && static_cast<int>(info.height) == n;
+    if (!ok) {
+        error = "The image has the wrong size";
+    } else {
+        std::vector<uint8_t> in(n * n * 4), out(n * n * 4), holes(n * n);
+        for (int y = 0; y < n; y++) std::copy_n(pixels + y * info.stride, n * 4, in.data() + y * n * 4);
+        env->GetByteArrayRegion(mask, 0, n * n, reinterpret_cast<jbyte*>(holes.data()));
+        ok = reinterpret_cast<Inpainter*>(handle)->run(in.data(), holes.data(), out.data(), &error);
+        if (ok) for (int y = 0; y < n; y++) std::copy_n(out.data() + y * n * 4, n * 4, pixels + y * info.stride);
+    }
+    AndroidBitmap_unlockPixels(env, image);
+    if (!ok) throwIo(env, error);
 }
 
 }  // extern "C"
