@@ -197,6 +197,11 @@
     <string name="export_upscale_ai_hint">A neural network trained on photos restores plausible detail and removes compression noise. Much slower; best for small or old photos.</string>
     <string name="guide_entry_title">Get the most out of Photograin</string>
     <string name="guide_entry_body">A short guide to every feature</string>
+    <string name="quick_title">AI tools</string>
+    <string name="quick_body">Choose what to do, then pick a photo.</string>
+    <string name="quick_remove_background">Remove background</string>
+    <string name="quick_remove_object">Erase object</string>
+    <string name="quick_enhance">Improve quality</string>
     <string name="guide_title">Guide</string>
     <string name="guide_open_title">Open a photo</string>
     <string name="guide_open_body">Tap “Open photo”, or share a photo with Photograin from another app. It works with JPEG, PNG, WebP, HEIC, AVIF, JPEG XL and camera RAW files. The original is never changed: edits save themselves and come back when you reopen the photo from the recents.</string>
