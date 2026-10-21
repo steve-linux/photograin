@@ -14,6 +14,7 @@ import io.github.steve_linux.photograin.model.CubeLut
 import io.github.steve_linux.photograin.model.Geometry
 import io.github.steve_linux.photograin.model.LocalAdjustment
 import io.github.steve_linux.photograin.model.GeometryMapper
+import io.github.steve_linux.photograin.model.SubjectMask
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 
@@ -35,6 +36,8 @@ data class PreviewFrame(
     val masks: List<LocalAdjustment> = emptyList(),
     /** Index of the mask to tint red, or -1. */
     val showMask: Int = -1,
+    /** The photo's subject, for subject masks. */
+    val subject: SubjectMask? = null,
 )
 
 /** Renders [PreviewFrame]s into a [GLSurfaceView] on demand. */
@@ -126,6 +129,7 @@ class PreviewRenderer : GLSurfaceView.Renderer {
             posToSource = mapper.normalizedOutputToSource(),
             sourceWidth = bitmap.width,
             sourceHeight = bitmap.height,
+            subject = frame.subject,
             showMask = frame.showMask,
         )
     }

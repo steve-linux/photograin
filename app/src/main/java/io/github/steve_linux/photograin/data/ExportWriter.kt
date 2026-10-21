@@ -22,10 +22,12 @@ enum class ExportFormat(
     val lossy: Boolean,
     /** Rendered and stored with 16 bits per channel instead of 8. */
     val deep: Boolean = false,
+    /** Keeps transparency, such as a background removed with a cutout; the others turn it white. */
+    val alpha: Boolean = false,
 ) {
     JPEG("image/jpeg", "jpg", "JPEG", lossy = true),
-    PNG("image/png", "png", "PNG", lossy = false),
-    WEBP("image/webp", "webp", "WebP", lossy = true),
+    PNG("image/png", "png", "PNG", lossy = false, alpha = true),
+    WEBP("image/webp", "webp", "WebP", lossy = true, alpha = true),
     AVIF("image/avif", "avif", "AVIF", lossy = true),
     /** At quality 100 JPEG XL is mathematically lossless. */
     JXL("image/jxl", "jxl", "JPEG XL", lossy = true),

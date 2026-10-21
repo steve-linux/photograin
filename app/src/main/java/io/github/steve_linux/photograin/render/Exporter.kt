@@ -4,6 +4,7 @@ package io.github.steve_linux.photograin.render
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.Rect
 import android.opengl.GLES30
 import io.github.steve_linux.photograin.data.AiUpscaleSource
@@ -24,6 +25,7 @@ import io.github.steve_linux.photograin.model.FrameStyle
 import io.github.steve_linux.photograin.model.GeometryMapper
 import io.github.steve_linux.photograin.model.PxSize
 import io.github.steve_linux.photograin.model.RetouchSpot
+import io.github.steve_linux.photograin.model.SubjectMask
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.ceil
@@ -99,6 +101,11 @@ object Exporter {
         return if (maxLongEdge == null || full.longEdge <= maxLongEdge) 1.0 else maxLongEdge.toDouble() / full.longEdge
     }
 
+    /**
+     * Renders [edit] of [source]. [subject] is the photo's subject for subject masks (see
+     * SubjectSegmenter.forEdit). With [opaque], for formats without transparency, what a
+     * cutout leaves transparent turns white.
+     */
     fun render(
         source: RegionSource,
         base: BaseOrientation,
@@ -108,6 +115,8 @@ object Exporter {
         output: ColorProfile,
         upscale: Int = 1,
         deep: Boolean = false,
+        subject: SubjectMask? = null,
+        opaque: Boolean = false,
         onProgress: (Float) -> Unit,
     ): Bitmap {
         val mapper = GeometryMapper(source.width, source.height, base, edit.geometry)
@@ -133,7 +142,11 @@ object Exporter {
             val result = Bitmap.createBitmap(layout.size.width, layout.size.height, config, false, colorSpace)
             val canvas = Canvas(result)
             // Colors given in sRGB are converted to the bitmap's space by the canvas.
-            if (edit.frame.style != FrameStyle.NONE) canvas.drawColor(edit.frame.color)
+            if (edit.frame.style != FrameStyle.NONE) {
+                canvas.drawColor(edit.frame.color)
+            } else if (opaque) {
+                canvas.drawColor(Color.WHITE)
+            }
             try {
                 val margin = ShaderParams.tileMarginPx(out.longEdge)
                 val maxTex = pipeline.maxTextureSize
@@ -202,6 +215,7 @@ object Exporter {
                         posToSource = mapper.normalizedOutputToSource(),
                         sourceWidth = source.width,
                         sourceHeight = source.height,
+                        subject = subject,
                     )
 
                     pixels.clear()

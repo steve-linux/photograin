@@ -37,6 +37,11 @@ Editor fotografico non distruttivo per Android, libero (GPL-3.0-or-later) e pens
 - **Ingrandimento** 2× o 4× all'esportazione, con interpolazione bicubica oppure con l'IA
   ([Real-ESRGAN](https://github.com/xinntao/Real-ESRGAN) eseguito da ncnn, sulla GPU con Vulkan
   quando c'è): il modello è incluso nell'app, nessuna connessione. Provenienza in [docs/MODELS.md](docs/MODELS.md).
+- **Scontorno con l'IA**: la maschera "Soggetto" trova da sola il soggetto principale
+  ([U²-Net](https://github.com/xuebinqin/U-2-Net), versione leggera, eseguito da ncnn sul telefono)
+  e si rifinisce col pennello. Serve per regolare solo il soggetto o solo lo sfondo, oppure per
+  rimuovere lo sfondo: trasparente (PNG, WebP) o a tinta unita. Funziona anche nell'elaborazione
+  in serie, dove ogni foto trova il proprio soggetto. Nessuna connessione.
 - **Impostazioni**: le foto si salvano in `Immagini/Photograin` (o in una cartella a scelta, o chiedendo
   ogni volta), con nome originale o data e ora; formato, qualità, dimensione, profilo colore e dati
   EXIF/GPS predefiniti; tema chiaro, scuro o di sistema; lingua.
@@ -93,6 +98,6 @@ Tutte le dipendenze (AndroidX, Jetpack Compose, Kotlin, kotlinx) sono Apache-2.0
 LibRaw è distribuita con doppia licenza LGPL-2.1 o CDDL-1.0; Photograin la usa secondo la LGPL-2.1,
 compatibile con la GPL-3.0.
 libjxl (con highway, brotli e skcms), libavif e libaom sono BSD, compatibili con la GPL-3.0.
-ncnn (BSD-3-Clause) con glslang (licenze BSD/MIT/Apache-2.0) e il modello Real-ESRGAN (BSD-3-Clause)
-sono compatibili con la GPL-3.0.
+ncnn (BSD-3-Clause) con glslang (licenze BSD/MIT/Apache-2.0), il modello Real-ESRGAN (BSD-3-Clause)
+e il modello U²-Net (Apache-2.0) sono compatibili con la GPL-3.0.
 Nessuna dipendenza da Google Play Services o servizi proprietari.

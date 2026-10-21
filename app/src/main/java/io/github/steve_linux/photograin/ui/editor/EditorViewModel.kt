@@ -21,6 +21,7 @@ import io.github.steve_linux.photograin.data.RegionSource
 import io.github.steve_linux.photograin.data.Retoucher
 import io.github.steve_linux.photograin.data.SaveLocation
 import io.github.steve_linux.photograin.data.SettingsStore
+import io.github.steve_linux.photograin.data.SubjectSegmenter
 import io.github.steve_linux.photograin.model.Adjustments
 import io.github.steve_linux.photograin.model.AspectRatio
 import io.github.steve_linux.photograin.model.CropRect
@@ -39,6 +40,8 @@ import io.github.steve_linux.photograin.model.History
 import io.github.steve_linux.photograin.model.LocalAdjustment
 import io.github.steve_linux.photograin.model.LocalParamSpec
 import io.github.steve_linux.photograin.model.Mask
+import io.github.steve_linux.photograin.model.Background
+import io.github.steve_linux.photograin.model.SubjectMask
 import io.github.steve_linux.photograin.model.WhiteBalance
 import io.github.steve_linux.photograin.model.RangeType
 import io.github.steve_linux.photograin.model.MaskRange
@@ -72,7 +75,7 @@ import kotlinx.coroutines.withContext
 
 enum class Message {
     EXPORTED, EXPORTED_TO_PICTURES, EXPORTED_TO_DOWNLOADS, EXPORT_FAILED, LOAD_FAILED, ADJUSTMENTS_COPIED, ADJUSTMENTS_PASTED, OUT_OF_MEMORY,
-    LUT_IMPORTED, LUT_INVALID, LUT_MISSING, PRESET_SAVED, HORIZON_NOT_FOUND,
+    LUT_IMPORTED, LUT_INVALID, LUT_MISSING, PRESET_SAVED, HORIZON_NOT_FOUND, SUBJECT_FAILED,
 }
 
 data class EditorUiState(
@@ -106,6 +109,10 @@ data class EditorUiState(
     val brush: BrushSettings = BrushSettings(),
     /** The preview with the healing and clone spots drawn in, or null when there are none. */
     val retouchedPreview: Bitmap? = null,
+    /** The photo's subject, found once a subject mask needs it; null until then. */
+    val subject: SubjectMask? = null,
+    /** The segmentation model is looking for the subject. */
+    val findingSubject: Boolean = false,
     /** In the Retouch tab: false for masks, true for healing and clone. */
     val retouchMode: Boolean = false,
     /** The spot being edited, by index in [EditState.retouch]. */
@@ -157,6 +164,9 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
     private var history = History(EditState())
     private var loadJob: Job? = null
 
+    /** The preview [EditorUiState.subject] was found in. */
+    private var subjectFor: Bitmap? = null
+
     /** Recipe writes run one at a time, in order. */
     private val saveDispatcher = Dispatchers.IO.limitedParallelism(1)
 
@@ -170,6 +180,7 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
             _state.update { it.copy(luts = luts, userPresets = presets) }
         }
         watchRetouch()
+        watchSubject()
         // Load the LUT whenever the edit points at a different one (open, undo, paste, preset).
         viewModelScope.launch {
             _state.map { it.edit.adjustments.look.lutId }.distinctUntilChanged().collectLatest { id ->
@@ -411,6 +422,34 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         commit()
     }
 
+    /**
+     * Cuts the photo out along the selected mask: outside it, [background] (in [color] for
+     * [Background.COLOR]). Only one mask cuts out, so the others go back to keeping theirs.
+     */
+    fun setMaskBackground(background: Background, color: Int? = null) {
+        val index = _state.value.activeMask ?: return
+        updateLive { e ->
+            e.copy(masks = e.masks.mapIndexed { i, l ->
+                when {
+                    i == index -> l.copy(background = background, backgroundColor = color ?: l.backgroundColor)
+                    background != Background.KEEP -> l.copy(background = Background.KEEP)
+                    else -> l
+                }
+            })
+        }
+        commit()
+    }
+
+    /** Adds a subject mask that removes the background, with no other change, and selects it. */
+    fun removeBackground() {
+        val s = _state.value
+        if (s.image == null || s.edit.masks.size >= LocalAdjustment.MAX) return
+        val local = LocalAdjustment(mask = Mask(MaskType.SUBJECT), background = Background.TRANSPARENT)
+        updateLive { e -> e.copy(masks = e.masks.map { it.copy(background = Background.KEEP) } + local) }
+        _state.update { it.copy(selectedMask = it.edit.masks.lastIndex, tool = ToolGroup.LOCAL, retouchMode = false) }
+        commit()
+    }
+
     fun setBrush(brush: BrushSettings) = _state.update { it.copy(brush = brush) }
 
     /** Starts a stroke on the selected brush mask at source-normalized ([x], [y]). */
@@ -590,6 +629,35 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
                 }
                 _state.update { if (it.image?.preview === preview) it.copy(retouchedPreview = result) else it }
             }
+        }
+    }
+
+    /**
+     * Finds the subject in the preview whenever the edit has a subject mask and the subject
+     * of this photo is not known yet. It is found once per photo and kept while it is open.
+     */
+    private fun watchSubject() {
+        viewModelScope.launch {
+            _state.map { s -> s.image?.preview?.takeIf { s.edit.masks.any { it.mask.type == MaskType.SUBJECT } } }
+                .distinctUntilChanged()
+                .collectLatest { preview ->
+                    val image = _state.value.image ?: return@collectLatest
+                    if (preview == null || _state.value.subject?.let { subjectFor === preview } == true) {
+                        _state.update { it.copy(findingSubject = false) }
+                        return@collectLatest
+                    }
+                    _state.update { it.copy(findingSubject = true) }
+                    val subject = withContext(Dispatchers.Default) {
+                        runCatching { SubjectSegmenter.segment(getApplication(), preview, image.base) }
+                            .onFailure { Log.e(TAG, "Cannot find the subject", it) }
+                            .getOrNull()
+                    }
+                    if (_state.value.image?.preview !== preview) return@collectLatest
+                    subjectFor = preview
+                    _state.update {
+                        it.copy(subject = subject, findingSubject = false, message = if (subject == null) Message.SUBJECT_FAILED else it.message)
+                    }
+                }
         }
     }
 
@@ -857,9 +925,21 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
             val ok = withContext(Dispatchers.Default) {
                 val app = getApplication<Application>()
                 try {
-                    val (source, render) = Exporter.prepare(app, RegionSource.open(app, image.uri), image.base, edit, options)
+                    val original = RegionSource.open(app, image.uri)
+                    // The subject found on the preview, so the export cuts out what the screen showed.
+                    val subject = try {
+                        _state.value.subject?.takeIf { subjectFor === image.preview }
+                            ?: SubjectSegmenter.forEdit(app, original, image.base, edit)
+                    } catch (e: Throwable) {
+                        original.close()
+                        throw e
+                    }
+                    val (source, render) = Exporter.prepare(app, original, image.base, edit, options)
                     val bitmap = source.use {
-                        Exporter.render(it, image.base, edit, lut, render.maxLongEdge, render.colorProfile, render.upscale, render.format.deep) { p ->
+                        Exporter.render(
+                            it, image.base, edit, lut, render.maxLongEdge, render.colorProfile, render.upscale, render.format.deep,
+                            subject = subject, opaque = !render.format.alpha,
+                        ) { p ->
                             _state.update { s -> s.copy(exportProgress = p) }
                         }
                     }

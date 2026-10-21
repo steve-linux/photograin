@@ -25,6 +25,7 @@ class BrushRaster(sourceWidth: Int, sourceHeight: Int) {
     /** Texels per source long-edge unit. */
     private val scale: Double
     private var drawn: List<BrushStroke> = emptyList()
+    private var drawnBase: ByteArray? = null
 
     init {
         val size = size(sourceWidth, sourceHeight)
@@ -35,20 +36,27 @@ class BrushRaster(sourceWidth: Int, sourceHeight: Int) {
     }
 
     /**
-     * Brings the grid up to date with [strokes]. Only new segments are drawn when the change
+     * Brings the grid up to date with [strokes], painted over [base] (a grid of the same size,
+     * such as a [SubjectMask]) or over nothing. Only new segments are drawn when the change
      * is a stroke being extended or added; anything else redraws everything.
      * Returns whether the grid changed.
      */
-    fun sync(strokes: List<BrushStroke>): Boolean {
-        if (strokes === drawn) return false
+    fun sync(strokes: List<BrushStroke>, base: ByteArray? = null): Boolean {
+        if (strokes === drawn && base === drawnBase) return false
+        require(base == null || base.size == data.size) { "The base must have the size of the grid" }
         val n = drawn.size
         when {
+            base !== drawnBase -> {
+                if (base == null) data.fill(0) else base.copyInto(data)
+                strokes.forEach { draw(it, from = 0) }
+                drawnBase = base
+            }
             strokes.size == n && n > 0 && samePrefix(strokes, n - 1) && extends(strokes[n - 1], drawn[n - 1]) ->
                 draw(strokes[n - 1], from = drawn[n - 1].pointCount - 1)
             strokes.size == n + 1 && samePrefix(strokes, n) -> draw(strokes[n], from = 0)
             strokes.size == n && samePrefix(strokes, n) -> Unit
             else -> {
-                data.fill(0)
+                if (base == null) data.fill(0) else base.copyInto(data)
                 strokes.forEach { draw(it, from = 0) }
             }
         }

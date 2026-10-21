@@ -14,6 +14,7 @@ import io.github.steve_linux.photograin.data.LookLibrary
 import io.github.steve_linux.photograin.data.Preferences
 import io.github.steve_linux.photograin.data.RecipeStore
 import io.github.steve_linux.photograin.data.RegionSource
+import io.github.steve_linux.photograin.data.SubjectSegmenter
 import io.github.steve_linux.photograin.data.SettingsStore
 import io.github.steve_linux.photograin.model.Adjustments
 import io.github.steve_linux.photograin.model.EditState
@@ -153,9 +154,20 @@ class BatchViewModel(app: Application) : AndroidViewModel(app) {
         val app = getApplication<Application>()
         val base = ImageLoader.baseOrientation(app, uri)
         val lut = edit.adjustments.look.lutId?.let { library.loadLut(it) }
-        val (source, render) = Exporter.prepare(app, RegionSource.open(app, uri), base, edit, options)
+        val original = RegionSource.open(app, uri)
+        // Each photo has its own subject: a recipe with a subject mask finds it again here.
+        val subject = try {
+            SubjectSegmenter.forEdit(app, original, base, edit)
+        } catch (e: Throwable) {
+            original.close()
+            throw e
+        }
+        val (source, render) = Exporter.prepare(app, original, base, edit, options)
         val bitmap = source.use {
-            Exporter.render(it, base, edit, lut, render.maxLongEdge, render.colorProfile, render.upscale, render.format.deep) {}
+            Exporter.render(
+                it, base, edit, lut, render.maxLongEdge, render.colorProfile, render.upscale, render.format.deep,
+                subject = subject, opaque = !render.format.alpha,
+            ) {}
         }
         try {
             val current = settings.value

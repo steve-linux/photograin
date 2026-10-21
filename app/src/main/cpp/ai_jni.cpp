@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// JNI glue between upscaler and io.github.steve_linux.photograin.data.AiUpscaler.
+// JNI glue between the AI models and io.github.steve_linux.photograin.data: upscaler for
+// AiUpscaler, segmenter for SubjectSegmenter.
 #include <android/asset_manager_jni.h>
 #include <android/bitmap.h>
 #include <jni.h>
@@ -7,8 +8,10 @@
 #include <string>
 #include <vector>
 
+#include "segmenter.h"
 #include "upscaler.h"
 
+using photograin::Segmenter;
 using photograin::Upscaler;
 
 namespace {
@@ -42,6 +45,19 @@ uint8_t* lock(JNIEnv* env, jobject bitmap, AndroidBitmapInfo* info) {
     return static_cast<uint8_t*>(pixels);
 }
 
+/** Reads the [param] and [model] assets; throws and returns false on failure. */
+bool readModel(JNIEnv* env, jobject assetManager, jstring param, jstring model,
+               std::vector<unsigned char>* paramData, std::vector<unsigned char>* modelData) {
+    AAssetManager* assets = AAssetManager_fromJava(env, assetManager);
+    const char* paramName = env->GetStringUTFChars(param, nullptr);
+    const char* modelName = env->GetStringUTFChars(model, nullptr);
+    bool read = readAsset(assets, paramName, paramData) && readAsset(assets, modelName, modelData);
+    env->ReleaseStringUTFChars(param, paramName);
+    env->ReleaseStringUTFChars(model, modelName);
+    if (!read) throwIo(env, "Cannot read the model from the app");
+    return read;
+}
+
 }  // namespace
 
 extern "C" {
@@ -50,17 +66,8 @@ extern "C" {
 JNIEXPORT jlong JNICALL
 Java_io_github_steve_1linux_photograin_data_AiUpscaler_nativeLoad(
         JNIEnv* env, jobject, jobject assetManager, jstring param, jstring model, jboolean gpu) {
-    AAssetManager* assets = AAssetManager_fromJava(env, assetManager);
-    const char* paramName = env->GetStringUTFChars(param, nullptr);
-    const char* modelName = env->GetStringUTFChars(model, nullptr);
     std::vector<unsigned char> paramData, modelData;
-    bool read = readAsset(assets, paramName, &paramData) && readAsset(assets, modelName, &modelData);
-    env->ReleaseStringUTFChars(param, paramName);
-    env->ReleaseStringUTFChars(model, modelName);
-    if (!read) {
-        throwIo(env, "Cannot read the model from the app");
-        return 0;
-    }
+    if (!readModel(env, assetManager, param, model, &paramData, &modelData)) return 0;
     auto* upscaler = new Upscaler();
     std::string error;
     if (!upscaler->load(std::string(paramData.begin(), paramData.end()), std::move(modelData), gpu, &error)) {
@@ -100,6 +107,45 @@ Java_io_github_steve_1linux_photograin_data_AiUpscaler_nativeRun(
     AndroidBitmap_unlockPixels(env, output);
     AndroidBitmap_unlockPixels(env, input);
     if (!ok) throwIo(env, error);
+}
+
+/** Loads the segmentation model from the app's assets; returns a handle, or 0 after throwing. */
+JNIEXPORT jlong JNICALL
+Java_io_github_steve_1linux_photograin_data_SubjectSegmenter_nativeLoad(
+        JNIEnv* env, jobject, jobject assetManager, jstring param, jstring model) {
+    std::vector<unsigned char> paramData, modelData;
+    if (!readModel(env, assetManager, param, model, &paramData, &modelData)) return 0;
+    auto* segmenter = new Segmenter();
+    std::string error;
+    if (!segmenter->load(std::string(paramData.begin(), paramData.end()), std::move(modelData), &error)) {
+        delete segmenter;
+        throwIo(env, error);
+        return 0;
+    }
+    return reinterpret_cast<jlong>(segmenter);
+}
+
+/** The subject of [input] as Segmenter::kSize squared bytes, or null after throwing. */
+JNIEXPORT jbyteArray JNICALL
+Java_io_github_steve_1linux_photograin_data_SubjectSegmenter_nativeRun(
+        JNIEnv* env, jobject, jlong handle, jobject input) {
+    AndroidBitmapInfo info;
+    uint8_t* in = lock(env, input, &info);
+    if (in == nullptr) return nullptr;
+    std::vector<uint8_t> mask(Segmenter::kSize * Segmenter::kSize);
+    std::string error;
+    bool ok = reinterpret_cast<Segmenter*>(handle)->run(in, static_cast<int>(info.width), static_cast<int>(info.height),
+                                                        static_cast<int>(info.stride), mask.data(), &error);
+    AndroidBitmap_unlockPixels(env, input);
+    if (!ok) {
+        throwIo(env, error);
+        return nullptr;
+    }
+    jbyteArray out = env->NewByteArray(static_cast<jsize>(mask.size()));
+    if (out != nullptr) {
+        env->SetByteArrayRegion(out, 0, static_cast<jsize>(mask.size()), reinterpret_cast<const jbyte*>(mask.data()));
+    }
+    return out;
 }
 
 }  // extern "C"

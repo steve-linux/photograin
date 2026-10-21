@@ -406,7 +406,7 @@ private fun TextDialog(initial: String, onDismiss: () -> Unit, onDone: (String) 
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun ColorRow(selected: Int, onPick: (Int) -> Unit) {
+internal fun ColorRow(selected: Int, onPick: (Int) -> Unit) {
     var picking by remember { mutableStateOf(false) }
     FlowRow(
         Modifier.fillMaxWidth().padding(vertical = 8.dp),

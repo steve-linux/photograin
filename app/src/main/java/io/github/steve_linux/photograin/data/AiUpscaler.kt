@@ -24,7 +24,7 @@ object AiUpscaler {
     private const val PARAM = "models/realesr_general_x4v3.ncnn.param"
     private const val MODEL = "models/realesr_general_x4v3.ncnn.bin"
 
-    private val loaded by lazy { runCatching { System.loadLibrary("photograin_upscale") }.isSuccess }
+    private val loaded by lazy { runCatching { System.loadLibrary("photograin_ai") }.isSuccess }
     private var handle = 0L
 
     val available: Boolean get() = loaded

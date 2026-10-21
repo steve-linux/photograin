@@ -336,6 +336,9 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit, onGuide: (topi
                             onBrush = viewModel::setBrush,
                             picking = state.picker == Picker.MASK_COLOR,
                             onPicking = { viewModel.setPicker(if (it) Picker.MASK_COLOR else Picker.NONE) },
+                            findingSubject = state.findingSubject,
+                            onRemoveBackground = viewModel::removeBackground,
+                            onBackground = viewModel::setMaskBackground,
                         )
                     }
                 } else if (state.tool == ToolGroup.CROP) {
@@ -464,6 +467,7 @@ private fun messageText(m: Message): Int = when (m) {
     Message.LUT_MISSING -> R.string.look_lut_missing
     Message.PRESET_SAVED -> R.string.msg_preset_saved
     Message.HORIZON_NOT_FOUND -> R.string.msg_horizon_not_found
+    Message.SUBJECT_FAILED -> R.string.msg_subject_failed
 }
 
 /** ACTION_CREATE_DOCUMENT with the MIME type chosen at launch time: input is (mimeType, fileName). */

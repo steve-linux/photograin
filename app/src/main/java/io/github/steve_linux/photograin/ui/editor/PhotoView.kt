@@ -39,7 +39,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import io.github.steve_linux.photograin.model.CropRect
 import io.github.steve_linux.photograin.model.Frame
-import io.github.steve_linux.photograin.model.MaskType
+import io.github.steve_linux.photograin.model.LocalAdjustment
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -124,6 +124,7 @@ fun PhotoView(
             background = floatArrayOf(background.red, background.green, background.blue),
             profile = image.profile,
             masks = state.edit.masks,
+            subject = state.subject,
             showMask = if (maskMode && (state.showMask || state.maskDragging)) state.activeMask ?: -1 else -1,
         )
 
@@ -363,7 +364,7 @@ fun PhotoView(
                             val sp = currentSpace ?: return@awaitEachGesture
                             val masks = currentMasks
                             val selected = currentSelected
-                            if (selected != null && masks[selected].mask.type == MaskType.BRUSH) {
+                            if (selected != null && LocalAdjustment.usesRaster(masks[selected].mask.type)) {
                                 // One finger paints; a second one before it moves means zoom or pan.
                                 handleHeld = true
                                 var painting = false
