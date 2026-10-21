@@ -33,6 +33,7 @@ import androidx.compose.material.icons.outlined.Fullscreen
 import androidx.compose.material.icons.outlined.FullscreenExit
 import androidx.compose.material.icons.outlined.Gradient
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.RestartAlt
@@ -104,6 +105,7 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit, onGuide: (topi
     var lastExport by remember { mutableStateOf<ExportOptions?>(null) }
     var menuOpen by remember { mutableStateOf(false) }
     var showInfo by remember { mutableStateOf(false) }
+    var showVersions by remember { mutableStateOf(false) }
     var lightCurves by rememberSaveable { mutableStateOf(false) }
     var colorHsl by rememberSaveable { mutableStateOf(false) }
 
@@ -166,7 +168,20 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit, onGuide: (topi
         topBar = {
             if (!fullPhoto) TopAppBar(
                 title = {
-                    Text(state.image?.displayName.orEmpty(), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Column {
+                        Text(state.image?.displayName.orEmpty(), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        // With several versions, the bar says which one is open.
+                        if (state.versions.size > 1) {
+                            val open = state.versions.firstOrNull { it.id == state.version }
+                            Text(
+                                open?.let { versionLabel(it) }.orEmpty(),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
                 },
                 navigationIcon = {
                     IconButton(onClick = onClose) {
@@ -194,6 +209,12 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit, onGuide: (topi
                             Icon(Icons.Outlined.MoreVert, stringResource(R.string.more))
                         }
                         DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.versions_title)) },
+                                leadingIcon = { Icon(Icons.Outlined.Layers, null) },
+                                enabled = state.image != null,
+                                onClick = { menuOpen = false; showVersions = true },
+                            )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.copy_adjustments)) },
                                 leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
@@ -426,6 +447,21 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit, onGuide: (topi
 
     if (showInfo) {
         state.image?.let { PhotoInfoDialog(it, onDismiss = { showInfo = false }) }
+    }
+    if (showVersions) {
+        state.image?.let { image ->
+            VersionsDialog(
+                uri = image.uri,
+                versions = state.versions,
+                current = state.version,
+                edit = state.edit,
+                onOpen = { showVersions = false; viewModel.switchVersion(it) },
+                onNew = { showVersions = false; viewModel.newVersion(it) },
+                onRename = viewModel::renameVersion,
+                onDelete = viewModel::deleteVersion,
+                onDismiss = { showVersions = false },
+            )
+        }
     }
     if (showExport) {
         ExportDialog(

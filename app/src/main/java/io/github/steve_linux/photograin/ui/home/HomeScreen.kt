@@ -60,10 +60,14 @@ import androidx.compose.ui.text.Placeholder
 import androidx.compose.ui.text.PlaceholderVerticalAlign
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import io.github.steve_linux.photograin.R
 import io.github.steve_linux.photograin.data.ImageLoader
+import io.github.steve_linux.photograin.data.RecipeStore
+import io.github.steve_linux.photograin.data.RecipeVersion
+import io.github.steve_linux.photograin.ui.editor.versionLabel
 import io.github.steve_linux.photograin.ui.editor.QuickAction
 import io.github.steve_linux.photograin.ui.editor.QuickActionsCard
 import io.github.steve_linux.photograin.ui.guide.GuideEntry
@@ -75,7 +79,7 @@ import kotlinx.coroutines.withContext
 fun HomeScreen(
     recents: List<Uri>,
     onOpenPicker: () -> Unit,
-    onOpen: (Uri) -> Unit,
+    onOpen: (uri: Uri, version: Int) -> Unit,
     onQuickAction: (QuickAction) -> Unit,
     onBatch: () -> Unit,
     showTip: Boolean,
@@ -84,6 +88,17 @@ fun HomeScreen(
     onGuide: () -> Unit,
 ) {
     var comparing by rememberSaveable { mutableStateOf(false) }
+    val context = LocalContext.current
+    // Each version of a photo gets its own tile, as Darktable shows duplicates.
+    val entries by produceState(recents.map { HomeEntry(it, RecipeVersion(1), 1) }, recents) {
+        value = withContext(Dispatchers.IO) {
+            val store = RecipeStore(context)
+            recents.flatMap { uri ->
+                val versions = store.versions(uri)
+                versions.map { HomeEntry(uri, it, versions.size) }
+            }
+        }
+    }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -167,12 +182,16 @@ fun HomeScreen(
                 }
                 if (comparing) {
                     item(span = { GridItemSpan(maxLineSpan) }) { CompareHeader() }
-                    items(recents, key = { "compare $it" }, span = { GridItemSpan(maxLineSpan) }) { uri ->
-                        CompareRow(uri, onClick = { onOpen(uri) })
+                    items(entries, key = { "compare ${it.key}" }, span = { GridItemSpan(maxLineSpan) }) { entry ->
+                        CompareRow(entry, onClick = { onOpen(entry.uri, entry.version.id) })
                     }
                 } else {
-                    items(recents, key = { it.toString() }) { uri ->
-                        RecentThumbnail(uri, onClick = { onOpen(uri) })
+                    items(entries, key = { it.key }) { entry ->
+                        if (entry.count > 1) {
+                            VersionTile(entry, onClick = { onOpen(entry.uri, entry.version.id) })
+                        } else {
+                            RecentThumbnail(entry.uri, onClick = { onOpen(entry.uri, 1) })
+                        }
                     }
                 }
             }
@@ -249,6 +268,54 @@ internal fun RecentThumbnail(uri: Uri, onClick: () -> Unit) {
     }
 }
 
+/** One version of a recent photo; [count] is how many the photo has. */
+private data class HomeEntry(val uri: Uri, val version: RecipeVersion, val count: Int) {
+    val key get() = "$uri#${version.id}"
+}
+
+/** A version of a photo with several: its own edit, and its name in a corner. */
+@Composable
+private fun VersionTile(entry: HomeEntry, onClick: () -> Unit) {
+    val context = LocalContext.current
+    val thumb: Bitmap? by produceState<Bitmap?>(null, entry.uri, entry.version.id) {
+        value = EditedThumbnails.load(context, entry.uri, 384, entry.version.id)
+            ?: withContext(Dispatchers.IO) { ImageLoader.thumbnail(context, entry.uri, 384) }
+    }
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .aspectRatio(1f)
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .clickable(onClick = onClick),
+    ) {
+        thumb?.let {
+            Image(
+                bitmap = it.asImageBitmap(),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+        VersionBadge(entry.version, Modifier.align(Alignment.BottomStart).padding(4.dp))
+    }
+}
+
+@Composable
+private fun VersionBadge(version: RecipeVersion, modifier: Modifier = Modifier) {
+    Text(
+        versionLabel(version),
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSecondaryContainer,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier = modifier
+            .clip(RoundedCornerShape(4.dp))
+            .background(MaterialTheme.colorScheme.secondaryContainer)
+            .padding(horizontal = 6.dp, vertical = 2.dp),
+    )
+}
+
 @Composable
 private fun CompareHeader() {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -266,14 +333,15 @@ private fun CompareHeader() {
 
 /** The original and the edited photo side by side, whole, so the change is easy to judge. */
 @Composable
-private fun CompareRow(uri: Uri, onClick: () -> Unit) {
+private fun CompareRow(entry: HomeEntry, onClick: () -> Unit) {
     val context = LocalContext.current
+    val uri = entry.uri
     val original: Bitmap? by produceState<Bitmap?>(null, uri) {
         value = withContext(Dispatchers.IO) { ImageLoader.thumbnail(context, uri, COMPARE_SIZE) }
     }
     // (rendered, bitmap): the right side stays empty until the render is done.
-    val edited by produceState<Pair<Boolean, Bitmap?>>(false to null, uri) {
-        value = true to EditedThumbnails.load(context, uri, COMPARE_SIZE)
+    val edited by produceState<Pair<Boolean, Bitmap?>>(false to null, uri, entry.version.id) {
+        value = true to EditedThumbnails.load(context, uri, COMPARE_SIZE, entry.version.id)
     }
     Row(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -295,6 +363,9 @@ private fun CompareRow(uri: Uri, onClick: () -> Unit) {
                         contentScale = ContentScale.Fit,
                         modifier = Modifier.fillMaxSize(),
                     )
+                }
+                if (entry.count > 1 && bitmap != null && bitmap !== original) {
+                    VersionBadge(entry.version, Modifier.align(Alignment.BottomStart).padding(4.dp))
                 }
             }
         }

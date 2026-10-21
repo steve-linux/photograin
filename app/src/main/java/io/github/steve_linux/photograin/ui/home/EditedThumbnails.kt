@@ -24,7 +24,7 @@ import kotlinx.coroutines.withContext
  * Small renders of recent photos with their saved recipe applied, for the Home comparison.
  * Keyed by the recipe too, so a photo edited again is rendered afresh.
  */
-internal object EditedThumbnails {
+object EditedThumbnails {
     private const val TAG = "EditedThumbnails"
     private val cache = LruCache<String, Bitmap>(24)
 
@@ -32,8 +32,8 @@ internal object EditedThumbnails {
     private val gpu = Mutex()
 
     /** The edited photo, or null when it has no recipe or cannot be rendered. */
-    suspend fun load(context: Context, uri: Uri, size: Int): Bitmap? = withContext(Dispatchers.IO) {
-        val edit = RecipeStore(context).load(uri) ?: return@withContext null
+    suspend fun load(context: Context, uri: Uri, size: Int, version: Int = 1): Bitmap? = withContext(Dispatchers.IO) {
+        val edit = RecipeStore(context).load(uri, version) ?: return@withContext null
         if (edit == EditState()) return@withContext null
         val key = "$uri\n${edit.toJson().hashCode()}\n$size"
         cache.get(key)?.let { return@withContext it }

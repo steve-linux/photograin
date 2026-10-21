@@ -55,7 +55,7 @@ class MainActivity : ComponentActivity() {
                 // A quick action picked on the home screen waits here for its photo.
                 var pickedAction by rememberSaveable { mutableStateOf<QuickAction?>(null) }
                 val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-                    uri?.let { editor.open(it, pickedAction) }
+                    uri?.let { editor.open(it, action = pickedAction) }
                     pickedAction = null
                 }
                 val multiPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
@@ -92,7 +92,7 @@ class MainActivity : ComponentActivity() {
                     HomeScreen(
                         recents = recents,
                         onOpenPicker = { picker.launch(OPEN_TYPES) },
-                        onOpen = { editor.open(it) },
+                        onOpen = { uri, version -> editor.open(uri, version) },
                         onQuickAction = { action ->
                             pickedAction = action
                             picker.launch(OPEN_TYPES)
