@@ -131,6 +131,24 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit, onGuide: (topi
         createDocument.launch(request.options.format.mimeType to request.fileName)
     }
 
+    // The export dialog set to enlarge with AI, which is what "improve quality" means to most people.
+    fun enhance() {
+        lastExport = (lastExport ?: settings.export).copy(upscale = 2, maxLongEdge = null, aiUpscale = true)
+        showExport = true
+    }
+
+    fun quickAction(action: QuickAction) {
+        fullPhoto = false
+        if (action == QuickAction.ENHANCE) enhance() else viewModel.quickAction(action)
+    }
+
+    LaunchedEffect(state.pendingAction, state.image != null) {
+        val action = state.pendingAction ?: return@LaunchedEffect
+        if (state.image == null) return@LaunchedEffect
+        viewModel.pendingActionStarted()
+        quickAction(action)
+    }
+
     LaunchedEffect(state.message) {
         val message = state.message ?: return@LaunchedEffect
         viewModel.messageShown()
@@ -258,6 +276,7 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit, onGuide: (topi
         },
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
+            if (state.image != null && !fullPhoto) QuickActionsBar(onAction = { quickAction(it) })
             Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                 if (state.image == null) {
                     CircularProgressIndicator()

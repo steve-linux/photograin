@@ -100,6 +100,8 @@ data class EditorUiState(
     /** Set when the settings name no place to save: the screen asks the user for one. */
     val askDestination: SaveRequest? = null,
     val message: Message? = null,
+    /** Chosen on the home screen before the photo: the screen starts it once the photo is open. */
+    val pendingAction: QuickAction? = null,
     val hasCopiedAdjustments: Boolean = false,
     /** The parsed table for the edit's look, or null when there is none or it is missing. */
     val lut: CubeLut? = null,
@@ -211,10 +213,11 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun open(uri: Uri, version: Int = 1) {
+    fun open(uri: Uri, version: Int = 1, action: QuickAction? = null) {
         val current = _state.value
         if (current.image?.uri == uri) {
             if (current.version != version) switchVersion(version)
+            if (action != null) _state.update { it.copy(pendingAction = action) }
             return
         }
         loadJob?.cancel()
@@ -232,7 +235,7 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
                 prefs.addRecent(uri)
                 history = History(saved.second)
                 _state.update {
-                    it.copy(image = image, loading = false, edit = saved.second, version = saved.first, versions = versions).withHistory()
+                    it.copy(image = image, loading = false, edit = saved.second, version = saved.first, versions = versions, pendingAction = action).withHistory()
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Cannot open $uri", e)
@@ -293,6 +296,29 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         loadJob?.cancel()
         _state.update {
             EditorUiState(hasCopiedAdjustments = it.hasCopiedAdjustments, luts = it.luts, userPresets = it.userPresets)
+        }
+    }
+
+    fun pendingActionStarted() = _state.update { it.copy(pendingAction = null) }
+
+    /** The editor side of a [QuickAction]; [QuickAction.ENHANCE] is the export dialog's, so the screen's. */
+    fun quickAction(action: QuickAction) {
+        when (action) {
+            QuickAction.REMOVE_BACKGROUND -> {
+                // A second tap shows the cut-out already made rather than stacking another one.
+                val existing = _state.value.edit.masks.indexOfFirst {
+                    it.mask.type == MaskType.SUBJECT && it.background == Background.TRANSPARENT
+                }
+                if (existing < 0) removeBackground()
+                else _state.update { it.copy(selectedMask = existing, tool = ToolGroup.LOCAL, retouchMode = false, picker = Picker.NONE) }
+            }
+            QuickAction.REMOVE_OBJECT -> {
+                _state.update {
+                    it.copy(tool = ToolGroup.LOCAL, retouchMode = true, picker = Picker.NONE, quadDraft = null)
+                }
+                setSpotType(RetouchType.REMOVE)
+            }
+            QuickAction.ENHANCE -> Unit
         }
     }
 
