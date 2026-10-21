@@ -18,6 +18,7 @@ import io.github.steve_linux.photograin.data.LutEntry
 import io.github.steve_linux.photograin.data.ObjectRemover
 import io.github.steve_linux.photograin.data.Preferences
 import io.github.steve_linux.photograin.data.RecipeStore
+import io.github.steve_linux.photograin.data.RecipeVersion
 import io.github.steve_linux.photograin.data.RegionSource
 import io.github.steve_linux.photograin.data.Retoucher
 import io.github.steve_linux.photograin.data.SaveLocation
@@ -140,6 +141,9 @@ data class EditorUiState(
     val picker: Picker = Picker.NONE,
     /** The four perspective points being placed, shown on the uncorrected photo; null when not placing them. */
     val quadDraft: Quad? = null,
+    /** The version of the photo being edited, by id; see [RecipeStore.versions]. */
+    val version: Int = 1,
+    val versions: List<RecipeVersion> = listOf(RecipeVersion(1)),
 ) {
     /** [selectedShape] if it still exists. */
     val activeShape: Int? get() = selectedShape?.takeIf { it in edit.shapes.indices }
@@ -207,8 +211,12 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun open(uri: Uri) {
-        if (_state.value.image?.uri == uri) return
+    fun open(uri: Uri, version: Int = 1) {
+        val current = _state.value
+        if (current.image?.uri == uri) {
+            if (current.version != version) switchVersion(version)
+            return
+        }
         loadJob?.cancel()
         _state.update {
             EditorUiState(loading = true, hasCopiedAdjustments = it.hasCopiedAdjustments, luts = it.luts, userPresets = it.userPresets)
@@ -216,10 +224,16 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         loadJob = viewModelScope.launch {
             try {
                 val image = withContext(Dispatchers.IO) { ImageLoader.load(getApplication(), uri) }
-                val saved = withContext(Dispatchers.IO) { recipes.load(uri) } ?: EditState()
+                val (versions, saved) = withContext(saveDispatcher) {
+                    val versions = recipes.versions(uri)
+                    val id = version.takeIf { v -> versions.any { it.id == v } } ?: 1
+                    versions to (id to (recipes.load(uri, id) ?: EditState()))
+                }
                 prefs.addRecent(uri)
-                history = History(saved)
-                _state.update { it.copy(image = image, loading = false, edit = saved).withHistory() }
+                history = History(saved.second)
+                _state.update {
+                    it.copy(image = image, loading = false, edit = saved.second, version = saved.first, versions = versions).withHistory()
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Cannot open $uri", e)
                 prefs.removeRecent(uri)
@@ -227,6 +241,51 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
             } catch (e: OutOfMemoryError) {
                 _state.update { it.copy(loading = false, message = Message.OUT_OF_MEMORY) }
             }
+        }
+    }
+
+    // --- Versions ----------------------------------------------------------------------------
+
+    /** Opens another version of the same photo; the current one is already saved. */
+    fun switchVersion(id: Int) {
+        val uri = _state.value.image?.uri ?: return
+        viewModelScope.launch {
+            val edit = withContext(saveDispatcher) { recipes.load(uri, id) } ?: EditState()
+            history = History(edit)
+            _state.update { it.copy(edit = edit, version = id, selectedMask = null, selectedSpot = null, selectedText = null, selectedShape = null).withHistory() }
+        }
+    }
+
+    /** Adds a version starting from the current edit ([copy]) or from the untouched photo, and opens it. */
+    fun newVersion(copy: Boolean) {
+        val uri = _state.value.image?.uri ?: return
+        val start = if (copy) _state.value.edit else EditState()
+        viewModelScope.launch {
+            val (id, versions) = withContext(saveDispatcher) { recipes.create(uri, start).let { it to recipes.versions(uri) } }
+            history = History(start)
+            _state.update { it.copy(edit = start, version = id, versions = versions).withHistory() }
+        }
+    }
+
+    /** Deletes the current version and opens the first that is left. */
+    fun deleteVersion() {
+        val uri = _state.value.image?.uri ?: return
+        val id = _state.value.version
+        viewModelScope.launch {
+            val (versions, edit) = withContext(saveDispatcher) {
+                recipes.delete(uri, id).let { it to (recipes.load(uri, 1) ?: EditState()) }
+            }
+            history = History(edit)
+            _state.update { it.copy(edit = edit, version = 1, versions = versions).withHistory() }
+        }
+    }
+
+    fun renameVersion(name: String) {
+        val uri = _state.value.image?.uri ?: return
+        val id = _state.value.version
+        viewModelScope.launch {
+            val versions = withContext(saveDispatcher) { recipes.rename(uri, id, name); recipes.versions(uri) }
+            _state.update { it.copy(versions = versions) }
         }
     }
 
@@ -1008,6 +1067,7 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         val image = _state.value.image ?: return
         val current = settings.value
         val name = ExportDestination.fileName(image.displayName, current.naming, options.format)
+            .let { n -> if (_state.value.version == 1) n else n.substringBeforeLast('.') + "_v${_state.value.version}." + n.substringAfterLast('.') }
         viewModelScope.launch {
             val uri = withContext(Dispatchers.IO) { ExportDestination.create(getApplication(), current, name, options.format) }
             if (uri == null) {
@@ -1089,8 +1149,9 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun persist(edit: EditState) {
         val uri = _state.value.image?.uri ?: return
+        val version = _state.value.version
         viewModelScope.launch(saveDispatcher) {
-            runCatching { recipes.save(uri, edit) }.onFailure { Log.w(TAG, "Cannot save recipe", it) }
+            runCatching { recipes.save(uri, edit, version) }.onFailure { Log.w(TAG, "Cannot save recipe", it) }
         }
     }
 
