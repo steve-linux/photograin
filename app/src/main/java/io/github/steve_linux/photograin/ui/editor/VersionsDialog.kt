@@ -16,12 +16,15 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -107,7 +110,7 @@ fun VersionsDialog(
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
     ) {
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surfaceContainerLowest) {
-            Column(Modifier.fillMaxSize().safeDrawingPadding()) {
+            val header: @Composable () -> Unit = {
                 Row(Modifier.fillMaxWidth().padding(4.dp), verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onDismiss) {
                         Icon(Icons.Outlined.Close, stringResource(R.string.close))
@@ -125,9 +128,10 @@ fun VersionsDialog(
                         modifier = Modifier.padding(end = 8.dp),
                     )
                 }
-
-                // The large view: the version picked on the strip, or it next to the open one.
-                Box(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 8.dp)) {
+            }
+            // The large view: the version picked on the strip, or it next to the open one.
+            val large: @Composable (Modifier) -> Unit = { modifier ->
+                Box(modifier.padding(8.dp)) {
                     if (comparing && shown != current) {
                         val pair = listOf(currentVersion, shownVersion)
                         if (landscape) {
@@ -143,7 +147,8 @@ fun VersionsDialog(
                         LargeVersion(uri, shownVersion, shown == current, Modifier.fillMaxSize())
                     }
                 }
-
+            }
+            val controls: @Composable () -> Unit = {
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
@@ -151,7 +156,7 @@ fun VersionsDialog(
                     items(versions, key = { it.id }) { v ->
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.width(80.dp).clickable { shown = v.id },
+                            modifier = Modifier.width(if (landscape) 64.dp else 80.dp).clickable { shown = v.id },
                         ) {
                             // The open version's thumbnail follows the live edit.
                             VersionThumbnail(uri, v.id, if (v.id == current) edit else null, selected = v.id == shown)
@@ -164,7 +169,6 @@ fun VersionsDialog(
                         }
                     }
                 }
-
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.Center,
@@ -190,6 +194,24 @@ fun VersionsDialog(
                             stringResource(R.string.version_open, versionLabel(shownVersion))
                         },
                     )
+                }
+            }
+
+            if (landscape) {
+                // Sideways the height is short, so the controls move to a column at the side
+                // and the photos keep the full height.
+                Row(Modifier.fillMaxSize().safeDrawingPadding()) {
+                    large(Modifier.weight(1f).fillMaxHeight())
+                    Column(Modifier.width(300.dp).fillMaxHeight().verticalScroll(rememberScrollState())) {
+                        header()
+                        controls()
+                    }
+                }
+            } else {
+                Column(Modifier.fillMaxSize().safeDrawingPadding()) {
+                    header()
+                    large(Modifier.weight(1f).fillMaxWidth())
+                    controls()
                 }
             }
         }
