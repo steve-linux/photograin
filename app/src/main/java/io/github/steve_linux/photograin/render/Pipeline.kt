@@ -12,7 +12,7 @@ import io.github.steve_linux.photograin.model.LocalAdjustment
 import io.github.steve_linux.photograin.model.MaskType
 import io.github.steve_linux.photograin.model.Mat3
 import io.github.steve_linux.photograin.model.PxSize
-import io.github.steve_linux.photograin.model.SubjectMask
+import io.github.steve_linux.photograin.model.Subjects
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.ceil
@@ -138,7 +138,7 @@ internal class Pipeline {
      * @param output the color space to write: sRGB for the screen, the chosen profile for export.
      * @param masks local adjustments; [posToSource] maps output positions (0..1) to source
      *   positions (0..1), and [sourceWidth] x [sourceHeight] gives the source's shape.
-     * @param subject the photo's subject, for subject masks; until it is known they are empty.
+     * @param subjects what the subject masks cover; until it is known they are empty.
      * @param showMask index of the mask to tint red, or -1.
      */
     fun renderColor(
@@ -158,7 +158,7 @@ internal class Pipeline {
         posToSource: Homography = Homography.IDENTITY,
         sourceWidth: Int = 1,
         sourceHeight: Int = 1,
-        subject: SubjectMask? = null,
+        subjects: Subjects? = null,
         showMask: Int = -1,
     ) {
         val geoTarget = checkNotNull(geo) { "renderIntermediate() must run first" }
@@ -229,7 +229,7 @@ internal class Pipeline {
         val shown = if (showMask in 0 until mu.count) showMask else -1
         p.int("uShowMask", shown)
         GLES30.glActiveTexture(GLES30.GL_TEXTURE4)
-        GLES30.glBindTexture(GLES30.GL_TEXTURE_2D_ARRAY, brushTexture(masks, sourceWidth, sourceHeight, subject))
+        GLES30.glBindTexture(GLES30.GL_TEXTURE_2D_ARRAY, brushTexture(masks, sourceWidth, sourceHeight, subjects))
         p.int("uBrush", 4)
         if (mu.count > 0 || shown >= 0) {
             p.mat3("uPosToSrc", posToSource.toGlMat3())
@@ -296,10 +296,10 @@ internal class Pipeline {
 
     /**
      * Texture array with one layer per mask index, holding the rasters of the brush and
-     * subject masks. Layers are re-uploaded only when their strokes or [subject] change.
+     * subject masks. Layers are re-uploaded only when their strokes or [subjects] change.
      * Without such masks it is a 1x1 texture, so the sampler stays valid.
      */
-    private fun brushTexture(masks: List<LocalAdjustment>, sourceWidth: Int, sourceHeight: Int, subject: SubjectMask?): Int {
+    private fun brushTexture(masks: List<LocalAdjustment>, sourceWidth: Int, sourceHeight: Int, subjects: Subjects?): Int {
         val hasBrush = masks.take(LocalAdjustment.MAX).any { LocalAdjustment.usesRaster(it.mask.type) }
         val size = if (hasBrush) {
             BrushRaster.size(sourceWidth, sourceHeight)
@@ -331,7 +331,7 @@ internal class Pipeline {
             // A new raster is uploaded even when empty: the layer may hold another photo's paint.
             val created = brushRasters[i] == null
             val raster = brushRasters[i] ?: BrushRaster(sourceWidth, sourceHeight).also { brushRasters[i] = it }
-            val base = if (local.mask.type == MaskType.SUBJECT) subject?.resizedTo(raster.width, raster.height)?.data else null
+            val base = if (local.mask.type == MaskType.SUBJECT) subjects?.of(local.mask)?.resizedTo(raster.width, raster.height)?.data else null
             if (raster.sync(local.mask.strokes, base) || created) {
                 val buffer = brushUpload?.takeIf { it.capacity() == raster.data.size }
                     ?: ByteBuffer.allocateDirect(raster.data.size).also { brushUpload = it }

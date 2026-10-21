@@ -37,6 +37,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,7 +58,8 @@ import java.util.Locale
 
 /**
  * Local adjustments: the list of masks, and the controls of the selected one. A subject mask
- * waits for [findingSubject]; any mask can cut the photo out with [onBackground].
+ * waits for [findingSubject], or for [selectingObject] once an object is tapped; any mask can
+ * cut the photo out with [onBackground].
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -79,6 +81,8 @@ fun LocalPanel(
     picking: Boolean,
     onPicking: (Boolean) -> Unit,
     findingSubject: Boolean,
+    selectingObject: Boolean,
+    onClearObject: () -> Unit,
     onRemoveBackground: () -> Unit,
     onBackground: (Background, Int?) -> Unit,
 ) {
@@ -138,9 +142,10 @@ fun LocalPanel(
                 Icon(Icons.Outlined.Delete, contentDescription = stringResource(R.string.local_delete))
             }
         }
-        if (local.mask.type == MaskType.SUBJECT && findingSubject) {
+        val tapped = local.mask.points.isNotEmpty()
+        if (local.mask.type == MaskType.SUBJECT && (if (tapped) selectingObject else findingSubject)) {
             Text(
-                stringResource(R.string.local_finding_subject),
+                stringResource(if (tapped) R.string.local_selecting_object else R.string.local_finding_subject),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = 4.dp),
@@ -148,7 +153,9 @@ fun LocalPanel(
             LinearProgressIndicator(Modifier.fillMaxWidth().padding(bottom = 8.dp))
         }
         if (LocalAdjustment.usesRaster(local.mask.type)) {
-            if (local.mask.strokes.isEmpty()) {
+            if (tapped) {
+                TextButton(onClick = onClearObject) { Text(stringResource(R.string.local_clear_object)) }
+            } else if (local.mask.strokes.isEmpty()) {
                 Text(
                     stringResource(if (local.mask.type == MaskType.SUBJECT) R.string.local_hint_subject else R.string.local_hint_brush),
                     style = MaterialTheme.typography.bodySmall,

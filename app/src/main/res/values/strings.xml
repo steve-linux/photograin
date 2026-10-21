@@ -180,6 +180,18 @@
     <string name="settings_language_hint">Opens the system language settings for Photograin</string>
     <string name="settings_show_tips">Show tips again</string>
     <string name="settings_show_tips_done">They will appear on the home screen</string>
+    <string name="settings_models">AI models</string>
+    <string name="settings_models_hint">Larger, more precise models, downloaded separately so the app stays small and never goes online: download a pack with the browser, then import the file here.</string>
+    <string name="settings_models_download">Download model packs</string>
+    <string name="settings_model_isnet">Precise cutout (IS-Net)</string>
+    <string name="settings_model_isnet_desc">Finer edges on hair and fur for the Subject mask and Remove background. Slower: up to half a minute per photo. %1$s</string>
+    <string name="settings_model_installed">Installed, in use</string>
+    <string name="settings_model_import">Import file…</string>
+    <string name="settings_model_remove">Remove</string>
+    <string name="settings_model_importing">Importing the model…</string>
+    <string name="settings_model_imported">Model imported</string>
+    <string name="settings_model_unknown">This file is not a Photograin model pack</string>
+    <string name="settings_model_failed">Could not import the model</string>
     <string name="settings_about">About</string>
     <string name="settings_version">Version %1$s</string>
     <string name="settings_license">License</string>
@@ -222,7 +234,7 @@
     <string name="guide_export_title">Save the photo</string>
     <string name="guide_export_body">Tap {icon} to save a copy. Choose format, quality and size (TIFF keeps 16 bits per color): you can also enlarge the photo 2× or 4×, with AI to restore detail. The sRGB color profile is right for sharing; Display P3 and Adobe RGB keep more color for printing. Under the shooting data you choose what goes with the photo: date, camera, settings, author, location (off by default). Photo information in the ⋮ menu shows what the original contains.</string>
     <string name="guide_settings_title">Settings</string>
-    <string name="guide_settings_body">With {icon} you choose where to save (Pictures/Photograin to begin with), how files are named, the default format, whether to remove the GPS location, and a light or dark theme.</string>
+    <string name="guide_settings_body">With {icon} you choose where to save (Pictures/Photograin to begin with), how files are named, the default format, whether to remove the GPS location, and a light or dark theme. Under AI models you can import larger models, such as a more precise cutout, downloaded separately with the browser.</string>
     <string name="tool_local">Retouch</string>
     <string name="local_add_linear">Linear</string>
     <string name="local_add_radial">Radial</string>
@@ -235,7 +247,7 @@
     <string name="local_delete">Delete mask</string>
     <string name="local_feather">Feather</string>
     <string name="guide_local_title">Masks</string>
-    <string name="guide_local_body">In Retouch, Masks adjust only part of the photo. A linear gradient darkens a bright sky or lightens a foreground; a radial one brings out a subject; with the brush you paint the area yourself, and Erase fixes any overflow. Drag the points on the photo to move and shape it, use {icon} to see where it applies, and Invert to change everything else instead. Under Range a mask can be narrowed to the brightest or darkest parts, or to one color picked by tapping the photo; Whole photo with a range adjusts, say, every bright sky or every green at once.</string>
+    <string name="guide_local_body">In Retouch, Masks adjust only part of the photo. A linear gradient darkens a bright sky or lightens a foreground; a radial one brings out a subject; with the brush you paint the area yourself, and Erase fixes any overflow. Subject finds the main subject with AI; tap an object on the photo to select that one instead. Drag the points on the photo to move and shape it, use {icon} to see where it applies, and Invert to change everything else instead. Under Range a mask can be narrowed to the brightest or darkest parts, or to one color picked by tapping the photo; Whole photo with a range adjusts, say, every bright sky or every green at once.</string>
     <string name="local_add_brush">Brush</string>
     <string name="local_brush_n">Brush %1$d</string>
     <string name="brush_paint">Paint</string>
@@ -314,7 +326,9 @@
     <string name="local_subject_n">Subject %1$d</string>
     <string name="local_remove_background">Remove background</string>
     <string name="local_finding_subject">Finding the subject…</string>
-    <string name="local_hint_subject">The subject is found by an AI model on the phone. Paint to add to it, erase to take away; use two fingers to zoom.</string>
+    <string name="local_hint_subject">The subject is found by an AI model on the phone. Tap an object to select it instead, and with Erase tap a part to leave out. Paint to add to it, erase to take away; use two fingers to zoom.</string>
+    <string name="local_selecting_object">Selecting the object…</string>
+    <string name="local_clear_object">Back to the main subject</string>
     <string name="background_title">Background</string>
     <string name="background_keep">Keep</string>
     <string name="background_transparent">Transparent</string>

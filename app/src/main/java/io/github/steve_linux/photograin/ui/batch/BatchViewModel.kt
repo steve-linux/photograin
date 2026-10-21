@@ -157,7 +157,7 @@ class BatchViewModel(app: Application) : AndroidViewModel(app) {
         val lut = edit.adjustments.look.lutId?.let { library.loadLut(it) }
         val original = RegionSource.open(app, uri)
         // Each photo has its own subject: a recipe with a subject mask finds it again here.
-        val subject = try {
+        val subjects = try {
             SubjectSegmenter.forEdit(app, original, base, edit)
         } catch (e: Throwable) {
             original.close()
@@ -167,7 +167,7 @@ class BatchViewModel(app: Application) : AndroidViewModel(app) {
         val bitmap = source.use {
             Exporter.render(
                 it, base, edit, lut, render.maxLongEdge, render.colorProfile, render.upscale, render.format.deep,
-                subject = subject, opaque = !render.format.alpha, inpaint = ObjectRemover.with(app),
+                subjects = subjects, opaque = !render.format.alpha, inpaint = ObjectRemover.with(app),
             ) {}
         }
         try {
