@@ -21,12 +21,15 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /**
- * Small renders of recent photos with their saved recipe applied, for the Home comparison.
+ * Renders of recent photos with their saved recipe applied, for the Home comparison.
  * Keyed by the recipe too, so a photo edited again is rendered afresh.
  */
 object EditedThumbnails {
     private const val TAG = "EditedThumbnails"
-    private val cache = LruCache<String, Bitmap>(24)
+    // Sized in bytes: the versions screen keeps a few large renders next to the small tiles.
+    private val cache = object : LruCache<String, Bitmap>(48 * 1024 * 1024) {
+        override fun sizeOf(key: String, value: Bitmap) = value.byteCount
+    }
 
     // One offscreen GL context at a time.
     private val gpu = Mutex()
