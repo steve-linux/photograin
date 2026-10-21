@@ -7,7 +7,6 @@
 #include <jni.h>
 
 #include <algorithm>
-#include <cstdio>
 #include <string>
 #include <vector>
 
@@ -34,22 +33,6 @@ bool readAsset(AAssetManager* assets, const char* name, std::vector<unsigned cha
     out->resize(AAsset_getLength(asset));
     bool ok = AAsset_read(asset, out->data(), out->size()) == static_cast<int>(out->size());
     AAsset_close(asset);
-    return ok;
-}
-
-bool readFile(JNIEnv* env, jstring path, std::vector<unsigned char>* out) {
-    const char* chars = env->GetStringUTFChars(path, nullptr);
-    FILE* file = std::fopen(chars, "rb");
-    env->ReleaseStringUTFChars(path, chars);
-    if (file == nullptr) return false;
-    bool ok = std::fseek(file, 0, SEEK_END) == 0;
-    long size = ok ? std::ftell(file) : -1;
-    ok = size >= 0 && std::fseek(file, 0, SEEK_SET) == 0;
-    if (ok) {
-        out->resize(static_cast<size_t>(size));
-        ok = std::fread(out->data(), 1, out->size(), file) == out->size();
-    }
-    std::fclose(file);
     return ok;
 }
 
@@ -158,11 +141,6 @@ Java_io_github_steve_1linux_photograin_data_SubjectSegmenter_nativeLoad(
 JNIEXPORT jlong JNICALL
 Java_io_github_steve_1linux_photograin_data_SubjectSegmenter_nativeLoadFile(
         JNIEnv* env, jobject, jstring param, jstring model, jint size, jfloatArray mean, jfloatArray deviation) {
-    std::vector<unsigned char> paramData, modelData;
-    if (!readFile(env, param, &paramData) || !readFile(env, model, &modelData)) {
-        throwIo(env, "Cannot read the model pack");
-        return 0;
-    }
     if (env->GetArrayLength(mean) != 3 || env->GetArrayLength(deviation) != 3) {
         throwIo(env, "Expected three values for each channel");
         return 0;
@@ -171,8 +149,13 @@ Java_io_github_steve_1linux_photograin_data_SubjectSegmenter_nativeLoadFile(
     env->GetFloatArrayRegion(mean, 0, 3, m);
     env->GetFloatArrayRegion(deviation, 0, 3, d);
     auto* segmenter = new Segmenter(size, m, d);
+    const char* paramPath = env->GetStringUTFChars(param, nullptr);
+    const char* modelPath = env->GetStringUTFChars(model, nullptr);
     std::string error;
-    if (!segmenter->load(std::string(paramData.begin(), paramData.end()), std::move(modelData), &error)) {
+    bool ok = segmenter->loadFiles(paramPath, modelPath, &error);
+    env->ReleaseStringUTFChars(param, paramPath);
+    env->ReleaseStringUTFChars(model, modelPath);
+    if (!ok) {
         delete segmenter;
         throwIo(env, error);
         return 0;
