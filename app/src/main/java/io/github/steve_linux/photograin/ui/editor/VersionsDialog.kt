@@ -44,6 +44,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -92,8 +93,9 @@ fun VersionsDialog(
     onDelete: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var shown by remember { mutableIntStateOf(current) }
-    var comparing by remember { mutableStateOf(false) }
+    // Saved so a turn of the phone keeps the screen as it was.
+    var shown by rememberSaveable { mutableIntStateOf(current) }
+    var comparing by rememberSaveable { mutableStateOf(false) }
     var renaming by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
     val currentVersion = versions.firstOrNull { it.id == current } ?: RecipeVersion(current)

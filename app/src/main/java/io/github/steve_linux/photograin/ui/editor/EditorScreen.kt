@@ -105,7 +105,7 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit, onGuide: (topi
     var lastExport by remember { mutableStateOf<ExportOptions?>(null) }
     var menuOpen by remember { mutableStateOf(false) }
     var showInfo by remember { mutableStateOf(false) }
-    var showVersions by remember { mutableStateOf(false) }
+    var showVersions by rememberSaveable { mutableStateOf(false) }
     var lightCurves by rememberSaveable { mutableStateOf(false) }
     var colorHsl by rememberSaveable { mutableStateOf(false) }
 
