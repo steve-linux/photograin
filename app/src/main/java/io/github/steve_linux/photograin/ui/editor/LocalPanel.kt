@@ -276,9 +276,6 @@ private fun RangeSection(
     onChangeFinished: () -> Unit,
     picking: Boolean,
     onPicking: (Boolean) -> Unit,
-    findingSubject: Boolean,
-    onRemoveBackground: () -> Unit,
-    onBackground: (Background, Int?) -> Unit,
 ) {
     val range = mask.range
     fun set(r: MaskRange) = onShape(mask.copy(range = r))
