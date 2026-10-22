@@ -222,11 +222,12 @@ esecuzioni danno lo stesso zip.
 
 A 1024 pixel le attivazioni sono grandi: con le convoluzioni veloci di ncnn (Winograd e sgemm)
 il picco di memoria arriva a 2,3 GB sul PC, e su un Galaxy A52s (5,5 GB) il sistema chiudeva
-l'app. `segmenter.cpp` le disattiva per i modelli dei pacchetti, legge i pesi dal file senza
-tenerne una copia intera e, su ARM, conserva le attivazioni in fp16 (calcoli sempre in fp32): il
-picco scende a circa 0,5 GB, misurato con ncnn compilato per aarch64 ed eseguito in qemu, con la
-maschera ancora uguale a onnxruntime sul 99,96% dei pixel (differenza media 0,001). Se il
-telefono ha meno di 1 GB disponibile oltre alla soglia di memoria bassa del sistema, l'app usa
-U²-Net-p per quella volta e mostra un avviso nell'editor. Chiudere altre app e riaprire la foto
-permette di riprovare. Lo scontorno si esporta in PNG o WebP per conservare la trasparenza;
-i formati senza alpha, come JPEG, vengono composti su bianco.
+l'app. `segmenter.cpp` disattiva queste convoluzioni per i modelli dei pacchetti e legge i pesi
+dal file senza tenerne una copia intera. Con le attivazioni in fp32 il picco misurato sul PC è
+di circa 1,1 GB. Sul Galaxy A52s le attivazioni in fp16 producevano bande orizzontali nella
+maschera.
+
+Se il telefono ha meno di 1,5 GiB disponibili oltre alla soglia di memoria bassa del sistema,
+l'app usa U²-Net-p per quella volta e mostra un avviso nell'editor. Chiudere altre app e
+riaprire la foto permette di riprovare. Lo scontorno si esporta in PNG o WebP per conservare
+la trasparenza. I formati senza alpha, come JPEG, vengono composti su bianco.

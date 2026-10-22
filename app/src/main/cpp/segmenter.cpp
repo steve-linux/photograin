@@ -35,10 +35,8 @@ void Segmenter::configure() {
         // is even a little faster at this size.
         net_->opt.use_winograd_convolution = false;
         net_->opt.use_sgemm_convolution = false;
-        // Activations stored as fp16 where the CPU has it (ARM), still computed in fp32:
-        // half the memory again, about 0.5 GB for IS-Net.
-        net_->opt.use_fp16_storage = true;
-        net_->opt.use_fp16_packed = true;
+        // Not fp16 storage, which would halve that again: on phones it breaks IS-Net's mask
+        // into stripes.
     }
 }
 
