@@ -33,10 +33,10 @@ object SubjectSegmenter {
     private val ISNET_DEVIATION = floatArrayOf(1f, 1f, 1f)
 
     /**
-     * Free memory IS-Net needs to run: about 0.5 GB at its peak on ARM, with room to spare.
+     * Free memory IS-Net needs to run: about 1 GB at its peak, with room to spare.
      * With less the system would kill the app, so the bundled model finds the subject instead.
      */
-    private const val ISNET_MEMORY = 1L shl 30
+    private const val ISNET_MEMORY = 3L shl 29
 
     private val loaded by lazy { runCatching { System.loadLibrary("photograin_ai") }.isSuccess }
     private var handle = 0L
