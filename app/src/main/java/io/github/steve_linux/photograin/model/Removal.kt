@@ -94,6 +94,7 @@ object Removal {
         gridW: Int,
         gridH: Int,
         grow: Double = 0.0,
+        feather: Double? = null,
     ): ByteArray {
         val out = ByteArray(gridW * gridH)
         val sx = gridW / (crop[2] - crop[0]).toDouble()
@@ -101,7 +102,8 @@ object Removal {
         val long = max(width, height).toDouble()
         for (s in strokes) {
             val r = s.radius * long * (sx + sy) / 2 + grow
-            val hard = if (grow > 0) 0.99 else s.hardness.coerceIn(0f, 0.99f).toDouble()
+            val hard = if (feather != null) ((r - feather) / max(r, 0.5)).coerceIn(0.0, 0.999999)
+                else if (grow > 0) 0.99 else s.hardness.coerceIn(0f, 0.99f).toDouble()
             fun px(k: Int) = (s.points[2 * k] * width.toDouble() - crop[0]) * sx
             fun py(k: Int) = (s.points[2 * k + 1] * height.toDouble() - crop[1]) * sy
             if (s.pointCount == 1) stamp(out, gridW, gridH, px(0), py(0), r, hard)
@@ -116,6 +118,16 @@ object Removal {
             }
         }
         return out
+    }
+
+    /**
+     * Fully replace the painted area; feather only outside it. An inward soft brush blends
+     * the original object back into the result. The feather fits inside the model's GROW
+     * margin, and is measured in model pixels so preview and export use the same coverage.
+     */
+    fun blendRaster(strokes: List<BrushStroke>, crop: IntArray, width: Int, height: Int, gridW: Int, gridH: Int): ByteArray {
+        val feather = 2.0 * max(gridW, gridH) / MODEL_SIZE
+        return raster(strokes, crop, width, height, gridW, gridH, grow = feather, feather = feather)
     }
 
     /**

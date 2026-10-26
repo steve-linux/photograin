@@ -528,6 +528,7 @@ private fun messageText(m: Message): Int = when (m) {
     Message.PRESET_SAVED -> R.string.msg_preset_saved
     Message.HORIZON_NOT_FOUND -> R.string.msg_horizon_not_found
     Message.SUBJECT_FAILED -> R.string.msg_subject_failed
+    Message.SUBJECT_FALLBACK -> R.string.msg_subject_fallback
     Message.REMOVE_FAILED -> R.string.msg_remove_failed
 }
 

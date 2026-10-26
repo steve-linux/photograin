@@ -81,7 +81,7 @@ import java.io.IOException
 enum class Message {
     EXPORTED, EXPORTED_TO_PICTURES, EXPORTED_TO_DOWNLOADS, EXPORT_FAILED, LOAD_FAILED, ADJUSTMENTS_COPIED, ADJUSTMENTS_PASTED, OUT_OF_MEMORY,
     LUT_IMPORTED, LUT_INVALID, LUT_MISSING, PRESET_SAVED, HORIZON_NOT_FOUND, SUBJECT_FAILED,
-    REMOVE_FAILED,
+    REMOVE_FAILED, SUBJECT_FALLBACK,
 }
 
 data class EditorUiState(
@@ -870,7 +870,7 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
                     }
                     _state.update { it.copy(findingSubject = true) }
                     val subject = withContext(Dispatchers.Default) {
-                        runCatching { SubjectSegmenter.segment(getApplication(), preview, image.base) }
+                        runCatching { SubjectSegmenter.segmentResult(getApplication(), preview, image.base) }
                             .onFailure { Log.e(TAG, "Cannot find the subject", it) }
                             .getOrNull()
                     }
@@ -878,9 +878,13 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
                     subjectFor = preview
                     _state.update {
                         it.copy(
-                            subjects = Subjects(subject, it.subjects.objects),
+                            subjects = Subjects(subject?.mask, it.subjects.objects),
                             findingSubject = false,
-                            message = if (subject == null) Message.SUBJECT_FAILED else it.message,
+                            message = when {
+                                subject == null -> Message.SUBJECT_FAILED
+                                subject.usedFallback -> Message.SUBJECT_FALLBACK
+                                else -> it.message
+                            },
                         )
                     }
                 }

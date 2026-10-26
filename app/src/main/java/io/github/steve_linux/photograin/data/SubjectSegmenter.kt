@@ -47,6 +47,8 @@ object SubjectSegmenter {
 
     val available: Boolean get() = loaded
 
+    data class Result(val mask: SubjectMask, val usedFallback: Boolean)
+
     /** Loads the best model installed; later calls reuse it until the packs change. */
     @Synchronized
     private fun handle(context: Context): Long {
@@ -72,9 +74,14 @@ object SubjectSegmenter {
      * The subject of [image], the whole source as stored, shown with orientation [base].
      * Blocking: call from a background thread.
      */
+    fun segment(context: Context, image: Bitmap, base: BaseOrientation): SubjectMask =
+        segmentResult(context, image, base).mask
+
+    /** Returns the model choice together with its mask, even if another caller runs next. */
     @Synchronized
-    fun segment(context: Context, image: Bitmap, base: BaseOrientation): SubjectMask {
+    fun segmentResult(context: Context, image: Bitmap, base: BaseOrientation): Result {
         val h = handle(context)
+        val fallback = handlePack == null && ModelPacks.isInstalled(context, ModelPack.ISNET)
         val grid = BrushRaster.size(image.width, image.height)
         val n = size
         // Resize directly to the network input. Going through the rectangular brush grid
@@ -91,7 +98,7 @@ object SubjectSegmenter {
         try {
             input.setPixels(SubjectMask.modelInput(pixels, w, height, base, n), 0, n, 0, 0, n, n)
             val raw = nativeRun(h, input) ?: throw IOException("Subject detection failed")
-            return SubjectMask.fromModel(raw, base, grid.width, grid.height, n, boostSubject = !detailed)
+            return Result(SubjectMask.fromModel(raw, base, grid.width, grid.height, n, boostSubject = !detailed), fallback)
         } finally {
             input.recycle()
         }

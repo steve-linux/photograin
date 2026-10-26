@@ -336,6 +336,7 @@
     <string name="background_color">Color</string>
     <string name="background_transparent_hint">PNG and WebP keep the transparency; other formats get a white background.</string>
     <string name="msg_subject_failed">Could not find the subject</string>
+    <string name="msg_subject_fallback">Not enough free memory for IS-Net: used the basic model. Close other apps and reopen the photo to retry.</string>
     <string name="msg_remove_failed">Could not remove the object</string>
     <string name="range_title">Range</string>
     <string name="range_none">None</string>
