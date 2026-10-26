@@ -76,16 +76,22 @@ object SubjectSegmenter {
     fun segment(context: Context, image: Bitmap, base: BaseOrientation): SubjectMask {
         val h = handle(context)
         val grid = BrushRaster.size(image.width, image.height)
-        val scaled = Bitmap.createScaledBitmap(image, grid.width, grid.height, true)
-        val pixels = IntArray(grid.width * grid.height)
-        scaled.getPixels(pixels, 0, grid.width, 0, 0, grid.width, grid.height)
-        if (scaled !== image) scaled.recycle()
         val n = size
+        // Resize directly to the network input. Going through the rectangular brush grid
+        // discards short-edge detail, then enlarges it again (with nearest-neighbour sampling).
+        // Keep the bundled model's area-averaged preprocessing unchanged.
+        val detailed = handlePack == ModelPack.ISNET
+        val w = if (detailed) n else grid.width
+        val height = if (detailed) n else grid.height
+        val scaled = Bitmap.createScaledBitmap(image, w, height, true)
+        val pixels = IntArray(w * height)
+        scaled.getPixels(pixels, 0, w, 0, 0, w, height)
+        if (scaled !== image) scaled.recycle()
         val input = Bitmap.createBitmap(n, n, Bitmap.Config.ARGB_8888)
         try {
-            input.setPixels(SubjectMask.modelInput(pixels, grid.width, grid.height, base, n), 0, n, 0, 0, n, n)
+            input.setPixels(SubjectMask.modelInput(pixels, w, height, base, n), 0, n, 0, 0, n, n)
             val raw = nativeRun(h, input) ?: throw IOException("Subject detection failed")
-            return SubjectMask.fromModel(raw, base, grid.width, grid.height, n)
+            return SubjectMask.fromModel(raw, base, grid.width, grid.height, n, boostSubject = !detailed)
         } finally {
             input.recycle()
         }

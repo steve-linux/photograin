@@ -78,8 +78,10 @@ class SubjectMask(val width: Int, val height: Int, val data: ByteArray) {
         /**
          * The mask for a source whose [BrushRaster] grid is [width] x [height], from the
          * model's upright output [raw] ([n] squared bytes) for orientation [base].
+         * [boostSubject] compensates for the bundled small model's weak predictions. IS-Net
+         * already predicts fine edges: preserve its alpha instead of expanding the foreground.
          */
-        fun fromModel(raw: ByteArray, base: BaseOrientation, width: Int, height: Int, n: Int = MODEL_SIZE): SubjectMask {
+        fun fromModel(raw: ByteArray, base: BaseOrientation, width: Int, height: Int, n: Int = MODEL_SIZE, boostSubject: Boolean = true): SubjectMask {
             require(raw.size == n * n) { "Expected ${n * n} model values, got ${raw.size}" }
             val upright = uprightToStored(base, n)
             val stored = FloatArray(n * n)
@@ -87,7 +89,7 @@ class SubjectMask(val width: Int, val height: Int, val data: ByteArray) {
             val out = ByteArray(width * height)
             for (y in 0 until height) for (x in 0 until width) {
                 val v = bilinear(stored, n, n, (x + 0.5f) * n / width - 0.5f, (y + 0.5f) * n / height - 0.5f)
-                out[y * width + x] = (curve(v) * 255f).roundToInt().toByte()
+                out[y * width + x] = ((if (boostSubject) curve(v) else v) * 255f).roundToInt().toByte()
             }
             return SubjectMask(width, height, out)
         }
