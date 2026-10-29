@@ -24,7 +24,7 @@ object Removal {
     /** Model pixels added around the strokes for the area to fill, so their soft edge is covered too. */
     const val GROW = 3.0
 
-    /** Hardness of the removal brush: a soft edge hides the seam. */
+    /** Hardness shown by the painted overlay; the final blend feathers outside the stroke. */
     const val HARDNESS = 0.6f
 
     /** The part of the long edge always kept around the strokes, so small objects get enough context. */
@@ -84,7 +84,7 @@ object Removal {
      * [strokes] drawn into a [gridW] x [gridH] grid over [crop] (source pixels, as from [crop])
      * of a [width] x [height] source, 0..255. With [grow] > 0 every stroke is that many grid
      * pixels wider and fully on, for the area the model fills; otherwise the brush is soft at
-     * the edge, for blending the result in.
+     * the edge. [feather] overrides that softness with a fringe of that many grid pixels.
      */
     fun raster(
         strokes: List<BrushStroke>,
