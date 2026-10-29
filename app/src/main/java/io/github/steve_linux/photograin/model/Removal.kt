@@ -24,7 +24,7 @@ object Removal {
     /** Model pixels added around the strokes for the area to fill, so their soft edge is covered too. */
     const val GROW = 3.0
 
-    /** Hardness of the removal brush: a soft edge hides the seam. */
+    /** Hardness shown by the painted overlay; the final blend feathers outside the stroke. */
     const val HARDNESS = 0.6f
 
     /** The part of the long edge always kept around the strokes, so small objects get enough context. */
@@ -84,7 +84,7 @@ object Removal {
      * [strokes] drawn into a [gridW] x [gridH] grid over [crop] (source pixels, as from [crop])
      * of a [width] x [height] source, 0..255. With [grow] > 0 every stroke is that many grid
      * pixels wider and fully on, for the area the model fills; otherwise the brush is soft at
-     * the edge, for blending the result in.
+     * the edge. [feather] overrides that softness with a fringe of that many grid pixels.
      */
     fun raster(
         strokes: List<BrushStroke>,
@@ -94,6 +94,7 @@ object Removal {
         gridW: Int,
         gridH: Int,
         grow: Double = 0.0,
+        feather: Double? = null,
     ): ByteArray {
         val out = ByteArray(gridW * gridH)
         val sx = gridW / (crop[2] - crop[0]).toDouble()
@@ -101,7 +102,8 @@ object Removal {
         val long = max(width, height).toDouble()
         for (s in strokes) {
             val r = s.radius * long * (sx + sy) / 2 + grow
-            val hard = if (grow > 0) 0.99 else s.hardness.coerceIn(0f, 0.99f).toDouble()
+            val hard = if (feather != null) ((r - feather) / max(r, 0.5)).coerceIn(0.0, 0.999999)
+                else if (grow > 0) 0.99 else s.hardness.coerceIn(0f, 0.99f).toDouble()
             fun px(k: Int) = (s.points[2 * k] * width.toDouble() - crop[0]) * sx
             fun py(k: Int) = (s.points[2 * k + 1] * height.toDouble() - crop[1]) * sy
             if (s.pointCount == 1) stamp(out, gridW, gridH, px(0), py(0), r, hard)
@@ -116,6 +118,16 @@ object Removal {
             }
         }
         return out
+    }
+
+    /**
+     * Fully replace the painted area; feather only outside it. An inward soft brush blends
+     * the original object back into the result. The feather fits inside the model's GROW
+     * margin, and is measured in model pixels so preview and export use the same coverage.
+     */
+    fun blendRaster(strokes: List<BrushStroke>, crop: IntArray, width: Int, height: Int, gridW: Int, gridH: Int): ByteArray {
+        val feather = 2.0 * max(gridW, gridH) / MODEL_SIZE
+        return raster(strokes, crop, width, height, gridW, gridH, grow = feather, feather = feather)
     }
 
     /**

@@ -71,7 +71,10 @@ Research (Andranik Sargsyan et al., «MI-GAN: A Simple Baseline for Image Inpain
 Devices», ICCV 2023), addestrato su Places2 a 512×512, convertito per ncnn con pesi in fp16.
 Riempie con lo sfondo circostante la zona dipinta col pennello «Rimuovi»; l'app gli passa un
 quadrato attorno alle pennellate, ridotto o ingrandito a 512 pixel, e incolla solo la parte
-dipinta.
+dipinta. La zona dipinta viene sostituita completamente; la sfumatura di due pixel del modello
+si trova all'esterno, dentro il margine di tre pixel ricostruito dalla rete. Sfumare all'interno
+farebbe riapparire l'oggetto originale ai bordi. Vanno coperte anche le ombre da eliminare;
+una zona grande o una trama complessa possono richiedere ritocchi manuali.
 
 - **Licenza**: MIT, come il codice e i pesi di [MI-GAN](https://github.com/Picsart-AI-Research/MI-GAN).
 - **Pesi originali**: l'esportazione TorchScript dei pesi Places2 a 512 pubblicata da
@@ -191,6 +194,12 @@ U²-Net-p: i bordi su capelli e pelo sono più fini, ma lavora su 1024×1024 pix
   <https://github.com/danielgatis/rembg/releases/download/v0.0.0/isnet-general-use.onnx>
   SHA-256 `60920e99c45464f2ba57bee2ad08c919a52bbf852739e96947fbb4358c0d964a`.
   Ingresso: RGB 1024×1024, `v / 255 - 0,5`; uscita: la maschera 0..1 (la prima delle sette).
+  La foto viene ridimensionata direttamente al quadrato di ingresso con interpolazione,
+  prima di applicare l'orientamento EXIF: non passa dalla griglia rettangolare dei pennelli,
+  che perderebbe dettaglio sul lato corto. La maschera conserva i valori intermedi previsti
+  dalla rete, senza la curva di rinforzo usata per U²-Net-p: un bordo a metà copertura rimane
+  a metà copertura, anziché diventare completamente opaco. Queste correzioni sono nell'app;
+  il pacchetto IS-Net già installato resta compatibile e non va scaricato di nuovo.
 - **Conversione**: [`tools/isnet/convert.sh`](../tools/isnet/convert.sh) con pnnx 20260526.
 - **File prodotti**:
   - `isnet_general_use.ncnn.param` SHA-256 `57e6bbcd1add009257da9c0821c57a159a7ed9fc92f4a07bd593d7f918d2abaa`
@@ -217,4 +226,7 @@ l'app. `segmenter.cpp` le disattiva per i modelli dei pacchetti, legge i pesi da
 tenerne una copia intera e, su ARM, conserva le attivazioni in fp16 (calcoli sempre in fp32): il
 picco scende a circa 0,5 GB, misurato con ncnn compilato per aarch64 ed eseguito in qemu, con la
 maschera ancora uguale a onnxruntime sul 99,96% dei pixel (differenza media 0,001). Se il
-telefono ha meno di 1 GB libero, l'app usa U²-Net-p per quella volta.
+telefono ha meno di 1 GB disponibile oltre alla soglia di memoria bassa del sistema, l'app usa
+U²-Net-p per quella volta e mostra un avviso nell'editor. Chiudere altre app e riaprire la foto
+permette di riprovare. Lo scontorno si esporta in PNG o WebP per conservare la trasparenza;
+i formati senza alpha, come JPEG, vengono composti su bianco.

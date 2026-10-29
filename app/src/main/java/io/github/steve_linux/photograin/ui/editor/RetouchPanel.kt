@@ -25,6 +25,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -63,9 +64,15 @@ fun RetouchPanel(
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             val current = spot?.type ?: type
+            val typeScroll = rememberScrollState()
+            // A home/editor quick action can select Remove while its chip is off-screen.
+            LaunchedEffect(current, typeScroll.maxValue) {
+                if (current == RetouchType.REMOVE) typeScroll.scrollTo(typeScroll.maxValue)
+                else if (current == RetouchType.HEAL) typeScroll.scrollTo(0)
+            }
             // The chips scroll on narrow screens, so the delete button always keeps its place.
             Row(
-                Modifier.weight(1f).horizontalScroll(rememberScrollState()),
+                Modifier.weight(1f).horizontalScroll(typeScroll),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 FilterChip(

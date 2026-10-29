@@ -323,6 +323,7 @@
     <string name="background_color">Colore</string>
     <string name="background_transparent_hint">PNG e WebP mantengono la trasparenza; gli altri formati ricevono uno sfondo bianco.</string>
     <string name="msg_subject_failed">Impossibile trovare il soggetto</string>
+    <string name="msg_subject_fallback">Memoria libera insufficiente per IS-Net: usato il modello base. Chiudi altre app e riapri la foto per riprovare.</string>
     <string name="msg_remove_failed">Impossibile rimuovere l\'oggetto</string>
     <string name="range_title">Intervallo</string>
     <string name="range_none">Nessuno</string>
