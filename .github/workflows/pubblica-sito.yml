@@ -1,0 +1,24 @@
+name: Pubblica sito
+
+# Publishes https://photograin.netlify.app from main, only when started by hand (Actions ›
+# Pubblica sito › Run workflow). Pushes and merges never publish the site: netlify.toml skips
+# every production build except the ones started by this Netlify build hook. The hook URL is
+# the repository secret NETLIFY_BUILD_HOOK.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  pubblica:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Start the Netlify build
+        env:
+          HOOK: ${{ secrets.NETLIFY_BUILD_HOOK }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "::error::Missing the NETLIFY_BUILD_HOOK secret (Netlify › Build hooks)"
+            exit 1
+          fi
+          curl -fsS -X POST -d '{}' "$HOOK"
+          echo "Build started: https://app.netlify.com/projects/photograin/deploys"

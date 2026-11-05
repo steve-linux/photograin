@@ -1,8 +1,10 @@
 # Sito di Photograin (https://photograin.netlify.app), generato da site/genera-sito.py.
-# Netlify ripubblica solo quando un push cambia la cartella site/ o la versione dell'app.
-# Se Netlify non ha un commit precedente diverso da confrontare, ricostruisce comunque.
+# Il sito vero si pubblica solo quando lo decide Stefano: un push o un merge su main non lo
+# cambiano. Per pubblicare si lancia il workflow «Pubblica sito» su GitHub, che chiama un build
+# hook di Netlify (le build da build hook non passano dal controllo «ignore»).
+# Le anteprime delle PR si costruiscono ancora, solo quando cambia site/ o la versione dell'app.
 [build]
   base = "site"
   command = "python3 genera-sito.py"
   publish = "website"
-  ignore = "[ \"$CACHED_COMMIT_REF\" != \"$COMMIT_REF\" ] && git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- . ../app/build.gradle.kts"
+  ignore = "[ \"$CONTEXT\" = production ] || ( [ \"$CACHED_COMMIT_REF\" != \"$COMMIT_REF\" ] && git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- . ../app/build.gradle.kts )"
