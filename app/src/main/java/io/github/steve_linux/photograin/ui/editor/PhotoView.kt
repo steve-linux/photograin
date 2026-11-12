@@ -58,6 +58,7 @@ fun PhotoView(
     viewModel: EditorViewModel,
     background: Color,
     modifier: Modifier = Modifier,
+    showExposureWarning: Boolean = false,
 ) {
     val image = state.image ?: return
     val cropMode = state.tool == ToolGroup.CROP
@@ -125,6 +126,7 @@ fun PhotoView(
             profile = image.profile,
             masks = state.edit.masks,
             subjects = state.subjects,
+            showExposureWarning = showExposureWarning,
             showMask = if (maskMode && (state.showMask || state.maskDragging)) state.activeMask ?: -1 else -1,
         )
 

@@ -160,11 +160,13 @@ internal class Pipeline {
         sourceHeight: Int = 1,
         subjects: Subjects? = null,
         showMask: Int = -1,
+        showExposureWarning: Boolean = false,
     ) {
         val geoTarget = checkNotNull(geo) { "renderIntermediate() must run first" }
         val blurred = checkNotNull(blurB)
         val p = colorProgram
         p.use()
+        p.int("uExposureWarning", if (showExposureWarning) 1 else 0)
         p.texture("uGeo", 0, geoTarget.texture)
         p.texture("uBlur", 1, blurred.texture)
         p.vec2("uGeoTexel", 1f / geoTarget.width, 1f / geoTarget.height)

@@ -38,6 +38,7 @@ data class PreviewFrame(
     val showMask: Int = -1,
     /** What the subject masks cover. */
     val subjects: Subjects? = null,
+    val showExposureWarning: Boolean = false,
 )
 
 /** Renders [PreviewFrame]s into a [GLSurfaceView] on demand. */
@@ -131,6 +132,7 @@ class PreviewRenderer : GLSurfaceView.Renderer {
             sourceHeight = bitmap.height,
             subjects = frame.subjects,
             showMask = frame.showMask,
+            showExposureWarning = frame.showExposureWarning,
         )
     }
 

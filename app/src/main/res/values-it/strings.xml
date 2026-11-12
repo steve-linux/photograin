@@ -409,4 +409,7 @@
     <string name="version_compare">Confronta</string>
     <string name="version_keep_editing">Continua con %s</string>
     <string name="version_editing">%s · aperta</string>
+    <string name="exposure_warning">Avviso esposizione</string>
+    <string name="exposure_warning_on">Attivo</string>
+    <string name="exposure_warning_legend">Rosso per le luci · Blu per le ombre</string>
 </resources>

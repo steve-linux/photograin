@@ -422,4 +422,7 @@
     <string name="version_compare">Compare</string>
     <string name="version_keep_editing">Keep editing %s</string>
     <string name="version_editing">%s · open</string>
+    <string name="exposure_warning">Exposure warning</string>
+    <string name="exposure_warning_on">On</string>
+    <string name="exposure_warning_legend">Red for highlights · Blue for shadows</string>
 </resources>

@@ -172,6 +172,7 @@ uniform float uCompare;
 // 1.0 composites over uBg (screen); 0.0 writes the color with the geometry alpha (export).
 uniform float uComposite;
 uniform vec3 uBg;
+uniform int uExposureWarning;
 
 in vec2 vCoord;
 out vec4 oColor;
@@ -462,6 +463,7 @@ void main() {
     vec3 rgb = original ? src.rgb : process(src.rgb, pos);
     // How much of the photo the cutout keeps; the original side of the comparison keeps it all.
     float keep = uCutout >= 0 && !original ? maskWeight(uCutout, pos, src.rgb) : 1.0;
+    float photoCoverage = keep * src.a;
     if (uCutoutFill.a > 0.5) {
         rgb = mix(uCutoutFill.rgb, rgb, keep);
         keep = 1.0;
@@ -469,6 +471,12 @@ void main() {
     if (uShowMask >= 0) rgb = mix(rgb, vec3(1.0, 0.1, 0.1), 0.6 * maskWeight(uShowMask, pos, src.rgb));
     if (uOutConvert > 0.5) rgb = toOutput(rgb);
     if (uComposite > 0.5) {
+        if (uExposureWarning != 0 && uShowMask < 0 && photoCoverage >= 0.999) {
+            // Measure the displayed sRGB image, before compositing it over the preview background.
+            float brightness = dot(rgb, vec3(0.2126, 0.7152, 0.0722));
+            if (brightness >= 254.0 / 255.0) rgb = vec3(1.0, 0.16, 0.16);
+            else if (brightness <= 1.0 / 255.0) rgb = vec3(0.24, 0.48, 1.0);
+        }
         // A transparent background shows as a checkerboard on screen.
         vec2 cell = floor(gl_FragCoord.xy / 12.0);
         vec3 bg = keep < 1.0 ? mix(vec3(0.42), vec3(0.58), mod(cell.x + cell.y, 2.0)) : uBg;

@@ -24,6 +24,8 @@ import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.automirrored.outlined.Redo
 import androidx.compose.material.icons.automirrored.outlined.Undo
 import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material.icons.outlined.Compare
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.ContentPaste
@@ -58,6 +60,7 @@ import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -107,6 +110,7 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit, onGuide: (topi
     var showInfo by remember { mutableStateOf(false) }
     var showVersions by rememberSaveable { mutableStateOf(false) }
     var lightCurves by rememberSaveable { mutableStateOf(false) }
+    var exposureWarning by rememberSaveable { mutableStateOf(false) }
     var colorHsl by rememberSaveable { mutableStateOf(false) }
 
     // The full screen button in the top bar, there in every tool, hides the bars and panels so the
@@ -240,6 +244,18 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit, onGuide: (topi
                                 },
                             )
                             DropdownMenuItem(
+                                text = { Text(stringResource(R.string.exposure_warning)) },
+                                leadingIcon = { Icon(Icons.Outlined.WarningAmber, null) },
+                                trailingIcon = {
+                                    if (exposureWarning) Icon(Icons.Outlined.Check, stringResource(R.string.exposure_warning_on))
+                                },
+                                enabled = state.image != null,
+                                onClick = {
+                                    exposureWarning = !exposureWarning
+                                    menuOpen = false
+                                },
+                            )
+                            DropdownMenuItem(
                                 text = { Text(stringResource(R.string.photo_info)) },
                                 leadingIcon = { Icon(Icons.Outlined.Info, null) },
                                 enabled = state.image != null,
@@ -282,7 +298,21 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit, onGuide: (topi
                     CircularProgressIndicator()
                 } else {
                     val bg = if (MaterialTheme.colorScheme.background.luminance() < 0.5f) PhotoBackgroundDark else PhotoBackgroundLight
-                    PhotoView(state, viewModel, bg)
+                    val showExposureWarning = exposureWarning && state.tool != ToolGroup.CROP
+                    PhotoView(state, viewModel, bg, showExposureWarning = showExposureWarning)
+                    if (showExposureWarning) {
+                        Surface(
+                            modifier = Modifier.align(Alignment.TopStart).padding(8.dp),
+                            shape = MaterialTheme.shapes.small,
+                            color = MaterialTheme.colorScheme.surface,
+                        ) {
+                            Text(
+                                text = stringResource(R.string.exposure_warning_legend),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                            )
+                        }
+                    }
                     // With the bars hidden, this is the way back.
                     if (fullPhoto) {
                         FilledTonalIconButton(
