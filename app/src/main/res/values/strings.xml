@@ -46,6 +46,10 @@
     <string name="param_clarity">Clarity</string>
     <string name="param_dehaze">Dehaze</string>
     <string name="param_vignette">Vignette</string>
+    <string name="param_vignette_midpoint">Midpoint</string>
+    <string name="param_vignette_feather">Feather</string>
+    <string name="param_vignette_roundness">Roundness</string>
+    <string name="param_vignette_highlights">Protect highlights</string>
     <string name="param_grain">Grain</string>
     <string name="param_grain_size">Grain size</string>
 
@@ -409,6 +413,10 @@
     <string name="help_param_noise_reduction">Smooths the grainy speckles of photos taken in low light. Too much makes surfaces look plastic.</string>
     <string name="help_param_color_noise_reduction">Removes the colored blotches that appear in dark areas, without blurring detail.</string>
     <string name="help_param_vignette">Darkens the corners to draw the eye to the center; right lightens them instead.</string>
+    <string name="help_param_vignette_midpoint">Move left to extend the vignette toward the center, or right to keep it near the corners.</string>
+    <string name="help_param_vignette_feather">Increase to soften the transition between the center and the edges.</string>
+    <string name="help_param_vignette_roundness">Move left for a shape that follows the photo edges or right for a circle.</string>
+    <string name="help_param_vignette_highlights">Preserves bright details, such as lamps, when the vignette darkens the edges.</string>
     <string name="help_param_grain">Adds film-like grain for an analog look.</string>
     <string name="help_param_grain_size">Sets how big the grain specks are: small is fine film, large is a coarse vintage look.</string>
     <string name="help_frame_width">How thick the border around the photo is.</string>

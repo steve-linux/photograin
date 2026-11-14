@@ -41,6 +41,10 @@ data class Adjustments(
     val sharpnessRadius: Float = 1f,
     val sharpnessMasking: Float = 0f,
     val texture: Float = 0f,
+    val vignetteMidpoint: Float = 0.5f,
+    val vignetteFeather: Float = 0.5f,
+    val vignetteRoundness: Float = 1f,
+    val vignetteHighlights: Float = 0f,
 )
 
 /** An imported .cube LUT applied after the other color adjustments, blended by [amount]. */
@@ -95,6 +99,14 @@ object Params {
         ParamSpec("noiseReduction", ToolGroup.DETAIL, 0f, 1f, { it.noiseReduction }, { a, v -> a.copy(noiseReduction = v) }),
         ParamSpec("colorNoiseReduction", ToolGroup.DETAIL, 0f, 1f, { it.colorNoiseReduction }, { a, v -> a.copy(colorNoiseReduction = v) }),
         ParamSpec("vignette", ToolGroup.EFFECTS, -1f, 1f, { it.vignette }, { a, v -> a.copy(vignette = v) }),
+        ParamSpec("vignetteMidpoint", ToolGroup.EFFECTS, 0f, 1f,
+            { it.vignetteMidpoint }, { a, v -> a.copy(vignetteMidpoint = v) }),
+        ParamSpec("vignetteFeather", ToolGroup.EFFECTS, 0f, 1f,
+            { it.vignetteFeather }, { a, v -> a.copy(vignetteFeather = v) }),
+        ParamSpec("vignetteRoundness", ToolGroup.EFFECTS, 0f, 1f,
+            { it.vignetteRoundness }, { a, v -> a.copy(vignetteRoundness = v) }),
+        ParamSpec("vignetteHighlights", ToolGroup.EFFECTS, 0f, 1f,
+            { it.vignetteHighlights }, { a, v -> a.copy(vignetteHighlights = v) }),
         ParamSpec("grain", ToolGroup.EFFECTS, 0f, 1f, { it.grain }, { a, v -> a.copy(grain = v) }),
         ParamSpec("grainSize", ToolGroup.EFFECTS, 0f, 1f, { it.grainSize }, { a, v -> a.copy(grainSize = v) }),
     )

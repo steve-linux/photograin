@@ -38,6 +38,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -82,16 +83,20 @@ fun AdjustmentPanel(
             .padding(horizontal = 16.dp, vertical = 4.dp),
     ) {
         for (spec in Params.forGroup(group)) {
-            ParamSlider(
-                label = stringResource(paramLabel(spec.id)),
-                help = helpFor(paramLabel(spec.id)),
-                value = spec.get(adjustments),
-                range = spec.min..spec.max,
-                display = formatValue(spec, spec.get(adjustments)),
-                onChange = { onChange(spec, it) },
-                onChangeFinished = onChangeFinished,
-                onReset = { onReset(spec) },
-            )
+            if (spec.id.startsWith("vignette") && spec.id != "vignette" && adjustments.vignette == 0f) continue
+            if (spec.id == "vignetteHighlights" && adjustments.vignette > 0f) continue
+            key(spec.id) {
+                ParamSlider(
+                    label = stringResource(paramLabel(spec.id)),
+                    help = helpFor(paramLabel(spec.id)),
+                    value = spec.get(adjustments),
+                    range = spec.min..spec.max,
+                    display = formatValue(spec, spec.get(adjustments)),
+                    onChange = { onChange(spec, it) },
+                    onChangeFinished = onChangeFinished,
+                    onReset = { onReset(spec) },
+                )
+            }
         }
     }
 }
@@ -376,6 +381,10 @@ internal fun paramLabel(id: String): Int = when (id) {
     "noiseReduction" -> R.string.param_noise_reduction
     "colorNoiseReduction" -> R.string.param_color_noise_reduction
     "vignette" -> R.string.param_vignette
+    "vignetteMidpoint" -> R.string.param_vignette_midpoint
+    "vignetteFeather" -> R.string.param_vignette_feather
+    "vignetteRoundness" -> R.string.param_vignette_roundness
+    "vignetteHighlights" -> R.string.param_vignette_highlights
     "grain" -> R.string.param_grain
     "grainSize" -> R.string.param_grain_size
     else -> error("No label for $id")
@@ -425,6 +434,10 @@ internal fun helpFor(@StringRes label: Int): Int? = when (label) {
     R.string.param_noise_reduction -> R.string.help_param_noise_reduction
     R.string.param_color_noise_reduction -> R.string.help_param_color_noise_reduction
     R.string.param_vignette -> R.string.help_param_vignette
+    R.string.param_vignette_midpoint -> R.string.help_param_vignette_midpoint
+    R.string.param_vignette_feather -> R.string.help_param_vignette_feather
+    R.string.param_vignette_roundness -> R.string.help_param_vignette_roundness
+    R.string.param_vignette_highlights -> R.string.help_param_vignette_highlights
     R.string.param_grain -> R.string.help_param_grain
     R.string.param_grain_size -> R.string.help_param_grain_size
     R.string.frame_width -> R.string.help_frame_width

@@ -45,6 +45,10 @@
     <string name="param_clarity">Chiarezza</string>
     <string name="param_dehaze">Rimozione foschia</string>
     <string name="param_vignette">Vignettatura</string>
+    <string name="param_vignette_midpoint">Punto medio</string>
+    <string name="param_vignette_feather">Sfumatura</string>
+    <string name="param_vignette_roundness">Rotondità</string>
+    <string name="param_vignette_highlights">Proteggi alte luci</string>
     <string name="param_grain">Grana</string>
     <string name="param_grain_size">Dimensione grana</string>
 
@@ -396,6 +400,10 @@
     <string name="help_param_noise_reduction">Leviga i puntini granulosi delle foto scattate con poca luce. Se esageri le superfici sembrano di plastica.</string>
     <string name="help_param_color_noise_reduction">Elimina le macchioline colorate che compaiono nelle zone scure, senza sfocare i dettagli.</string>
     <string name="help_param_vignette">Scurisce gli angoli per portare lo sguardo al centro; a destra invece li schiarisce.</string>
+    <string name="help_param_vignette_midpoint">Sposta a sinistra per estendere la vignettatura verso il centro, o a destra per limitarla agli angoli.</string>
+    <string name="help_param_vignette_feather">Aumenta il valore per ammorbidire il passaggio tra il centro e i bordi.</string>
+    <string name="help_param_vignette_roundness">Sposta a sinistra per una forma che segue i bordi della foto, o a destra per una forma circolare.</string>
+    <string name="help_param_vignette_highlights">Preserva i dettagli luminosi, come le lampade, quando la vignettatura scurisce i bordi.</string>
     <string name="help_param_grain">Aggiunge una grana da pellicola per un aspetto analogico.</string>
     <string name="help_param_grain_size">Decide quanto sono grandi i granelli: piccoli come una pellicola fine, grandi per un effetto vintage grezzo.</string>
     <string name="help_frame_width">Quanto è spessa la cornice attorno alla foto.</string>
