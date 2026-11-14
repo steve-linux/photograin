@@ -431,13 +431,16 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit, onGuide: (topi
                     if (state.tool == ToolGroup.LIGHT) {
                         HistogramPanel(
                             histogram = histogram.value,
+                            autoLightEnabled = !state.autoLighting,
+                            onAutoLight = {
+                                lightCurves = false
+                                viewModel.autoLight()
+                            },
                             expanded = histogramOpen,
                             onExpandedChange = { histogramOpen = it },
                             showClipping = showClipping,
                             onClippingChange = { showClipping = it },
                         )
-                    }
-                    if (state.tool == ToolGroup.LIGHT) {
                         PanelModeSelector(
                             secondLabel = R.string.mode_curves,
                             showSecond = lightCurves,
@@ -575,6 +578,7 @@ private fun messageText(m: Message): Int = when (m) {
     Message.LUT_INVALID -> R.string.msg_lut_invalid
     Message.LUT_MISSING -> R.string.look_lut_missing
     Message.PRESET_SAVED -> R.string.msg_preset_saved
+    Message.AUTO_LIGHT_UNAVAILABLE -> R.string.msg_auto_light_unavailable
     Message.HORIZON_NOT_FOUND -> R.string.msg_horizon_not_found
     Message.SUBJECT_FAILED -> R.string.msg_subject_failed
     Message.REMOVE_FAILED -> R.string.msg_remove_failed

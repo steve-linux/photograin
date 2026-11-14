@@ -3,13 +3,18 @@ package io.github.steve_linux.photograin.ui.editor
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -27,13 +32,21 @@ import io.github.steve_linux.photograin.render.RgbHistogram
 @Composable
 internal fun HistogramPanel(
     histogram: RgbHistogram?,
+    autoLightEnabled: Boolean,
+    onAutoLight: () -> Unit,
     expanded: Boolean,
     onExpandedChange: (Boolean) -> Unit,
     showClipping: Boolean,
     onClippingChange: (Boolean) -> Unit,
 ) {
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-        Row {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            SuggestionChip(
+                onClick = onAutoLight,
+                enabled = autoLightEnabled,
+                label = { Text(stringResource(R.string.auto_light)) },
+                icon = { Icon(Icons.Outlined.AutoAwesome, contentDescription = null) },
+            )
             FilterChip(
                 selected = expanded,
                 onClick = { onExpandedChange(!expanded) },
@@ -41,7 +54,6 @@ internal fun HistogramPanel(
             )
             if (expanded) {
                 FilterChip(
-                    modifier = Modifier.padding(start = 8.dp),
                     selected = showClipping,
                     onClick = { onClippingChange(!showClipping) },
                     label = { Text(stringResource(R.string.histogram_clipping)) },

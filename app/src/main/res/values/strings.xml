@@ -85,6 +85,7 @@
     <string name="optics_title">Optics</string>
     <string name="optics_correct_lens">Correct lens</string>
     <string name="optics_no_profile">No compatible lens profile found in the photo metadata.</string>
+    <string name="auto_light">Auto light</string>
     <string name="histogram_rgb">RGB histogram</string>
     <string name="histogram_clipping">Clipping</string>
     <string name="histogram_clipping_legend">Blue: blocked shadows · Red: clipped highlights</string>
@@ -136,6 +137,7 @@
     <string name="msg_lut_imported">LUT imported</string>
     <string name="msg_lut_invalid">This file is not a valid .cube LUT</string>
     <string name="msg_preset_saved">Preset saved</string>
+    <string name="msg_auto_light_unavailable">Could not estimate light adjustments from this photo</string>
     <string name="msg_horizon_not_found">No clear lines to straighten by</string>
     <string name="home_batch">Batch</string>
     <string name="batch_title">Batch edit (%1$d)</string>

@@ -78,6 +78,7 @@
     <string name="optics_title">Ottica</string>
     <string name="optics_correct_lens">Correggi obiettivo</string>
     <string name="optics_no_profile">Nessun profilo obiettivo compatibile con i dati di scatto.</string>
+    <string name="auto_light">Luce automatica</string>
     <string name="histogram_rgb">Istogramma RGB</string>
     <string name="histogram_clipping">Clipping</string>
     <string name="histogram_clipping_legend">Blu: ombre chiuse · Rosso: alte luci bruciate</string>
@@ -123,6 +124,7 @@
     <string name="msg_lut_imported">LUT importato</string>
     <string name="msg_lut_invalid">Questo file non è un LUT .cube valido</string>
     <string name="msg_preset_saved">Preset salvato</string>
+    <string name="msg_auto_light_unavailable">Impossibile stimare le regolazioni di luce per questa foto</string>
     <string name="msg_horizon_not_found">Nessuna linea abbastanza netta per raddrizzare</string>
     <string name="home_batch">In serie</string>
     <string name="batch_title">Modifica in serie (%1$d)</string>
