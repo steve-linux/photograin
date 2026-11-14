@@ -164,6 +164,8 @@ uniform float uTextureAmount;
 uniform float uClarity;
 uniform float uDehaze;
 uniform float uVignette;
+// Midpoint, feather, roundness, and highlight protection.
+uniform vec4 uVignetteShape;
 uniform float uGrain;
 uniform float uGrainCell;
 uniform float uLumaNr;
@@ -502,6 +504,25 @@ float textureDetail(vec3 original) {
     return clamp(small - large, -0.10, 0.10) * guard;
 }
 
+vec3 applyVignette(vec3 color, vec2 pos) {
+    // Blend a rounded rectangle fitted to the crop with a circle in image pixels.
+    vec2 d = pos - 0.5;
+    vec2 squared = d * d;
+    float fitted = sqrt(length(squared) / length(vec2(0.25)));
+    float circular = length(d * uAspect) / length(0.5 * uAspect);
+    float radius = mix(fitted, circular, uVignetteShape.z);
+    // Defaults reproduce the original smoothstep(0.3, 1.1, radius).
+    float midpoint = mix(0.40, 1.00, uVignetteShape.x);
+    float feather = mix(0.02, 0.78, uVignetteShape.y);
+    float start = max(0.0, midpoint - feather);
+    float weight = smoothstep(start, midpoint + feather, radius);
+    if (uVignette < 0.0) {
+        float protection = smoothstep(0.55, 0.98, dot(color, LUMA));
+        return color * (1.0 + uVignette * weight * (1.0 - protection * uVignetteShape.w));
+    }
+    return mix(color, vec3(1.0), uVignette * weight * 0.8);
+}
+
 vec3 process(vec3 s, vec2 pos) {
     float textureDelta = 0.0;
     if (uTextureAmount != 0.0) textureDelta = textureDetail(s) * uTextureAmount;
@@ -591,16 +612,7 @@ vec3 process(vec3 s, vec2 pos) {
 
     if (uMonochrome) v = vec3(mixMonochrome(clamp(dot(v, LUMA), 0.0, 1.0), s));
 
-    if (uVignette != 0.0) {
-        vec2 d = (pos - 0.5) * uAspect;
-        float r = length(d) / length(0.5 * uAspect);
-        float w = smoothstep(0.3, 1.1, r);
-        if (uVignette < 0.0) {
-            v *= 1.0 + uVignette * w;
-        } else {
-            v = mix(v, vec3(1.0), uVignette * w * 0.8);
-        }
-    }
+    if (uVignette != 0.0) v = applyVignette(v, pos);
 
     if (uGrain > 0.0) {
         vec2 q = pos * uAspect / uGrainCell;

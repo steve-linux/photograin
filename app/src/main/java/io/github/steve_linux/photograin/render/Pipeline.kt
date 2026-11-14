@@ -209,6 +209,14 @@ internal class Pipeline {
         p.float("uClarity", adjustments.clarity)
         p.float("uDehaze", adjustments.dehaze)
         p.float("uVignette", adjustments.vignette)
+        if (adjustments.vignette != 0f) {
+            p.vec4("uVignetteShape", floatArrayOf(
+                adjustments.vignetteMidpoint.coerceIn(0f, 1f),
+                adjustments.vignetteFeather.coerceIn(0f, 1f),
+                adjustments.vignetteRoundness.coerceIn(0f, 1f),
+                adjustments.vignetteHighlights.coerceIn(0f, 1f),
+            ))
+        }
         p.float("uGrain", adjustments.grain)
         p.float("uGrainCell", ShaderParams.grainCellFraction(adjustments))
         p.float("uLumaNr", adjustments.noiseReduction)
