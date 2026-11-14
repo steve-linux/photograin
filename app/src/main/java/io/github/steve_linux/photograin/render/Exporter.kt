@@ -15,6 +15,8 @@ import io.github.steve_linux.photograin.data.RegionSource
 import io.github.steve_linux.photograin.data.Retoucher
 import io.github.steve_linux.photograin.math.Affine
 import io.github.steve_linux.photograin.math.Homography
+import io.github.steve_linux.photograin.model.LensCorrection
+import io.github.steve_linux.photograin.model.LensMapping
 import io.github.steve_linux.photograin.math.then
 import io.github.steve_linux.photograin.math.Vec2
 import io.github.steve_linux.photograin.model.BaseOrientation
@@ -119,9 +121,11 @@ object Exporter {
         subjects: Subjects? = null,
         opaque: Boolean = false,
         inpaint: Retoucher.Inpaint? = null,
+        lensCorrection: LensCorrection? = null,
         onProgress: (Float) -> Unit,
     ): Bitmap {
         val mapper = GeometryMapper(source.width, source.height, base, edit.geometry)
+        val lens = lensCorrection?.takeIf { edit.correctLens }?.mapping(source.width, source.height)
         val full = mapper.outputSize
         val scale = scaleFor(full, maxLongEdge, upscale)
         val out = imageSize(PxSize(source.width, source.height), base, edit, maxLongEdge, upscale)
@@ -157,7 +161,18 @@ object Exporter {
                 while (sample * 2 <= 1.0 / scale) sample *= 2
                 var tile = if (source is AiUpscaleSource) AI_TILE else TILE
                 val stretch = mapper.perspectiveStretch()
-                while (tile > 256 && regionSpan(tile, margin, scale, sample) * stretch > maxTex) tile /= 2
+                fun fitsTexture(tileSize: Int): Boolean {
+                    if (lens == null) return regionSpan(tileSize, margin, scale, sample) * stretch <= maxTex
+                    for (y in 0 until out.height step tileSize) for (x in 0 until out.width step tileSize) {
+                        val region = sourceBounds(
+                            outToSource, x - margin, y - margin, min(tileSize, out.width - x) + 2 * margin,
+                            min(tileSize, out.height - y) + 2 * margin, source.width, source.height, lens,
+                        )
+                        if (maxOf(region.width(), region.height()).toLong() > maxTex.toLong() * sample) return false
+                    }
+                    return true
+                }
+                while (tile > 256 && !fitsTexture(tile)) tile /= 2
 
                 val cols = ceil(out.width / tile.toDouble()).toInt()
                 val rows = ceil(out.height / tile.toDouble()).toInt()
@@ -179,7 +194,13 @@ object Exporter {
                     val gw = tw + 2 * margin
                     val gh = th + 2 * margin
 
-                    val region = sourceBounds(outToSource, gx, gy, gw, gh, source.width, source.height)
+                    val region = sourceBounds(outToSource, gx, gy, gw, gh, source.width, source.height, lens)
+                    if (lens != null && sample > 1) {
+                        region.left -= region.left % sample
+                        region.top -= region.top % sample
+                        region.right = min(source.width, (region.right + sample - 1) / sample * sample)
+                        region.bottom = min(source.height, (region.bottom + sample - 1) / sample * sample)
+                    }
                     val bitmap = retouched(source.decode(region, sample), region, sample, source, edit, patches, inpaint)
                     sourceTexture = GlUtil.uploadBitmap(bitmap, sourceTexture)
                     val coveredW = bitmap.width * sample.toDouble()
@@ -187,12 +208,20 @@ object Exporter {
                     val textureSize = PxSize(bitmap.width, bitmap.height)
                     bitmap.recycle()
 
-                    val toUv = outToSource
-                        .then(Affine.translate(-region.left.toDouble(), -region.top.toDouble()))
-                        .then(Affine.scale(1.0 / coveredW, 1.0 / coveredH))
+                    val toUv = if (lens == null) {
+                        outToSource.then(Affine.translate(-region.left.toDouble(), -region.top.toDouble()))
+                            .then(Affine.scale(1.0 / coveredW, 1.0 / coveredH))
+                    } else {
+                        outToSource.then(Affine.scale(1.0 / source.width, 1.0 / source.height))
+                    }
                     pipeline.renderIntermediate(
                         sourceTexture, toUv, gx.toFloat(), gy.toFloat(), gw, gh, out.longEdge,
                         cubicSize = textureSize.takeIf { cubic },
+                        lens = lens,
+                        sourceRect = if (lens == null) Pipeline.UNIT_RECT else floatArrayOf(
+                            region.left.toFloat() / source.width, region.top.toFloat() / source.height,
+                            (coveredW / source.width).toFloat(), (coveredH / source.height).toFloat(),
+                        ),
                     )
 
                     target.bind(tw, th)
@@ -218,6 +247,7 @@ object Exporter {
                         sourceWidth = source.width,
                         sourceHeight = source.height,
                         subjects = subjects,
+                        lens = lens,
                     )
 
                     pixels.clear()
@@ -295,17 +325,25 @@ object Exporter {
         (tile + 2.0 * margin) / scale / sample * 1.4143 + 4
 
     /** Source rectangle covering the output block, padded for the filter's reach and clamped. */
-    private fun sourceBounds(m: Homography, x: Int, y: Int, w: Int, h: Int, srcW: Int, srcH: Int): Rect {
+    private fun sourceBounds(m: Homography, x: Int, y: Int, w: Int, h: Int, srcW: Int, srcH: Int, lens: LensMapping?): Rect {
         val corners = listOf(
             m.apply(Vec2(x.toDouble(), y.toDouble())),
             m.apply(Vec2((x + w).toDouble(), y.toDouble())),
             m.apply(Vec2(x.toDouble(), (y + h).toDouble())),
             m.apply(Vec2((x + w).toDouble(), (y + h).toDouble())),
         )
-        val l = floor(corners.minOf { it.x }).toInt() - 3
-        val t = floor(corners.minOf { it.y }).toInt() - 3
-        val r = ceil(corners.maxOf { it.x }).toInt() + 3
-        val b = ceil(corners.maxOf { it.y }).toInt() + 3
+        val minX = corners.minOf { it.x }
+        val minY = corners.minOf { it.y }
+        val maxX = corners.maxOf { it.x }
+        val maxY = corners.maxOf { it.y }
+        val bounds = lens?.sourceBounds(
+            (minX / srcW).coerceIn(0.0, 1.0), (minY / srcH).coerceIn(0.0, 1.0),
+            (maxX / srcW).coerceIn(0.0, 1.0), (maxY / srcH).coerceIn(0.0, 1.0),
+        )
+        val l = floor(bounds?.left?.times(srcW) ?: minX).toInt() - 3
+        val t = floor(bounds?.top?.times(srcH) ?: minY).toInt() - 3
+        val r = ceil(bounds?.right?.times(srcW) ?: maxX).toInt() + 3
+        val b = ceil(bounds?.bottom?.times(srcH) ?: maxY).toInt() + 3
         val left = l.coerceIn(0, srcW - 1)
         val top = t.coerceIn(0, srcH - 1)
         return Rect(left, top, r.coerceIn(left + 1, srcW), b.coerceIn(top + 1, srcH))

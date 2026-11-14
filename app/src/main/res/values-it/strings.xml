@@ -75,6 +75,9 @@
     <string name="param_noise_reduction">Riduzione rumore</string>
     <string name="param_color_noise_reduction">Riduzione rumore colore</string>
     <string name="mode_basic">Base</string>
+    <string name="optics_title">Ottica</string>
+    <string name="optics_correct_lens">Correggi obiettivo</string>
+    <string name="optics_no_profile">Nessun profilo obiettivo compatibile con i dati di scatto.</string>
     <string name="histogram_rgb">Istogramma RGB</string>
     <string name="histogram_clipping">Clipping</string>
     <string name="histogram_clipping_legend">Blu: ombre chiuse · Rosso: alte luci bruciate</string>

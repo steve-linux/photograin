@@ -11,6 +11,7 @@ import io.github.steve_linux.photograin.data.LookLibrary
 import io.github.steve_linux.photograin.data.ObjectRemover
 import io.github.steve_linux.photograin.data.RecipeStore
 import io.github.steve_linux.photograin.data.RegionSource
+import io.github.steve_linux.photograin.data.LensProfiles
 import io.github.steve_linux.photograin.data.SubjectSegmenter
 import io.github.steve_linux.photograin.model.ColorProfile
 import io.github.steve_linux.photograin.model.EditState
@@ -48,6 +49,7 @@ object EditedThumbnails {
                     val subjects = SubjectSegmenter.forEdit(context, it, base, edit)
                     Exporter.render(
                         it, base, edit, lut, size, ColorProfile.SRGB, subjects = subjects, inpaint = ObjectRemover.with(context),
+                        lensCorrection = if (edit.correctLens) LensProfiles.read(context, uri) else null,
                     ) {}
                 }.also { cache.put(key, it) }
             } catch (e: Exception) {

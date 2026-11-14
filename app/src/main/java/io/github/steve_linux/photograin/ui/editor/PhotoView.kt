@@ -85,6 +85,9 @@ fun PhotoView(
     val textMode = state.tool == ToolGroup.EFFECTS && state.effectsMode == 2
     val shapeMode = state.tool == ToolGroup.EFFECTS && state.effectsMode == 3
 
+    val lens = remember(image, state.edit.correctLens) {
+        image.lens?.takeIf { state.edit.correctLens }?.mapping(image.preview.width, image.preview.height)
+    }
     val renderer = remember { PreviewRenderer() }
     var zoom by remember { mutableFloatStateOf(1f) }
     var pan by remember { mutableStateOf(Offset.Zero) }
@@ -130,6 +133,7 @@ fun PhotoView(
             subjects = state.subjects,
             onHistogram = onHistogram.takeUnless { state.showOriginal },
             showClipping = showClipping,
+            lens = lens,
             showMask = if (maskMode && (state.showMask || state.maskDragging)) state.activeMask ?: -1 else -1,
         )
 
@@ -188,7 +192,7 @@ fun PhotoView(
         } else {
             val currentRect by rememberUpdatedState(rect)
             val space = if (localMode || picking) {
-                MaskSpace(rect, mapper.normalizedOutputToSource(), image.preview.width, image.preview.height)
+                MaskSpace(rect, mapper.normalizedOutputToSource(), image.preview.width, image.preview.height, lens)
             } else {
                 null
             }

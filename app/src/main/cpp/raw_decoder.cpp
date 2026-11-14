@@ -63,6 +63,11 @@ int RawDecoder::probe(RawInfo* info) {
     info->width = raw_->imgdata.sizes.iwidth;
     info->height = raw_->imgdata.sizes.iheight;
     info->flip = flip;
+    info->make = raw_->imgdata.idata.make;
+    info->model = raw_->imgdata.idata.model;
+    info->lens = raw_->imgdata.lens.Lens[0] ? raw_->imgdata.lens.Lens : raw_->imgdata.lens.makernotes.Lens;
+    info->focal = raw_->imgdata.other.focal_len;
+    info->aperture = raw_->imgdata.other.aperture;
     return LIBRAW_SUCCESS;
 }
 

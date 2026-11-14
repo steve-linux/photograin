@@ -82,6 +82,9 @@
     <string name="param_noise_reduction">Noise reduction</string>
     <string name="param_color_noise_reduction">Color noise reduction</string>
     <string name="mode_basic">Basic</string>
+    <string name="optics_title">Optics</string>
+    <string name="optics_correct_lens">Correct lens</string>
+    <string name="optics_no_profile">No compatible lens profile found in the photo metadata.</string>
     <string name="histogram_rgb">RGB histogram</string>
     <string name="histogram_clipping">Clipping</string>
     <string name="histogram_clipping_legend">Blue: blocked shadows · Red: clipped highlights</string>

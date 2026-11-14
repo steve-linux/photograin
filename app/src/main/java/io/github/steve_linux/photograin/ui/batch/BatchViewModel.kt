@@ -15,6 +15,7 @@ import io.github.steve_linux.photograin.data.ObjectRemover
 import io.github.steve_linux.photograin.data.Preferences
 import io.github.steve_linux.photograin.data.RecipeStore
 import io.github.steve_linux.photograin.data.RegionSource
+import io.github.steve_linux.photograin.data.LensProfiles
 import io.github.steve_linux.photograin.data.SubjectSegmenter
 import io.github.steve_linux.photograin.data.SettingsStore
 import io.github.steve_linux.photograin.model.Adjustments
@@ -168,6 +169,7 @@ class BatchViewModel(app: Application) : AndroidViewModel(app) {
             Exporter.render(
                 it, base, edit, lut, render.maxLongEdge, render.colorProfile, render.upscale, render.format.deep,
                 subjects = subjects, opaque = !render.format.alpha, inpaint = ObjectRemover.with(app),
+                lensCorrection = if (edit.correctLens) LensProfiles.read(app, uri) else null,
             ) {}
         }
         try {

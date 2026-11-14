@@ -15,6 +15,7 @@ import io.github.steve_linux.photograin.model.ColorProfile
 import io.github.steve_linux.photograin.model.CubeLut
 import io.github.steve_linux.photograin.model.Geometry
 import io.github.steve_linux.photograin.model.LocalAdjustment
+import io.github.steve_linux.photograin.model.LensMapping
 import io.github.steve_linux.photograin.model.GeometryMapper
 import io.github.steve_linux.photograin.model.Subjects
 import java.nio.ByteBuffer
@@ -43,6 +44,7 @@ data class PreviewFrame(
     val subjects: Subjects? = null,
     val onHistogram: ((RgbHistogram) -> Unit)? = null,
     val showClipping: Boolean = false,
+    val lens: LensMapping? = null,
 )
 
 /** Renders [PreviewFrame]s into a [GLSurfaceView] on demand. */
@@ -107,11 +109,11 @@ class PreviewRenderer : GLSurfaceView.Renderer {
 
         val mapper = GeometryMapper(bitmap.width, bitmap.height, frame.base, frame.geometry)
         val out = mapper.outputSize
-        val key = Triple(bitmap, frame.base, frame.geometry)
+        val key = listOf(bitmap, frame.base, frame.geometry, frame.lens)
         if (key != intermediateKey) {
             val toUv = mapper.outputToSource()
                 .then(Affine.scale(1.0 / bitmap.width, 1.0 / bitmap.height))
-            p.renderIntermediate(sourceTexture, toUv, 0f, 0f, out.width, out.height, out.longEdge)
+            p.renderIntermediate(sourceTexture, toUv, 0f, 0f, out.width, out.height, out.longEdge, lens = frame.lens)
             intermediateKey = key
         }
 
@@ -141,6 +143,7 @@ class PreviewRenderer : GLSurfaceView.Renderer {
             sourceWidth = bitmap.width,
             sourceHeight = bitmap.height,
             subjects = frame.subjects,
+            lens = frame.lens,
             showMask = frame.showMask,
             showClipping = frame.showClipping,
         )
@@ -154,7 +157,7 @@ class PreviewRenderer : GLSurfaceView.Renderer {
     private fun sampleHistogram(p: Pipeline, frame: PreviewFrame, bitmap: Bitmap, mapper: GeometryMapper, width: Int, height: Int) {
         val publish = frame.onHistogram ?: return
         // Ignore display-only changes such as zoom, pan, split position and clipping colors.
-        val key = listOf(bitmap, frame.base, frame.geometry, frame.adjustments, frame.lut, frame.profile, frame.masks, frame.subjects, publish)
+        val key = listOf(bitmap, frame.base, frame.geometry, frame.adjustments, frame.lut, frame.profile, frame.masks, frame.subjects, frame.lens, publish)
         if (key == histogramKey) return
         val target = histogramTarget ?: RenderTarget(SAMPLE_SIZE, SAMPLE_SIZE, mipmap = false, halfFloat = false)
             .also { histogramTarget = it }
@@ -175,6 +178,7 @@ class PreviewRenderer : GLSurfaceView.Renderer {
             sourceWidth = bitmap.width,
             sourceHeight = bitmap.height,
             subjects = frame.subjects,
+            lens = frame.lens,
             histogramSample = true,
         )
         val pixels = histogramPixels ?: ByteBuffer.allocateDirect(SAMPLE_SIZE * SAMPLE_SIZE * 4).also { histogramPixels = it }

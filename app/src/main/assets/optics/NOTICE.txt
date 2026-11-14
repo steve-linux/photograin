@@ -1,0 +1,9 @@
+Lens calibration data from Lensfun, version 0.3.4.
+Copyright Lensfun contributors, licensed CC BY-SA 3.0.
+https://github.com/lensfun/lensfun/tree/101c745e847a5de4a1e569a94368ce2027198598/data/db
+https://creativecommons.org/licenses/by-sa/3.0/
+
+Photograin's tools/lensfun/generate.py converts the original XML to JSON,
+selects centered rectilinear profiles with supported models, and rewrites
+the coefficients in equivalent radial polynomial form.
+The resulting database is distributed under CC BY-SA 3.0.

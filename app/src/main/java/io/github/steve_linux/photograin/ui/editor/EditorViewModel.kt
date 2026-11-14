@@ -1027,6 +1027,12 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setSplit(x: Float) = _state.update { it.copy(split = x.coerceIn(0f, 1f)) }
 
+    fun setLensCorrection(enabled: Boolean) {
+        if (_state.value.image?.lens == null) return
+        updateLive { it.copy(correctLens = enabled) }
+        commit()
+    }
+
     // --- Geometry ----------------------------------------------------------------------------
 
     /** Mapper for the preview bitmap and the given geometry; null until an image is loaded. */
@@ -1224,6 +1230,7 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
                         Exporter.render(
                             it, image.base, edit, lut, render.maxLongEdge, render.colorProfile, render.upscale, render.format.deep,
                             subjects = subjects, opaque = !render.format.alpha, inpaint = ObjectRemover.with(app),
+                            lensCorrection = image.lens,
                         ) { p ->
                             _state.update { s -> s.copy(exportProgress = p) }
                         }
