@@ -158,6 +158,8 @@ uniform float uBlacks;
 uniform float uVibrance;
 uniform float uSaturation;
 uniform float uSharpness;
+uniform float uSharpnessRadius;
+uniform float uSharpnessMasking;
 uniform float uClarity;
 uniform float uDehaze;
 uniform float uVignette;
@@ -447,6 +449,25 @@ float maskWeight(int i, vec2 pos, vec3 s) {
     return w * rangeWeight(uMaskRange[i], s);
 }
 
+// Unsharp mask on encoded RGB. The masking slider rejects weak luminance gradients.
+vec3 sharpen(vec3 source) {
+    vec2 radius = uGeoTexel * uSharpnessRadius;
+    vec3 left = texture(uGeo, vCoord - vec2(radius.x, 0.0)).rgb;
+    vec3 right = texture(uGeo, vCoord + vec2(radius.x, 0.0)).rgb;
+    vec3 top = texture(uGeo, vCoord - vec2(0.0, radius.y)).rgb;
+    vec3 bottom = texture(uGeo, vCoord + vec2(0.0, radius.y)).rgb;
+    vec3 detail = source - 0.25 * (right + left + bottom + top);
+    float weight = 1.0;
+    if (uSharpnessMasking > 0.0) {
+        vec2 gradient = vec2(dot(right - left, LUMA), dot(bottom - top, LUMA));
+        // Normalize for radius so increasing it has less effect on the mask threshold.
+        float edge = length(gradient) / max(1.0, uSharpnessRadius);
+        float cutoff = 0.10 * uSharpnessMasking;
+        weight = mix(1.0, smoothstep(cutoff, 2.0 * cutoff, edge), min(1.0, 4.0 * uSharpnessMasking));
+    }
+    return clamp(source + detail * uSharpness * 1.5 * weight, 0.0, 1.0);
+}
+
 vec3 process(vec3 s, vec2 pos) {
     vec4 la = vec4(0.0);
     vec4 lb = vec4(0.0);
@@ -462,14 +483,7 @@ vec3 process(vec3 s, vec2 pos) {
         s = denoise(s);
     }
 
-    // Sharpening: unsharp mask with the 4 direct neighbours, on the encoded values.
-    if (uSharpness > 0.0) {
-        vec3 n = texture(uGeo, vCoord + vec2(uGeoTexel.x, 0.0)).rgb
-               + texture(uGeo, vCoord - vec2(uGeoTexel.x, 0.0)).rgb
-               + texture(uGeo, vCoord + vec2(0.0, uGeoTexel.y)).rgb
-               + texture(uGeo, vCoord - vec2(0.0, uGeoTexel.y)).rgb;
-        s = clamp(s + (s - 0.25 * n) * uSharpness * 1.5, 0.0, 1.0);
-    }
+    if (uSharpness > 0.0) s = sharpen(s);
 
     vec3 c = toLinear(s);
     vec3 bl = toLinear(texture(uBlur, vCoord).rgb);

@@ -39,6 +39,8 @@
     <string name="param_vibrance">Vividezza</string>
     <string name="param_saturation">Saturazione</string>
     <string name="param_sharpness">Nitidezza</string>
+    <string name="param_sharpness_radius">Raggio nitidezza</string>
+    <string name="param_sharpness_masking">Mascheratura nitidezza</string>
     <string name="param_clarity">Chiarezza</string>
     <string name="param_dehaze">Rimozione foschia</string>
     <string name="param_vignette">Vignettatura</string>
@@ -385,6 +387,8 @@
     <string name="help_param_vibrance">Ravviva i colori spenti più di quelli già forti e protegge la pelle. Più delicata della Saturazione.</string>
     <string name="help_param_saturation">Rende tutti i colori più forti o più deboli allo stesso modo. Tutto a sinistra ottieni il bianco e nero.</string>
     <string name="help_param_sharpness">Rinforza i bordi sottili per dettagli più nitidi. Se esageri compaiono aloni e rumore.</string>
+    <string name="help_param_sharpness_radius">Regola la distanza in pixel da cui la nitidezza campiona i bordi. Usa un raggio piccolo per i dettagli fini.</string>
+    <string name="help_param_sharpness_masking">Con Nitidezza sopra zero, aumenta la mascheratura per agire sui bordi più netti e proteggere le zone uniformi o rumorose.</string>
     <string name="help_param_clarity">Aggiunge contrasto ai dettagli medi e alle texture (pietra, legno, volti). A sinistra li ammorbidisce.</string>
     <string name="help_param_dehaze">Toglie foschia e nebbia dai paesaggi e restituisce profondità; a sinistra aggiunge un velo sognante.</string>
     <string name="help_param_noise_reduction">Leviga i puntini granulosi delle foto scattate con poca luce. Se esageri le superfici sembrano di plastica.</string>

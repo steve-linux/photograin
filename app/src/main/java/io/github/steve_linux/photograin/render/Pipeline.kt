@@ -203,6 +203,8 @@ internal class Pipeline {
         p.float("uVibrance", adjustments.vibrance)
         p.float("uSaturation", adjustments.saturation)
         p.float("uSharpness", adjustments.sharpness)
+        p.float("uSharpnessRadius", adjustments.sharpnessRadius.coerceIn(0.5f, 3f))
+        p.float("uSharpnessMasking", adjustments.sharpnessMasking.coerceIn(0f, 1f))
         p.float("uClarity", adjustments.clarity)
         p.float("uDehaze", adjustments.dehaze)
         p.float("uVignette", adjustments.vignette)

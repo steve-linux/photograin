@@ -38,6 +38,8 @@ data class Adjustments(
     val look: Look = Look(),
     val colorGrade: ColorGrade = ColorGrade(),
     val monochrome: MonochromeMix = MonochromeMix(),
+    val sharpnessRadius: Float = 1f,
+    val sharpnessMasking: Float = 0f,
 )
 
 /** An imported .cube LUT applied after the other color adjustments, blended by [amount]. */
@@ -82,6 +84,10 @@ object Params {
         ParamSpec("vibrance", ToolGroup.COLOR, -1f, 1f, { it.vibrance }, { a, v -> a.copy(vibrance = v) }),
         ParamSpec("saturation", ToolGroup.COLOR, -1f, 1f, { it.saturation }, { a, v -> a.copy(saturation = v) }),
         ParamSpec("sharpness", ToolGroup.DETAIL, 0f, 1f, { it.sharpness }, { a, v -> a.copy(sharpness = v) }),
+        ParamSpec("sharpnessRadius", ToolGroup.DETAIL, 0.5f, 3f,
+            { it.sharpnessRadius }, { a, v -> a.copy(sharpnessRadius = v) }, displayScale = 1f, decimals = 1),
+        ParamSpec("sharpnessMasking", ToolGroup.DETAIL, 0f, 1f,
+            { it.sharpnessMasking }, { a, v -> a.copy(sharpnessMasking = v) }),
         ParamSpec("clarity", ToolGroup.DETAIL, -1f, 1f, { it.clarity }, { a, v -> a.copy(clarity = v) }),
         ParamSpec("dehaze", ToolGroup.DETAIL, -1f, 1f, { it.dehaze }, { a, v -> a.copy(dehaze = v) }),
         ParamSpec("noiseReduction", ToolGroup.DETAIL, 0f, 1f, { it.noiseReduction }, { a, v -> a.copy(noiseReduction = v) }),

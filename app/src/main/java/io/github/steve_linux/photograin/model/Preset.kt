@@ -17,6 +17,8 @@ data class Preset(
     /** The preset's adjustments, keeping [current]'s noise reduction and sharpening, which depend on the photo. */
     fun applyTo(current: Adjustments): Adjustments = adjustments.copy(
         sharpness = current.sharpness,
+        sharpnessRadius = current.sharpnessRadius,
+        sharpnessMasking = current.sharpnessMasking,
         noiseReduction = current.noiseReduction,
         colorNoiseReduction = current.colorNoiseReduction,
     )
