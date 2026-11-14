@@ -40,6 +40,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -130,12 +131,13 @@ internal fun ParamSlider(
     @StringRes help: Int? = null,
 ) {
     var showHelp by remember { mutableStateOf(false) }
+    val resetValue by rememberUpdatedState(onReset)
     // One row per slider (name, track, value) leaves more of the screen to the photo.
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         // A double tap on the name or value resets the slider; a long press explains it.
         val reset = Modifier.pointerInput(help) {
             detectTapGestures(
-                onDoubleTap = { onReset() },
+                onDoubleTap = { resetValue() },
                 onLongPress = { if (help != null) showHelp = true },
             )
         }

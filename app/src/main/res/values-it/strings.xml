@@ -83,6 +83,13 @@
     <string name="histogram_clipping_legend">Blu: ombre chiuse · Rosso: alte luci bruciate</string>
     <string name="mode_curves">Curve</string>
     <string name="reset_curve">Ripristina curva</string>
+    <string name="mode_grading">Grading</string>
+    <string name="grade_midtones">Mezzitoni</string>
+    <string name="grade_highlights">Alte luci</string>
+    <string name="grade_intensity">Intensità</string>
+    <string name="grade_balance">Bilanciamento</string>
+    <string name="grade_balance_help">Sposta a sinistra per estendere la correzione delle ombre, o a destra per estendere quella delle alte luci.</string>
+    <string name="grade_reset">Azzera grading</string>
     <string name="hsl_hue">Tonalità</string>
     <string name="hsl_saturation">Saturazione</string>
     <string name="hsl_luminance">Luminanza</string>

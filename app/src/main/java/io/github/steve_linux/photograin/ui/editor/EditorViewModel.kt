@@ -49,6 +49,7 @@ import io.github.steve_linux.photograin.model.WhiteBalance
 import io.github.steve_linux.photograin.model.RangeType
 import io.github.steve_linux.photograin.model.MaskRange
 import io.github.steve_linux.photograin.model.MaskType
+import io.github.steve_linux.photograin.model.ColorGrade
 import io.github.steve_linux.photograin.model.Hsl
 import io.github.steve_linux.photograin.model.Look
 import io.github.steve_linux.photograin.model.ParamSpec
@@ -389,6 +390,9 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Live update of the HSL bands; [commit] when the slider is released. */
     fun setHsl(hsl: Hsl) = updateLive { it.copy(adjustments = it.adjustments.copy(hsl = hsl)) }
+
+    fun setColorGrade(grade: ColorGrade) =
+        updateLive { it.copy(adjustments = it.adjustments.copy(colorGrade = grade)) }
 
     fun resetParam(spec: ParamSpec) {
         setParam(spec, spec.default)
