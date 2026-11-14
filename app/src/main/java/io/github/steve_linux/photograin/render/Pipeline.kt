@@ -8,6 +8,7 @@ import io.github.steve_linux.photograin.model.BrushRaster
 import io.github.steve_linux.photograin.model.ColorProfile
 import io.github.steve_linux.photograin.model.CubeLut
 import io.github.steve_linux.photograin.model.Curves
+import io.github.steve_linux.photograin.model.LensMapping
 import io.github.steve_linux.photograin.model.LocalAdjustment
 import io.github.steve_linux.photograin.model.MaskType
 import io.github.steve_linux.photograin.model.Mat3
@@ -81,6 +82,9 @@ internal class Pipeline {
         height: Int,
         longEdgePx: Int,
         cubicSize: PxSize? = null,
+        lens: LensMapping? = null,
+        /** Texture origin and size in full-source UVs. */
+        sourceRect: FloatArray = UNIT_RECT,
     ) {
         val geoTarget = geo?.takeIf { it.matches(width, height) } ?: run {
             geo?.release()
@@ -92,6 +96,17 @@ internal class Pipeline {
         geometryProgram.use()
         geometryProgram.texture("uTex", 0, sourceTexture)
         geometryProgram.mat3("uM", outputToUv.toGlMat3())
+        setLens(geometryProgram, lens)
+        if (lens != null) {
+            val profile = lens.profile
+            geometryProgram.vec4("uLensRegion", sourceRect)
+            geometryProgram.vec3("uLensRed", profile.red[0].toFloat(), profile.red[1].toFloat(), profile.red[2].toFloat())
+            geometryProgram.vec3("uLensBlue", profile.blue[0].toFloat(), profile.blue[1].toFloat(), profile.blue[2].toFloat())
+            geometryProgram.vec4("uLensVignette", floatArrayOf(
+                profile.vignette[0].toFloat(), profile.vignette[1].toFloat(), profile.vignette[2].toFloat(),
+                (profile.vignetteScale / profile.calibrationScale).toFloat(),
+            ))
+        }
         geometryProgram.int("uCubic", if (cubicSize != null) 1 else 0)
         geometryProgram.vec2("uTexSize", (cubicSize?.width ?: 1).toFloat(), (cubicSize?.height ?: 1).toFloat())
         drawQuad(geometryProgram, FULL_CLIP, floatArrayOf(originX, originY, width.toFloat(), height.toFloat()))
@@ -162,6 +177,7 @@ internal class Pipeline {
         showMask: Int = -1,
         histogramSample: Boolean = false,
         showClipping: Boolean = false,
+        lens: LensMapping? = null,
     ) {
         val geoTarget = checkNotNull(geo) { "renderIntermediate() must run first" }
         val blurred = checkNotNull(blurB)
@@ -228,6 +244,7 @@ internal class Pipeline {
         }
         val mu = ShaderParams.maskUniforms(masks)
         p.int("uMaskCount", mu.count)
+        setLens(p, lens)
         val shown = if (showMask in 0 until mu.count) showMask else -1
         p.int("uShowMask", shown)
         GLES30.glActiveTexture(GLES30.GL_TEXTURE4)
@@ -252,6 +269,15 @@ internal class Pipeline {
         p.int("uShowClipping", if (showClipping) 1 else 0)
         p.vec3("uBg", background[0], background[1], background[2])
         drawQuad(p, clipRect, geoUvRect)
+    }
+
+    private fun setLens(program: GlProgram, lens: LensMapping?) {
+        program.int("uLensOn", if (lens != null) 1 else 0)
+        if (lens != null) {
+            program.vec3("uLensAxes", lens.axisX.toFloat(), lens.axisY.toFloat(), lens.scale.toFloat())
+            program.vec4("uLensDist", lens.profile.distortion.take(4).map(Double::toFloat).toFloatArray())
+            program.float("uLensDist4", lens.profile.distortion[4].toFloat())
+        }
     }
 
     /** 256x1 lookup texture for [curves], re-uploaded only when the curves change. */

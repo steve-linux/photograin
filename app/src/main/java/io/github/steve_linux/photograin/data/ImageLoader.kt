@@ -9,6 +9,7 @@ import android.provider.OpenableColumns
 import androidx.exifinterface.media.ExifInterface
 import io.github.steve_linux.photograin.model.BaseOrientation
 import io.github.steve_linux.photograin.model.ColorProfile
+import io.github.steve_linux.photograin.model.LensCorrection
 import java.io.IOException
 import kotlin.math.max
 import kotlin.math.roundToInt
@@ -24,6 +25,7 @@ class LoadedImage(
     val mimeType: String?,
     /** Color space of [preview] and of the regions decoded for export. */
     val profile: ColorProfile,
+    val lens: LensCorrection? = null,
 )
 
 object ImageLoader {
@@ -63,6 +65,7 @@ object ImageLoader {
             displayName = name,
             mimeType = mime ?: bounds.outMimeType,
             profile = profile,
+            lens = if (maxLongEdge == PREVIEW_LONG_EDGE) LensProfiles.read(context, uri) else null,
         )
     }
 
@@ -79,6 +82,7 @@ object ImageLoader {
             displayName = name,
             mimeType = mime,
             profile = ColorSpaces.RAW_WORKING_SPACE,
+            lens = if (maxLongEdge == PREVIEW_LONG_EDGE) LensProfiles.read(context, uri, info) else null,
         )
     }
 

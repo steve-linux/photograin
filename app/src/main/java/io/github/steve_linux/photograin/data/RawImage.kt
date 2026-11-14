@@ -14,7 +14,10 @@ import java.io.IOException
 /** Camera RAW files, developed by LibRaw through the native photograin_raw library. */
 object RawImage {
     /** Stored size before orientation, plus the EXIF orientation tag LibRaw found. */
-    class Info(val width: Int, val height: Int, val exifOrientation: Int)
+    class Info(
+        val width: Int, val height: Int, val exifOrientation: Int,
+        val make: String, val model: String, val lens: String, val focal: Double, val aperture: Double,
+    )
 
     private val EXTENSIONS = setOf(
         "3fr", "ari", "arw", "bay", "cr2", "cr3", "crw", "dcr", "dng", "erf", "fff", "gpr", "iiq",
@@ -39,7 +42,7 @@ object RawImage {
 
     fun probe(context: Context, uri: Uri): Info = withPath(context, uri) { path ->
         val v = nativeProbe(path) ?: throw IOException("Cannot read $uri")
-        Info(v[0], v[1], flipToExif(v[2]))
+        Info(v[0].toInt(), v[1].toInt(), flipToExif(v[2].toInt()), v[3], v[4], v[5], v[6].toDoubleOrNull() ?: 0.0, v[7].toDoubleOrNull() ?: 0.0)
     }
 
     /**
@@ -99,7 +102,7 @@ object RawImage {
     private fun isRegularFile(pfd: ParcelFileDescriptor) =
         runCatching { OsConstants.S_ISREG(Os.fstat(pfd.fileDescriptor).st_mode) }.getOrDefault(false)
 
-    @JvmStatic private external fun nativeProbe(path: String): IntArray?
+    @JvmStatic private external fun nativeProbe(path: String): Array<String>?
     @JvmStatic private external fun nativeDevelop(path: String, halfSize: Boolean): Long
     @JvmStatic private external fun nativeWidth(handle: Long): Int
     @JvmStatic private external fun nativeHeight(handle: Long): Int

@@ -20,6 +20,7 @@ data class EditState(
     val texts: List<TextItem> = emptyList(),
     /** Lines, arrows and boxes, drawn under the texts. */
     val shapes: List<ShapeItem> = emptyList(),
+    val correctLens: Boolean = false,
 ) {
     fun toJson(): String = json.encodeToString(Recipe(version = Recipe.CURRENT_VERSION, edit = this))
 

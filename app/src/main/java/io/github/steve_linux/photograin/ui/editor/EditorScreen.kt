@@ -107,6 +107,7 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit, onGuide: (topi
     var menuOpen by remember { mutableStateOf(false) }
     var showInfo by remember { mutableStateOf(false) }
     var showVersions by rememberSaveable { mutableStateOf(false) }
+    var showOptics by rememberSaveable { mutableStateOf(false) }
     var lightCurves by rememberSaveable { mutableStateOf(false) }
     var colorHsl by rememberSaveable { mutableStateOf(false) }
     var histogramOpen by rememberSaveable { mutableStateOf(false) }
@@ -397,23 +398,35 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit, onGuide: (topi
                         )
                     }
                 } else if (state.tool == ToolGroup.CROP) {
-                    CropPanel(
-                        geometry = state.edit.geometry,
-                        onAspect = viewModel::setAspect,
-                        onStraighten = viewModel::setStraighten,
-                        onStraightenFinished = viewModel::commit,
-                        onPerspective = viewModel::setPerspective,
-                        onRotate = viewModel::rotate,
-                        onFlipH = viewModel::flipHorizontal,
-                        onFlipV = viewModel::flipVertical,
-                        onReset = viewModel::resetGeometry,
-                        quadDraft = state.quadDraft,
-                        onAutoStraighten = viewModel::autoStraighten,
-                        onStartQuad = viewModel::startQuad,
-                        onApplyQuad = viewModel::applyQuad,
-                        onCancelQuad = viewModel::cancelQuad,
-                        onRemoveQuad = viewModel::removeQuad,
-                    )
+                    if (state.quadDraft == null) {
+                        PanelModeSelector(
+                            firstLabel = R.string.tool_crop,
+                            secondLabel = R.string.optics_title,
+                            showSecond = showOptics,
+                            onSelect = { showOptics = it },
+                        )
+                    }
+                    if (showOptics && state.quadDraft == null) {
+                        OpticsPanel(state.image?.lens, state.edit.correctLens, viewModel::setLensCorrection)
+                    } else {
+                        CropPanel(
+                            geometry = state.edit.geometry,
+                            onAspect = viewModel::setAspect,
+                            onStraighten = viewModel::setStraighten,
+                            onStraightenFinished = viewModel::commit,
+                            onPerspective = viewModel::setPerspective,
+                            onRotate = viewModel::rotate,
+                            onFlipH = viewModel::flipHorizontal,
+                            onFlipV = viewModel::flipVertical,
+                            onReset = viewModel::resetGeometry,
+                            quadDraft = state.quadDraft,
+                            onAutoStraighten = viewModel::autoStraighten,
+                            onStartQuad = viewModel::startQuad,
+                            onApplyQuad = viewModel::applyQuad,
+                            onCancelQuad = viewModel::cancelQuad,
+                            onRemoveQuad = viewModel::removeQuad,
+                        )
+                    }
                 } else {
                     if (state.tool == ToolGroup.LIGHT) {
                         HistogramPanel(

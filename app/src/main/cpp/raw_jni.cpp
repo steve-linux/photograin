@@ -3,6 +3,7 @@
 #include <android/bitmap.h>
 #include <jni.h>
 
+#include <string>
 #include <vector>
 
 #include "raw_decoder.h"
@@ -34,7 +35,7 @@ bool open(JNIEnv* env, RawDecoder* decoder, jstring path) {
 
 extern "C" {
 
-JNIEXPORT jintArray JNICALL
+JNIEXPORT jobjectArray JNICALL
 Java_io_github_steve_1linux_photograin_data_RawImage_nativeProbe(JNIEnv* env, jobject, jstring path) {
     RawDecoder decoder;
     if (!open(env, &decoder, path)) return nullptr;
@@ -44,9 +45,20 @@ Java_io_github_steve_1linux_photograin_data_RawImage_nativeProbe(JNIEnv* env, jo
         throwIo(env, RawDecoder::errorMessage(ret));
         return nullptr;
     }
-    jint values[] = {info.width, info.height, info.flip};
-    jintArray result = env->NewIntArray(3);
-    if (result != nullptr) env->SetIntArrayRegion(result, 0, 3, values);
+    const std::string values[] = {
+        std::to_string(info.width), std::to_string(info.height), std::to_string(info.flip),
+        info.make, info.model, info.lens, std::to_string(info.focal), std::to_string(info.aperture),
+    };
+    auto cls = env->FindClass("java/lang/String");
+    if (cls == nullptr) return nullptr;
+    auto result = env->NewObjectArray(8, cls, nullptr);
+    if (result == nullptr) return nullptr;
+    for (int i = 0; i < 8; ++i) {
+        auto value = env->NewStringUTF(values[i].c_str());
+        if (value == nullptr) return nullptr;
+        env->SetObjectArrayElement(result, i, value);
+        env->DeleteLocalRef(value);
+    }
     return result;
 }
 

@@ -20,6 +20,20 @@ void main() {
 }
 """
 
+    private const val LENS = """
+uniform bool uLensOn;
+uniform vec3 uLensAxes;
+uniform vec4 uLensDist;
+uniform float uLensDist4;
+
+vec2 lensPoint(vec2 uv) {
+    vec2 d = (uv - 0.5) * uLensAxes.z;
+    float r = length(d * uLensAxes.xy);
+    float gain = (((uLensDist4 * r + uLensDist.w) * r + uLensDist.z) * r + uLensDist.y) * r + uLensDist.x;
+    return d * gain + 0.5;
+}
+"""
+
     /** Resamples the source through the geometry transform (projective); vCoord is in output pixels. */
     const val GEOMETRY = """#version 300 es
 precision highp float;
@@ -27,6 +41,11 @@ uniform sampler2D uTex;
 uniform mat3 uM;
 uniform vec2 uTexSize;
 uniform bool uCubic;
+uniform vec4 uLensRegion;
+uniform vec3 uLensRed;
+uniform vec3 uLensBlue;
+uniform vec4 uLensVignette;
+$LENS
 in vec2 vCoord;
 out vec4 oColor;
 
@@ -56,12 +75,40 @@ vec3 catmullRom(vec2 uv) {
     return clamp(c, 0.0, 1.0);
 }
 
+vec3 sampleImage(vec2 uv) {
+    return uCubic ? catmullRom(uv) : texture(uTex, uv).rgb;
+}
+
+vec2 tileUv(vec2 fullUv) {
+    return clamp((clamp(fullUv, 0.0, 1.0) - uLensRegion.xy) / uLensRegion.zw, 0.0, 1.0);
+}
+
+vec3 correctedColor(vec2 uv) {
+    vec2 green = lensPoint(uv);
+    vec2 d = green - 0.5;
+    float r = length(d * uLensAxes.xy);
+    vec3 basis = vec3(1.0, r, r*r);
+    vec3 c = sampleImage(tileUv(green));
+    if (uLensRed != vec3(1.0, 0.0, 0.0)) c.r = sampleImage(tileUv(0.5 + d * dot(uLensRed, basis))).r;
+    if (uLensBlue != vec3(1.0, 0.0, 0.0)) c.b = sampleImage(tileUv(0.5 + d * dot(uLensBlue, basis))).b;
+    if (uLensVignette.xyz != vec3(0.0)) {
+        // The PA vignetting model measures attenuation in linear light at the source radius.
+        float v = r * uLensVignette.w;
+        float v2 = v * v;
+        float falloff = 1.0 + dot(uLensVignette.xyz, vec3(v2, v2*v2, v2*v2*v2));
+        vec3 linear = mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(vec3(0.04045), c));
+        linear = clamp(linear / max(falloff, 0.25), 0.0, 1.0);
+        c = mix(linear * 12.92, 1.055 * pow(linear, vec3(1.0/2.4)) - 0.055, step(vec3(0.0031308), linear));
+    }
+    return c;
+}
+
 void main() {
     vec3 hm = uM * vec3(vCoord, 1.0);
     vec2 uv = hm.xy / hm.z;
     vec2 inside = step(vec2(-0.0005), uv) * step(uv, vec2(1.0005));
     vec2 st = clamp(uv, 0.0, 1.0);
-    vec3 c = uCubic ? catmullRom(st) : texture(uTex, st).rgb;
+    vec3 c = uLensOn ? correctedColor(st) : sampleImage(st);
     oColor = vec4(c, inside.x * inside.y);
 }
 """
@@ -146,6 +193,7 @@ uniform vec3 uLuma;
 // by uSrcAspect (width and height over the long edge) gives units where circles stay round.
 uniform int uMaskCount;
 uniform mat3 uPosToSrc;
+$LENS
 uniform vec2 uSrcAspect;
 // Linear: start xy, end zw. Radial: center xy, radii zw (in long-edge units).
 uniform vec4 uMaskGeo[8];
@@ -321,7 +369,9 @@ float rangeWeight(vec4 r, vec3 s) {
 // Same as Mask.weight, narrowed by the mask's range on the pixel [s].
 float maskWeight(int i, vec2 pos, vec3 s) {
     vec3 hp = uPosToSrc * vec3(pos, 1.0);
-    vec2 q = hp.xy / hp.z * uSrcAspect;
+    vec2 source = hp.xy / hp.z;
+    if (uLensOn) source = lensPoint(clamp(source, 0.0, 1.0));
+    vec2 q = source * uSrcAspect;
     vec4 g = uMaskGeo[i];
     vec4 o = uMaskOpt[i];
     float w;

@@ -22,6 +22,8 @@ import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.cos
+import io.github.steve_linux.photograin.math.Vec2
+import io.github.steve_linux.photograin.model.LensMapping
 import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.sin
@@ -39,6 +41,7 @@ class MaskSpace(
     private val posToSource: Homography,
     sourceWidth: Int,
     sourceHeight: Int,
+    private val lens: LensMapping? = null,
 ) {
     private val sourceToPos = posToSource.inverse()
     private val ax = sourceWidth / max(sourceWidth, sourceHeight).toDouble()
@@ -46,7 +49,8 @@ class MaskSpace(
 
     /** Source-normalized point -> screen. */
     fun toScreen(x: Double, y: Double): Offset {
-        val p = sourceToPos.apply(x, y)
+        val point = Vec2(x, y)
+        val p = sourceToPos.apply(lens?.fromOriginal(point) ?: point)
         return Offset((rect.left + p.x * rect.width()).toFloat(), (rect.top + p.y * rect.height()).toFloat())
     }
 
@@ -56,7 +60,8 @@ class MaskSpace(
     /** Screen -> source-normalized point. */
     fun toSource(p: Offset): Pair<Double, Double> {
         val s = posToSource.apply((p.x - rect.left) / rect.width().toDouble(), (p.y - rect.top) / rect.height().toDouble())
-        return s.x to s.y
+        val original = lens?.toOriginal(s) ?: s
+        return original.x to original.y
     }
 
     /** Length of [px] screen pixels at [p], in long-edge units. */

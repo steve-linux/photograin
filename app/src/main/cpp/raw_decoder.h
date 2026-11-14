@@ -16,6 +16,11 @@ struct RawInfo {
     int height = 0;
     /** LibRaw orientation: 0 none, 3 = 180 degrees, 5 = 90 counter-clockwise, 6 = 90 clockwise. */
     int flip = 0;
+    const char* make = "";
+    const char* model = "";
+    const char* lens = "";
+    float focal = 0;
+    float aperture = 0;
 };
 
 /**
