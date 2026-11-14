@@ -82,6 +82,9 @@
     <string name="param_noise_reduction">Noise reduction</string>
     <string name="param_color_noise_reduction">Color noise reduction</string>
     <string name="mode_basic">Basic</string>
+    <string name="histogram_rgb">RGB histogram</string>
+    <string name="histogram_clipping">Clipping</string>
+    <string name="histogram_clipping_legend">Blue: blocked shadows · Red: clipped highlights</string>
     <string name="mode_curves">Curves</string>
     <string name="mode_hsl" translatable="false">HSL</string>
     <string name="channel_rgb" translatable="false">RGB</string>

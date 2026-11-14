@@ -160,6 +160,8 @@ internal class Pipeline {
         sourceHeight: Int = 1,
         subjects: Subjects? = null,
         showMask: Int = -1,
+        histogramSample: Boolean = false,
+        showClipping: Boolean = false,
     ) {
         val geoTarget = checkNotNull(geo) { "renderIntermediate() must run first" }
         val blurred = checkNotNull(blurB)
@@ -246,6 +248,8 @@ internal class Pipeline {
         p.vec4("uCutoutFill", if (cutout >= 0) ShaderParams.cutoutFill(masks[cutout], working) else FloatArray(4))
         p.float("uCompare", compareSplit)
         p.float("uComposite", if (composite) 1f else 0f)
+        p.int("uHistogramSample", if (histogramSample) 1 else 0)
+        p.int("uShowClipping", if (showClipping) 1 else 0)
         p.vec3("uBg", background[0], background[1], background[2])
         drawQuad(p, clipRect, geoUvRect)
     }
