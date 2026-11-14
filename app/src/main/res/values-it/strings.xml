@@ -113,6 +113,8 @@
     <string name="band_blue">Blu</string>
     <string name="band_purple">Viola</string>
     <string name="band_magenta">Magenta</string>
+    <string name="workspace_actions">Azioni</string>
+    <string name="workspace_edit">Modifica</string>
     <string name="tool_look">Stili</string>
     <string name="look_presets">Preset</string>
     <string name="look_save_preset">Salva preset</string>
@@ -232,7 +234,7 @@
     <string name="guide_open_title">Apri una foto</string>
     <string name="guide_open_body">Tocca «Apri foto» oppure condividi una foto con Photograin da un\'altra app. Funziona con JPEG, PNG, WebP, HEIC, AVIF, JPEG XL e con i file RAW delle fotocamere. L\'originale non viene mai modificato: le modifiche si salvano da sole e le ritrovi riaprendo la foto dalle recenti.</string>
     <string name="guide_compare_title">Confronta con l\'originale</string>
-    <string name="guide_compare_body">Tieni premuto sulla foto per vedere l\'originale, oppure tocca {icon} per dividere la foto in due e trascinare la linea tra prima e dopo. Con le frecce in alto annulli e ripeti.</string>
+    <string name="guide_compare_body">Tieni premuto sulla foto per vedere l\'originale, oppure tocca {icon} per dividere la foto in due e trascinare la linea tra prima e dopo. Usa la freccia in alto per annullare e il menu per ripetere.</string>
     <string name="guide_look_title">Stili e preset</string>
     <string name="guide_look_body">Nella scheda Stili scegli un aspetto pronto con un tocco e regolane l\'intensità. Puoi importare stili .cube da altri programmi. Quando la foto ti piace, tocca «Salva preset» per riusare le stesse modifiche su altre foto.</string>
     <string name="guide_light_title">Luce</string>
@@ -261,7 +263,7 @@
     <string name="local_delete">Elimina maschera</string>
     <string name="local_feather">Sfumatura</string>
     <string name="guide_local_title">Maschere</string>
-    <string name="guide_local_body">In Ritocco, con Maschere regoli solo una parte della foto. Una sfumatura lineare scurisce un cielo troppo chiaro o schiarisce il primo piano; una circolare fa risaltare un soggetto; col pennello dipingi tu la zona, e Cancella corregge le sbavature. Soggetto trova con l\'IA il soggetto principale; tocca un oggetto sulla foto per selezionare quello. Trascina i punti sulla foto per spostarla e darle forma, usa {icon} per vedere dove agisce e Inverti per cambiare tutto il resto. In Intervallo puoi limitare la maschera alle parti più chiare o più scure, o a un colore scelto toccando la foto; Foto intera con un intervallo regola, per esempio, tutto il cielo chiaro o tutto il verde in un colpo.</string>
+    <string name="guide_local_body">In Maschere regoli solo una parte della foto. Una sfumatura lineare scurisce un cielo troppo chiaro o schiarisce il primo piano; una circolare fa risaltare un soggetto; col pennello dipingi tu la zona, e Cancella corregge le sbavature. Soggetto trova con l\'IA il soggetto principale; tocca un oggetto sulla foto per selezionare quello. Trascina i punti sulla foto per spostarla e darle forma, usa {icon} per vedere dove agisce e Inverti per cambiare tutto il resto. In Intervallo puoi limitare la maschera alle parti più chiare o più scure, o a un colore scelto toccando la foto; Foto intera con un intervallo regola, per esempio, tutto il cielo chiaro o tutto il verde in un colpo.</string>
     <string name="local_add_brush">Pennello</string>
     <string name="local_brush_n">Pennello %1$d</string>
     <string name="brush_paint">Dipingi</string>
