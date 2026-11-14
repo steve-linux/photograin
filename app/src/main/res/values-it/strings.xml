@@ -41,6 +41,7 @@
     <string name="param_sharpness">Nitidezza</string>
     <string name="param_sharpness_radius">Raggio nitidezza</string>
     <string name="param_sharpness_masking">Mascheratura nitidezza</string>
+    <string name="param_texture">Texture</string>
     <string name="param_clarity">Chiarezza</string>
     <string name="param_dehaze">Rimozione foschia</string>
     <string name="param_vignette">Vignettatura</string>
@@ -235,7 +236,7 @@
     <string name="guide_color_title">Colore</string>
     <string name="guide_color_body">Temperatura, tinta, vividezza e saturazione. In «HSL» cambi tonalità, saturazione e luminosità di un solo colore, per esempio il blu del cielo. Col Contagocce tocchi qualcosa che dovrebbe essere bianco o grigio e il bilanciamento del bianco si regola da solo.</string>
     <string name="guide_detail_title">Dettagli ed Effetti</string>
-    <string name="guide_detail_body">In Dettagli regoli nitidezza, chiarezza e foschia, e riduci il rumore delle foto scattate con poca luce. In Effetti aggiungi vignettatura e grana da pellicola.</string>
+    <string name="guide_detail_body">In Dettagli regoli nitidezza, texture, chiarezza e foschia, e riduci il rumore delle foto scattate con poca luce. In Effetti aggiungi vignettatura e grana da pellicola.</string>
     <string name="guide_crop_title">Ritaglio</string>
     <string name="guide_crop_body">Scegli un formato (1:1, 4:3, 16:9…), trascina gli angoli, raddrizza l\'orizzonte, ruota o capovolgi la foto. Con la prospettiva raddrizzi palazzi e linee che pendono. Raddrizza automaticamente livella la foto dalle sue linee; per un oggetto fotografato di sbieco usa la prospettiva a 4 punti: segni qualcosa di rettangolare e viene squadrato.</string>
     <string name="guide_copy_title">Stesse modifiche su più foto</string>
@@ -389,6 +390,7 @@
     <string name="help_param_sharpness">Rinforza i bordi sottili per dettagli più nitidi. Se esageri compaiono aloni e rumore.</string>
     <string name="help_param_sharpness_radius">Regola la distanza in pixel da cui la nitidezza campiona i bordi. Usa un raggio piccolo per i dettagli fini.</string>
     <string name="help_param_sharpness_masking">Con Nitidezza sopra zero, aumenta la mascheratura per agire sui bordi più netti e proteggere le zone uniformi o rumorose.</string>
+    <string name="help_param_texture">Sposta a destra per mettere in risalto trame come tessuti e pietra, o a sinistra per ammorbidirle.</string>
     <string name="help_param_clarity">Aggiunge contrasto ai dettagli medi e alle texture (pietra, legno, volti). A sinistra li ammorbidisce.</string>
     <string name="help_param_dehaze">Toglie foschia e nebbia dai paesaggi e restituisce profondità; a sinistra aggiunge un velo sognante.</string>
     <string name="help_param_noise_reduction">Leviga i puntini granulosi delle foto scattate con poca luce. Se esageri le superfici sembrano di plastica.</string>

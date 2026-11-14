@@ -48,7 +48,7 @@ object ShaderParams {
         return 2.0.pow(ceil(log2(ratio))).toInt()
     }
 
-    /** Extra pixels around an export tile for the local blur and the sharpening radius (up to 3 px). */
+    /** Extra pixels around a tile for the local blur, sharpening, and the narrower texture filter. */
     fun tileMarginPx(longEdgePx: Int): Int = ceil(3.5 * localSigmaPx(longEdgePx)).toInt() + 4
 
     /**

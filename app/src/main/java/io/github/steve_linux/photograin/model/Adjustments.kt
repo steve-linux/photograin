@@ -40,6 +40,7 @@ data class Adjustments(
     val monochrome: MonochromeMix = MonochromeMix(),
     val sharpnessRadius: Float = 1f,
     val sharpnessMasking: Float = 0f,
+    val texture: Float = 0f,
 )
 
 /** An imported .cube LUT applied after the other color adjustments, blended by [amount]. */
@@ -88,6 +89,7 @@ object Params {
             { it.sharpnessRadius }, { a, v -> a.copy(sharpnessRadius = v) }, displayScale = 1f, decimals = 1),
         ParamSpec("sharpnessMasking", ToolGroup.DETAIL, 0f, 1f,
             { it.sharpnessMasking }, { a, v -> a.copy(sharpnessMasking = v) }),
+        ParamSpec("texture", ToolGroup.DETAIL, -1f, 1f, { it.texture }, { a, v -> a.copy(texture = v) }),
         ParamSpec("clarity", ToolGroup.DETAIL, -1f, 1f, { it.clarity }, { a, v -> a.copy(clarity = v) }),
         ParamSpec("dehaze", ToolGroup.DETAIL, -1f, 1f, { it.dehaze }, { a, v -> a.copy(dehaze = v) }),
         ParamSpec("noiseReduction", ToolGroup.DETAIL, 0f, 1f, { it.noiseReduction }, { a, v -> a.copy(noiseReduction = v) }),

@@ -370,6 +370,7 @@ internal fun paramLabel(id: String): Int = when (id) {
     "sharpness" -> R.string.param_sharpness
     "sharpnessRadius" -> R.string.param_sharpness_radius
     "sharpnessMasking" -> R.string.param_sharpness_masking
+    "texture" -> R.string.param_texture
     "clarity" -> R.string.param_clarity
     "dehaze" -> R.string.param_dehaze
     "noiseReduction" -> R.string.param_noise_reduction
@@ -418,6 +419,7 @@ internal fun helpFor(@StringRes label: Int): Int? = when (label) {
     R.string.param_sharpness -> R.string.help_param_sharpness
     R.string.param_sharpness_radius -> R.string.help_param_sharpness_radius
     R.string.param_sharpness_masking -> R.string.help_param_sharpness_masking
+    R.string.param_texture -> R.string.help_param_texture
     R.string.param_clarity -> R.string.help_param_clarity
     R.string.param_dehaze -> R.string.help_param_dehaze
     R.string.param_noise_reduction -> R.string.help_param_noise_reduction
