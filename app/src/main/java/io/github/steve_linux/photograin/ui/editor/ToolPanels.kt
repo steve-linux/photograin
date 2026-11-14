@@ -346,6 +346,7 @@ private fun signedPercent(v: Float): String {
 
 private fun formatValue(spec: ParamSpec, value: Float): String {
     val shown = value * spec.displayScale
+    if (spec.id == "sharpnessRadius") return String.format(Locale.getDefault(), "%.1f px", shown)
     return if (spec.decimals == 0) {
         val n = Math.round(shown)
         if (n > 0 && spec.min < 0f) "+$n" else "$n"
@@ -367,6 +368,8 @@ internal fun paramLabel(id: String): Int = when (id) {
     "vibrance" -> R.string.param_vibrance
     "saturation" -> R.string.param_saturation
     "sharpness" -> R.string.param_sharpness
+    "sharpnessRadius" -> R.string.param_sharpness_radius
+    "sharpnessMasking" -> R.string.param_sharpness_masking
     "clarity" -> R.string.param_clarity
     "dehaze" -> R.string.param_dehaze
     "noiseReduction" -> R.string.param_noise_reduction
@@ -413,6 +416,8 @@ internal fun helpFor(@StringRes label: Int): Int? = when (label) {
     R.string.param_vibrance -> R.string.help_param_vibrance
     R.string.param_saturation -> R.string.help_param_saturation
     R.string.param_sharpness -> R.string.help_param_sharpness
+    R.string.param_sharpness_radius -> R.string.help_param_sharpness_radius
+    R.string.param_sharpness_masking -> R.string.help_param_sharpness_masking
     R.string.param_clarity -> R.string.help_param_clarity
     R.string.param_dehaze -> R.string.help_param_dehaze
     R.string.param_noise_reduction -> R.string.help_param_noise_reduction

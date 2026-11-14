@@ -48,7 +48,7 @@ object ShaderParams {
         return 2.0.pow(ceil(log2(ratio))).toInt()
     }
 
-    /** Extra pixels needed around an export tile so blurs near its border are correct. */
+    /** Extra pixels around an export tile for the local blur and the sharpening radius (up to 3 px). */
     fun tileMarginPx(longEdgePx: Int): Int = ceil(3.5 * localSigmaPx(longEdgePx)).toInt() + 4
 
     /**
