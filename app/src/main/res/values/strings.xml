@@ -95,6 +95,13 @@
     <string name="channel_green" translatable="false">G</string>
     <string name="channel_blue" translatable="false">B</string>
     <string name="reset_curve">Reset curve</string>
+    <string name="mode_grading">Grading</string>
+    <string name="grade_midtones">Midtones</string>
+    <string name="grade_highlights">Highlights</string>
+    <string name="grade_intensity">Intensity</string>
+    <string name="grade_balance">Balance</string>
+    <string name="grade_balance_help">Move left to extend the shadow grade, or right to extend the highlight grade.</string>
+    <string name="grade_reset">Reset grading</string>
     <string name="hsl_hue">Hue</string>
     <string name="hsl_saturation">Saturation</string>
     <string name="hsl_luminance">Luminance</string>

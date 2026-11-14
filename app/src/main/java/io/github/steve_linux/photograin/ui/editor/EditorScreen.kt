@@ -109,7 +109,7 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit, onGuide: (topi
     var showVersions by rememberSaveable { mutableStateOf(false) }
     var showOptics by rememberSaveable { mutableStateOf(false) }
     var lightCurves by rememberSaveable { mutableStateOf(false) }
-    var colorHsl by rememberSaveable { mutableStateOf(false) }
+    var colorMode by rememberSaveable { mutableStateOf(0) }
     var histogramOpen by rememberSaveable { mutableStateOf(false) }
     var showClipping by rememberSaveable { mutableStateOf(false) }
     val histogram = remember(state.image) { mutableStateOf<RgbHistogram?>(null) }
@@ -437,15 +437,27 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit, onGuide: (topi
                             onClippingChange = { showClipping = it },
                         )
                     }
-                    val advanced = state.tool == ToolGroup.LIGHT || state.tool == ToolGroup.COLOR
-                    if (advanced) {
+                    if (state.tool == ToolGroup.LIGHT) {
                         PanelModeSelector(
-                            secondLabel = if (state.tool == ToolGroup.LIGHT) R.string.mode_curves else R.string.mode_hsl,
-                            showSecond = if (state.tool == ToolGroup.LIGHT) lightCurves else colorHsl,
-                            onSelect = { second ->
-                                if (state.tool == ToolGroup.LIGHT) lightCurves = second else colorHsl = second
-                            },
+                            secondLabel = R.string.mode_curves,
+                            showSecond = lightCurves,
+                            onSelect = { lightCurves = it },
                         )
+                    } else if (state.tool == ToolGroup.COLOR) {
+                        val modes = listOf(R.string.mode_basic, R.string.mode_hsl, R.string.mode_grading)
+                        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
+                            modes.forEachIndexed { index, label ->
+                                SegmentedButton(
+                                    selected = colorMode == index,
+                                    onClick = {
+                                        colorMode = index
+                                        if (index != 0) viewModel.setPicker(Picker.NONE)
+                                    },
+                                    shape = SegmentedButtonDefaults.itemShape(index, modes.size),
+                                    icon = {},
+                                ) { Text(stringResource(label)) }
+                            }
+                        }
                     }
                     when {
                         state.tool == ToolGroup.LIGHT && lightCurves -> CurvesPanel(
@@ -453,10 +465,15 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit, onGuide: (topi
                             onChange = viewModel::setCurves,
                             onChangeFinished = viewModel::commit,
                         )
-                        state.tool == ToolGroup.COLOR && colorHsl -> HslPanel(
+                        state.tool == ToolGroup.COLOR && colorMode == 1 -> HslPanel(
                             hsl = state.edit.adjustments.hsl,
                             onChange = viewModel::setHsl,
                             onChangeFinished = viewModel::commit,
+                        )
+                        state.tool == ToolGroup.COLOR && colorMode == 2 -> ColorGradePanel(
+                            grade = state.edit.adjustments.colorGrade,
+                            onChange = viewModel::setColorGrade,
+                            onCommit = viewModel::commit,
                         )
                         else -> {
                             if (state.tool == ToolGroup.COLOR) {

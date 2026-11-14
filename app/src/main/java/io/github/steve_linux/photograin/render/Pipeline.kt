@@ -10,6 +10,7 @@ import io.github.steve_linux.photograin.model.CubeLut
 import io.github.steve_linux.photograin.model.Curves
 import io.github.steve_linux.photograin.model.LensMapping
 import io.github.steve_linux.photograin.model.LocalAdjustment
+import io.github.steve_linux.photograin.model.TonalRange
 import io.github.steve_linux.photograin.model.MaskType
 import io.github.steve_linux.photograin.model.Mat3
 import io.github.steve_linux.photograin.model.PxSize
@@ -215,6 +216,20 @@ internal class Pipeline {
         val hslOn = !adjustments.hsl.isIdentity
         p.float("uHslOn", if (hslOn) 1f else 0f)
         if (hslOn) p.vec3Array("uHsl", ShaderParams.hslUniform(adjustments))
+        val grade = adjustments.colorGrade
+        p.int("uGradeOn", if (grade.isNeutral) 0 else 1)
+        if (!grade.isNeutral) {
+            val tones = FloatArray(9)
+            for (range in TonalRange.entries) {
+                val tone = grade[range]
+                val i = range.ordinal * 3
+                tones[i] = tone.hue.coerceIn(0f, 360f) / 360f
+                tones[i + 1] = tone.intensity.coerceIn(0f, 1f)
+                tones[i + 2] = tone.luminance.coerceIn(-1f, 1f)
+            }
+            p.vec3Array("uGrade", tones)
+            p.float("uGradeBalance", grade.balance.coerceIn(-1f, 1f))
+        }
         val lutOn = lut != null && adjustments.look.isActive
         p.float("uLutOn", if (lutOn) 1f else 0f)
         // The sampler must always point at a 3D texture, even when unused.

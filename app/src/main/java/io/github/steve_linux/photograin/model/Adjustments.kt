@@ -36,6 +36,7 @@ data class Adjustments(
     val hsl: Hsl = Hsl(),
     // Creative look
     val look: Look = Look(),
+    val colorGrade: ColorGrade = ColorGrade(),
 )
 
 /** An imported .cube LUT applied after the other color adjustments, blended by [amount]. */

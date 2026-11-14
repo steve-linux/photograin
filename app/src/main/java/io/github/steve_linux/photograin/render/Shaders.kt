@@ -171,6 +171,9 @@ uniform float uCurvesOn;
 // Per band: hue shift, saturation, luminance (-1..1).
 uniform vec3 uHsl[8];
 uniform float uHslOn;
+uniform bool uGradeOn;
+uniform vec3 uGrade[3];
+uniform float uGradeBalance;
 // Creative 3D LUT (.cube), sampled at texel centers: coord = v * uLutScale + uLutOffset.
 uniform highp sampler3D uLut;
 uniform float uLutOn;
@@ -295,6 +298,31 @@ vec3 applyHsl(vec3 v) {
     // Luminance only moves colored pixels; grays have no hue to belong to.
     hsv.z = clamp(hsv.z * exp2(acc.z * 0.8 * hsv.y), 0.0, 1.0);
     return hsvToRgb(hsv);
+}
+
+vec3 applyGrade(vec3 v) {
+    float luma = dot(v, LUMA);
+    float tone = luma + uGradeBalance * 0.2;
+    float shadows = 1.0 - smoothstep(0.10, 0.50, tone);
+    float highlights = smoothstep(0.50, 0.90, tone);
+    vec3 weights = vec3(shadows, 1.0 - shadows - highlights, highlights);
+    vec3 tint = vec3(0.0);
+    float luminance = 0.0;
+    for (int i = 0; i < 3; i++) {
+        vec3 settings = uGrade[i];
+        vec3 hue = hsvToRgb(vec3(settings.x, 1.0, 1.0));
+        tint += weights[i] * settings.y * (hue - dot(hue, LUMA));
+        luminance += weights[i] * settings.z;
+    }
+    // Grade the existing colors without shifting luma. Fade chroma at pure black and white.
+    float headroom = min(luma, 1.0 - luma);
+    vec3 delta = tint * headroom;
+    // Fit the tint into the RGB gamut while preserving its direction and luma.
+    vec3 room = mix(v, 1.0 - v, step(vec3(0.0), delta));
+    vec3 limit = mix(vec3(1.0), room / max(abs(delta), vec3(1e-6)), step(vec3(1e-6), abs(delta)));
+    v += delta * min(1.0, min(limit.r, min(limit.g, limit.b)));
+    // Adjust luminance with a smooth move toward black or white.
+    return mix(v, vec3(luminance > 0.0 ? 1.0 : 0.0), abs(luminance) * 0.5);
 }
 
 vec3 applyCurves(vec3 v) {
@@ -469,6 +497,8 @@ vec3 process(vec3 s, vec2 pos) {
     if (uHslOn > 0.5) {
         v = applyHsl(clamp(v, 0.0, 1.0));
     }
+
+    if (uGradeOn) v = applyGrade(clamp(v, 0.0, 1.0));
 
     if (uLutOn > 0.5) {
         vec3 lin = clamp(v, 0.0, 1.0);
