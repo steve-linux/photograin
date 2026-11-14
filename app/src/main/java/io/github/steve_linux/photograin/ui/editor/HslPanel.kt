@@ -3,7 +3,6 @@ package io.github.steve_linux.photograin.ui.editor
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,6 +12,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
@@ -26,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -45,24 +47,7 @@ fun HslPanel(hsl: Hsl, onChange: (Hsl) -> Unit, onChangeFinished: () -> Unit) {
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp, vertical = 4.dp),
     ) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            for (b in HslBand.entries) {
-                val label = stringResource(bandLabel(b))
-                Box(
-                    Modifier
-                        .size(32.dp)
-                        .clip(CircleShape)
-                        .background(bandColor(b))
-                        .border(
-                            width = if (b == band) 3.dp else 0.dp,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            shape = CircleShape,
-                        )
-                        .clickable { band = b }
-                        .semantics { contentDescription = label },
-                )
-            }
-        }
+        HueBandPicker(band, onSelect = { band = it })
         Text(
             stringResource(bandLabel(band)),
             style = MaterialTheme.typography.titleSmall,
@@ -76,6 +61,28 @@ fun HslPanel(hsl: Hsl, onChange: (Hsl) -> Unit, onChangeFinished: () -> Unit) {
         }
         HslSlider(R.string.hsl_luminance, hsl.luminance.getOrElse(i) { 0f }, { onChange(hsl.withLuminance(band, it)) }, onChangeFinished) {
             onChange(hsl.withLuminance(band, 0f)); onChangeFinished()
+        }
+    }
+}
+
+@Composable
+internal fun HueBandPicker(band: HslBand, onSelect: (HslBand) -> Unit) {
+    Row(Modifier.fillMaxWidth().selectableGroup(), horizontalArrangement = Arrangement.SpaceBetween) {
+        for (b in HslBand.entries) {
+            val label = stringResource(bandLabel(b))
+            Box(
+                Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(bandColor(b))
+                    .border(
+                        width = if (b == band) 3.dp else 0.dp,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        shape = CircleShape,
+                    )
+                    .selectable(selected = b == band, role = Role.RadioButton, onClick = { onSelect(b) })
+                    .semantics { contentDescription = label },
+            )
         }
     }
 }
@@ -106,7 +113,7 @@ private fun bandColor(b: HslBand) = when (b) {
     HslBand.MAGENTA -> Color(0xFFD81B60)
 }
 
-private fun bandLabel(b: HslBand) = when (b) {
+internal fun bandLabel(b: HslBand) = when (b) {
     HslBand.RED -> R.string.band_red
     HslBand.ORANGE -> R.string.band_orange
     HslBand.YELLOW -> R.string.band_yellow

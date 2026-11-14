@@ -37,6 +37,7 @@ data class Adjustments(
     // Creative look
     val look: Look = Look(),
     val colorGrade: ColorGrade = ColorGrade(),
+    val monochrome: MonochromeMix = MonochromeMix(),
 )
 
 /** An imported .cube LUT applied after the other color adjustments, blended by [amount]. */

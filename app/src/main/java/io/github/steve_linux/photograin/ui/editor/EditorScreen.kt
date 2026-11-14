@@ -447,7 +447,7 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit, onGuide: (topi
                             onSelect = { lightCurves = it },
                         )
                     } else if (state.tool == ToolGroup.COLOR) {
-                        val modes = listOf(R.string.mode_basic, R.string.mode_hsl, R.string.mode_grading)
+                        val modes = listOf(R.string.mode_basic, R.string.mode_hsl, R.string.mode_grading, R.string.mode_monochrome)
                         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
                             modes.forEachIndexed { index, label ->
                                 SegmentedButton(
@@ -458,7 +458,14 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit, onGuide: (topi
                                     },
                                     shape = SegmentedButtonDefaults.itemShape(index, modes.size),
                                     icon = {},
-                                ) { Text(stringResource(label)) }
+                                ) {
+                                    BasicText(
+                                        text = stringResource(label),
+                                        style = MaterialTheme.typography.labelLarge.copy(color = LocalContentColor.current),
+                                        maxLines = 1,
+                                        autoSize = TextAutoSize.StepBased(minFontSize = 10.sp, maxFontSize = 14.sp),
+                                    )
+                                }
                             }
                         }
                     }
@@ -476,6 +483,11 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit, onGuide: (topi
                         state.tool == ToolGroup.COLOR && colorMode == 2 -> ColorGradePanel(
                             grade = state.edit.adjustments.colorGrade,
                             onChange = viewModel::setColorGrade,
+                            onCommit = viewModel::commit,
+                        )
+                        state.tool == ToolGroup.COLOR && colorMode == 3 -> MonochromePanel(
+                            mix = state.edit.adjustments.monochrome,
+                            onChange = viewModel::setMonochrome,
                             onCommit = viewModel::commit,
                         )
                         else -> {
