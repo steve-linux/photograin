@@ -71,12 +71,31 @@ import io.github.steve_linux.photograin.ui.editor.versionLabel
 import io.github.steve_linux.photograin.ui.editor.QuickAction
 import io.github.steve_linux.photograin.ui.editor.QuickActionsCard
 import io.github.steve_linux.photograin.ui.guide.GuideEntry
+import io.github.steve_linux.photograin.ui.theme.PhotoWorkspaceTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
+    recents: List<Uri>,
+    onOpenPicker: () -> Unit,
+    onOpen: (uri: Uri, version: Int) -> Unit,
+    onQuickAction: (QuickAction) -> Unit,
+    onBatch: () -> Unit,
+    showTip: Boolean,
+    onDismissTip: () -> Unit,
+    onSettings: () -> Unit,
+    onGuide: () -> Unit,
+) {
+    PhotoWorkspaceTheme {
+        PhotoLibrary(recents, onOpenPicker, onOpen, onQuickAction, onBatch, showTip, onDismissTip, onSettings, onGuide)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PhotoLibrary(
     recents: List<Uri>,
     onOpenPicker: () -> Unit,
     onOpen: (uri: Uri, version: Int) -> Unit,
@@ -100,9 +119,11 @@ fun HomeScreen(
         }
     }
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.app_name)) },
+                expandedHeight = 52.dp,
+                title = { Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleMedium) },
                 actions = {
                     if (recents.isNotEmpty()) {
                         IconButton(onClick = { comparing = !comparing }) {
@@ -162,17 +183,12 @@ fun HomeScreen(
             }
         } else {
             LazyVerticalGrid(
-                columns = GridCells.Adaptive(112.dp),
-                contentPadding = PaddingValues(12.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                columns = GridCells.Adaptive(104.dp),
+                contentPadding = PaddingValues(start = 4.dp, end = 4.dp, top = 4.dp, bottom = 88.dp),
+                horizontalArrangement = Arrangement.spacedBy(3.dp),
+                verticalArrangement = Arrangement.spacedBy(3.dp),
                 modifier = Modifier.fillMaxSize().padding(padding),
             ) {
-                item(span = { GridItemSpan(maxLineSpan) }) { QuickActionsCard(onQuickAction) }
-                item(span = { GridItemSpan(maxLineSpan) }) { GuideEntry(onGuide) }
-                if (showTip) {
-                    item(span = { GridItemSpan(maxLineSpan) }) { PresetTip(onDismissTip) }
-                }
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     Text(
                         stringResource(R.string.recent_edits),
@@ -190,9 +206,14 @@ fun HomeScreen(
                         if (entry.count > 1) {
                             VersionTile(entry, onClick = { onOpen(entry.uri, entry.version.id) })
                         } else {
-                            RecentThumbnail(entry.uri, onClick = { onOpen(entry.uri, 1) })
+                            RecentThumbnail(entry.uri, onClick = { onOpen(entry.uri, 1) }, modifier = Modifier)
                         }
                     }
+                }
+                item(span = { GridItemSpan(maxLineSpan) }) { QuickActionsCard(onQuickAction) }
+                item(span = { GridItemSpan(maxLineSpan) }) { GuideEntry(onGuide) }
+                if (showTip) {
+                    item(span = { GridItemSpan(maxLineSpan) }) { PresetTip(onDismissTip) }
                 }
             }
         }
@@ -244,16 +265,15 @@ private fun PresetTip(onDismiss: () -> Unit) {
 private const val COMPARE_ICON = "compare"
 
 @Composable
-internal fun RecentThumbnail(uri: Uri, onClick: () -> Unit) {
+internal fun RecentThumbnail(uri: Uri, onClick: () -> Unit, modifier: Modifier = Modifier.clip(RoundedCornerShape(8.dp))) {
     val context = LocalContext.current
     val thumb: Bitmap? by produceState<Bitmap?>(null, uri) {
         value = withContext(Dispatchers.IO) { ImageLoader.thumbnail(context, uri, 384) }
     }
     Box(
-        Modifier
+        modifier
             .fillMaxWidth()
             .aspectRatio(1f)
-            .clip(RoundedCornerShape(8.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant)
             .clickable(onClick = onClick),
     ) {
@@ -285,7 +305,6 @@ private fun VersionTile(entry: HomeEntry, onClick: () -> Unit) {
         Modifier
             .fillMaxWidth()
             .aspectRatio(1f)
-            .clip(RoundedCornerShape(8.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant)
             .clickable(onClick = onClick),
     ) {

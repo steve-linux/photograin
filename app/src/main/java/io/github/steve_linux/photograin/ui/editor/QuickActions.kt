@@ -56,7 +56,7 @@ enum class QuickAction(val label: Int, val icon: ImageVector) {
     }
 }
 
-/** A row of buttons above the photo in the editor. */
+/** A row of buttons in the editor’s Actions panel. */
 @Composable
 fun QuickActionsBar(onAction: (QuickAction) -> Unit, modifier: Modifier = Modifier) {
     val actions = QuickAction.availableEntries()

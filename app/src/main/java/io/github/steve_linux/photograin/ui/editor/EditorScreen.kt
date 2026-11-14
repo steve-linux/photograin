@@ -8,9 +8,6 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContract
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,23 +20,16 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.automirrored.outlined.Redo
 import androidx.compose.material.icons.automirrored.outlined.Undo
-import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Compare
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.ContentPaste
-import androidx.compose.material.icons.outlined.Crop
-import androidx.compose.material.icons.outlined.Details
 import androidx.compose.material.icons.outlined.Fullscreen
 import androidx.compose.material.icons.outlined.FullscreenExit
-import androidx.compose.material.icons.outlined.Gradient
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material.icons.outlined.MoreVert
-import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.RestartAlt
 import androidx.compose.material.icons.outlined.Save
-import androidx.compose.material.icons.outlined.Style
-import androidx.compose.material.icons.outlined.WbSunny
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -50,8 +40,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -66,15 +55,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.pointer.PointerEventPass
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -88,13 +73,19 @@ import io.github.steve_linux.photograin.data.SettingsStore
 import io.github.steve_linux.photograin.model.ToolGroup
 import io.github.steve_linux.photograin.render.RgbHistogram
 import io.github.steve_linux.photograin.ui.guide.guideTopicFor
+import io.github.steve_linux.photograin.ui.theme.PhotoWorkspaceTheme
 import io.github.steve_linux.photograin.ui.theme.PhotoBackgroundDark
 import io.github.steve_linux.photograin.ui.theme.PhotoBackgroundLight
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit, onGuide: (topic: Int) -> Unit) {
+    PhotoWorkspaceTheme { PhotoWorkspace(viewModel, onClose, onGuide) }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PhotoWorkspace(viewModel: EditorViewModel, onClose: () -> Unit, onGuide: (topic: Int) -> Unit) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val snackbar = remember { SnackbarHostState() }
@@ -108,6 +99,14 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit, onGuide: (topi
     var showInfo by remember { mutableStateOf(false) }
     var showVersions by rememberSaveable { mutableStateOf(false) }
     var showOptics by rememberSaveable { mutableStateOf(false) }
+    var showActions by rememberSaveable { mutableStateOf(false) }
+    var editTool by rememberSaveable { mutableStateOf(ToolGroup.LIGHT) }
+
+    fun selectTool(tool: ToolGroup) {
+        showActions = false
+        viewModel.selectTool(tool)
+        if (tool in colorAndToneTools) editTool = tool
+    }
     var lightCurves by rememberSaveable { mutableStateOf(false) }
     var colorMode by rememberSaveable { mutableStateOf(0) }
     var histogramOpen by rememberSaveable { mutableStateOf(false) }
@@ -115,12 +114,11 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit, onGuide: (topi
     val histogram = remember(state.image) { mutableStateOf<RgbHistogram?>(null) }
     val receiveHistogram: (RgbHistogram) -> Unit = remember(histogram) { { histogram.value = it } }
 
-    // The full screen button in the top bar, there in every tool, hides the bars and panels so the
-    // photo fills the screen; the button on the photo, or back, brings them back. A tap on the photo
-    // does not do it: people tapped to edit and lost the controls.
+    // Full screen hides the bars and panels. Back or the exit control restores the workspace.
     var fullPhoto by rememberSaveable { mutableStateOf(false) }
 
     BackHandler(onBack = onClose)
+    BackHandler(enabled = showActions) { showActions = false }
     BackHandler(enabled = fullPhoto) { fullPhoto = false }
 
     val createDocument = rememberLauncherForActivityResult(CreateImageDocument()) { uri ->
@@ -145,7 +143,13 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit, onGuide: (topi
 
     fun quickAction(action: QuickAction) {
         fullPhoto = false
-        if (action == QuickAction.ENHANCE) enhance() else viewModel.quickAction(action)
+        showActions = false
+        if (action == QuickAction.ENHANCE) {
+            enhance()
+        } else {
+            selectTool(ToolGroup.LOCAL)
+            viewModel.quickAction(action)
+        }
     }
 
     LaunchedEffect(state.pendingAction, state.image != null) {
@@ -170,12 +174,19 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit, onGuide: (topi
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.surface,
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             if (!fullPhoto) TopAppBar(
+                expandedHeight = 52.dp,
                 title = {
                     Column {
-                        Text(state.image?.displayName.orEmpty(), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(
+                            state.image?.displayName.orEmpty(),
+                            style = MaterialTheme.typography.titleSmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                         // With several versions, the bar says which one is open.
                         if (state.versions.size > 1) {
                             val open = state.versions.firstOrNull { it.id == state.version }
@@ -198,14 +209,8 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit, onGuide: (topi
                     IconButton(onClick = viewModel::undo, enabled = state.canUndo) {
                         Icon(Icons.AutoMirrored.Outlined.Undo, stringResource(R.string.undo))
                     }
-                    IconButton(onClick = viewModel::redo, enabled = state.canRedo) {
-                        Icon(Icons.AutoMirrored.Outlined.Redo, stringResource(R.string.redo))
-                    }
                     IconToggleButton(checked = state.split != null, onCheckedChange = { viewModel.toggleSplit() }) {
                         Icon(Icons.Outlined.Compare, stringResource(R.string.compare))
-                    }
-                    IconButton(onClick = { fullPhoto = true }, enabled = state.image != null) {
-                        Icon(Icons.Outlined.Fullscreen, stringResource(R.string.photo_full))
                     }
                     IconButton(onClick = { showExport = true }, enabled = state.image != null) {
                         Icon(Icons.Outlined.Save, stringResource(R.string.export_title))
@@ -215,6 +220,18 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit, onGuide: (topi
                             Icon(Icons.Outlined.MoreVert, stringResource(R.string.more))
                         }
                         DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.redo)) },
+                                leadingIcon = { Icon(Icons.AutoMirrored.Outlined.Redo, null) },
+                                enabled = state.canRedo,
+                                onClick = { menuOpen = false; viewModel.redo() },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.photo_full)) },
+                                leadingIcon = { Icon(Icons.Outlined.Fullscreen, null) },
+                                enabled = state.image != null,
+                                onClick = { menuOpen = false; fullPhoto = true },
+                            )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.versions_title)) },
                                 leadingIcon = { Icon(Icons.Outlined.Layers, null) },
@@ -257,40 +274,34 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit, onGuide: (topi
             )
         },
         bottomBar = {
-            if (!fullPhoto) NavigationBar {
-                for (tool in ToolGroup.entries) {
-                    NavigationBarItem(
-                        // A long press opens the guide on this tool; the tap still selects it.
-                        modifier = Modifier.onLongPress { onGuide(guideTopicFor(tool, state.retouchMode)) },
-                        selected = state.tool == tool,
-                        onClick = { viewModel.selectTool(tool) },
-                        icon = { Icon(toolIcon(tool), contentDescription = null) },
-                        // Seven tabs share the width: keep each label on one line, shrinking a long one to fit.
-                        label = {
-                            val style = MaterialTheme.typography.labelSmall
-                            BasicText(
-                                stringResource(toolLabel(tool)),
-                                style = style.copy(color = LocalContentColor.current),
-                                maxLines = 1,
-                                softWrap = false,
-                                autoSize = TextAutoSize.StepBased(minFontSize = 8.sp, maxFontSize = style.fontSize),
-                            )
-                        },
-                    )
-                }
+            if (!fullPhoto && state.image != null) {
+                WorkspaceToolbar(
+                    tool = state.tool,
+                    retouch = state.retouchMode,
+                    actions = showActions,
+                    hasActions = QuickAction.availableEntries().isNotEmpty(),
+                    onActions = { showActions = !showActions },
+                    onLooks = { selectTool(ToolGroup.LOOK) },
+                    onCrop = { selectTool(ToolGroup.CROP) },
+                    onEdit = { selectTool(editTool) },
+                    onLocal = { retouch ->
+                        selectTool(ToolGroup.LOCAL)
+                        viewModel.setRetouchMode(retouch)
+                    },
+                )
             }
         },
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
-            if (state.image != null && !fullPhoto) QuickActionsBar(onAction = { quickAction(it) })
             Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                 if (state.image == null) {
                     CircularProgressIndicator()
                 } else {
                     val bg = if (MaterialTheme.colorScheme.background.luminance() < 0.5f) PhotoBackgroundDark else PhotoBackgroundLight
-                    val diagnostics = state.tool == ToolGroup.LIGHT && histogramOpen && !fullPhoto
+                    val previewState = if (showActions) state.copy(tool = ToolGroup.LOOK, picker = Picker.NONE) else state
+                    val diagnostics = previewState.tool == ToolGroup.LIGHT && histogramOpen && !fullPhoto
                     PhotoView(
-                        state, viewModel, bg,
+                        previewState, viewModel, bg,
                         onHistogram = receiveHistogram.takeIf { diagnostics },
                         showClipping = diagnostics && showClipping,
                     )
@@ -306,7 +317,10 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit, onGuide: (topi
                 }
             }
             if (state.image != null && !fullPhoto) {
-                if (state.tool == ToolGroup.LOOK) {
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                if (showActions) {
+                    QuickActionsBar(onAction = ::quickAction)
+                } else if (state.tool == ToolGroup.LOOK) {
                     LookPanel(
                         adjustments = state.edit.adjustments,
                         lutLoaded = state.lut != null,
@@ -352,12 +366,6 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit, onGuide: (topi
                         )
                     }
                 } else if (state.tool == ToolGroup.LOCAL) {
-                    PanelModeSelector(
-                        secondLabel = R.string.mode_heal,
-                        showSecond = state.retouchMode,
-                        onSelect = viewModel::setRetouchMode,
-                        firstLabel = R.string.mode_masks,
-                    )
                     if (state.retouchMode) {
                         RetouchPanel(
                             spots = state.edit.retouch,
@@ -428,6 +436,7 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit, onGuide: (topi
                         )
                     }
                 } else {
+                    EditCategoryBar(selected = state.tool, onSelect = ::selectTool)
                     if (state.tool == ToolGroup.LIGHT) {
                         HistogramPanel(
                             histogram = histogram.value,
@@ -567,16 +576,6 @@ private fun PanelModeSelector(
     }
 }
 
-private fun toolIcon(tool: ToolGroup): ImageVector = when (tool) {
-    ToolGroup.LOOK -> Icons.Outlined.Style
-    ToolGroup.LIGHT -> Icons.Outlined.WbSunny
-    ToolGroup.COLOR -> Icons.Outlined.Palette
-    ToolGroup.DETAIL -> Icons.Outlined.Details
-    ToolGroup.EFFECTS -> Icons.Outlined.AutoAwesome
-    ToolGroup.LOCAL -> Icons.Outlined.Gradient
-    ToolGroup.CROP -> Icons.Outlined.Crop
-}
-
 private fun messageText(m: Message): Int = when (m) {
     Message.EXPORTED -> R.string.msg_exported
     Message.EXPORTED_TO_PICTURES -> R.string.msg_exported_pictures
@@ -605,23 +604,4 @@ private class CreateImageDocument : ActivityResultContract<Pair<String, String>,
             .putExtra(Intent.EXTRA_TITLE, input.second)
 
     override fun parseResult(resultCode: Int, intent: Intent?): Uri? = intent?.data
-}
-
-/**
- * Calls [action] when the element is held down, without consuming the touch, so the element's own
- * tap handling still runs.
- */
-@Composable
-private fun Modifier.onLongPress(action: () -> Unit): Modifier {
-    val current by rememberUpdatedState(action)
-    return pointerInput(Unit) {
-        awaitEachGesture {
-            awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-            val held = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
-                waitForUpOrCancellation(PointerEventPass.Initial)
-                false
-            } ?: true
-            if (held) current()
-        }
-    }
 }
