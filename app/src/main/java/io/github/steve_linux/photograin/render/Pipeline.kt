@@ -230,6 +230,13 @@ internal class Pipeline {
             p.vec3Array("uGrade", tones)
             p.float("uGradeBalance", grade.balance.coerceIn(-1f, 1f))
         }
+        val monochrome = adjustments.monochrome
+        p.int("uMonochrome", if (monochrome.enabled) 1 else 0)
+        if (monochrome.enabled) {
+            val bands = monochrome.uniform()
+            p.vec4("uMonoLow", bands.copyOfRange(0, 4))
+            p.vec4("uMonoHigh", bands.copyOfRange(4, 8))
+        }
         val lutOn = lut != null && adjustments.look.isActive
         p.float("uLutOn", if (lutOn) 1f else 0f)
         // The sampler must always point at a 3D texture, even when unused.

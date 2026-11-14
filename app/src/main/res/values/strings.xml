@@ -96,6 +96,10 @@
     <string name="channel_green" translatable="false">G</string>
     <string name="channel_blue" translatable="false">B</string>
     <string name="reset_curve">Reset curve</string>
+    <string name="mode_monochrome">B&amp;W</string>
+    <string name="monochrome_enable">Black and white</string>
+    <string name="monochrome_luminance">Gray brightness</string>
+    <string name="monochrome_reset">Reset mix</string>
     <string name="mode_grading">Grading</string>
     <string name="grade_midtones">Midtones</string>
     <string name="grade_highlights">Highlights</string>

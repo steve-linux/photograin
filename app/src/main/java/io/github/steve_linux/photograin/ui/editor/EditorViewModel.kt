@@ -50,6 +50,7 @@ import io.github.steve_linux.photograin.model.WhiteBalance
 import io.github.steve_linux.photograin.model.RangeType
 import io.github.steve_linux.photograin.model.MaskRange
 import io.github.steve_linux.photograin.model.MaskType
+import io.github.steve_linux.photograin.model.MonochromeMix
 import io.github.steve_linux.photograin.model.ColorGrade
 import io.github.steve_linux.photograin.model.Hsl
 import io.github.steve_linux.photograin.model.Look
@@ -441,6 +442,9 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setColorGrade(grade: ColorGrade) =
         updateLive { it.copy(adjustments = it.adjustments.copy(colorGrade = grade)) }
+
+    fun setMonochrome(mix: MonochromeMix) =
+        updateLive { it.copy(adjustments = it.adjustments.copy(monochrome = mix)) }
 
     fun resetParam(spec: ParamSpec) {
         setParam(spec, spec.default)

@@ -171,6 +171,9 @@ uniform float uCurvesOn;
 // Per band: hue shift, saturation, luminance (-1..1).
 uniform vec3 uHsl[8];
 uniform float uHslOn;
+uniform bool uMonochrome;
+uniform vec4 uMonoLow;
+uniform vec4 uMonoHigh;
 uniform bool uGradeOn;
 uniform vec3 uGrade[3];
 uniform float uGradeBalance;
@@ -280,15 +283,35 @@ vec3 hsvToRgb(vec3 c) {
     return c.z * mix(vec3(1.0), clamp(p - 1.0, 0.0, 1.0), c.y);
 }
 
+float bandWeight(float hue, int i) {
+    float d = abs(mod(hue - BAND_HUE[i] + 180.0, 360.0) - 180.0);
+    float w = max(0.0, 1.0 - d / 45.0);
+    return w * w;
+}
+
+float mixMonochrome(float gray, vec3 source) {
+    float chroma = max(source.r, max(source.g, source.b)) - min(source.r, min(source.g, source.b));
+    if (chroma <= 0.01) return gray;
+    float hue = rgbToHsv(source).x * 360.0;
+    float amount = 0.0;
+    float total = 0.0;
+    for (int i = 0; i < 8; i++) {
+        float w = bandWeight(hue, i);
+        float value = i < 4 ? uMonoLow[i] : uMonoHigh[i - 4];
+        amount += w * value;
+        total += w;
+    }
+    amount = 0.65 * amount / total * smoothstep(0.01, 0.25, chroma);
+    return mix(gray, step(0.0, amount), abs(amount));
+}
+
 vec3 applyHsl(vec3 v) {
     vec3 hsv = rgbToHsv(v);
     float h = hsv.x * 360.0;
     vec3 acc = vec3(0.0);
     float wsum = 0.0;
     for (int i = 0; i < 8; i++) {
-        float d = abs(mod(h - BAND_HUE[i] + 180.0, 360.0) - 180.0);
-        float w = max(0.0, 1.0 - d / 45.0);
-        w *= w;
+        float w = bandWeight(h, i);
         acc += w * uHsl[i];
         wsum += w;
     }
@@ -507,6 +530,8 @@ vec3 process(vec3 s, vec2 pos) {
         if (uLutConvert > 0.5) l = toSrgb(uFromSrgb * toLinear(l));
         v = mix(v, l, uLutAmount);
     }
+
+    if (uMonochrome) v = vec3(mixMonochrome(clamp(dot(v, LUMA), 0.0, 1.0), s));
 
     if (uVignette != 0.0) {
         vec2 d = (pos - 0.5) * uAspect;

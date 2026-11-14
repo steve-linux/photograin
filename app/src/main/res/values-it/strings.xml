@@ -84,6 +84,10 @@
     <string name="histogram_clipping_legend">Blu: ombre chiuse · Rosso: alte luci bruciate</string>
     <string name="mode_curves">Curve</string>
     <string name="reset_curve">Ripristina curva</string>
+    <string name="mode_monochrome">B/N</string>
+    <string name="monochrome_enable">Bianco e nero</string>
+    <string name="monochrome_luminance">Luminosità dei grigi</string>
+    <string name="monochrome_reset">Azzera mix</string>
     <string name="mode_grading">Grading</string>
     <string name="grade_midtones">Mezzitoni</string>
     <string name="grade_highlights">Alte luci</string>
