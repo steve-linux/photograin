@@ -5,6 +5,8 @@ import android.graphics.Bitmap
 import android.graphics.RectF
 import android.opengl.GLES30
 import android.opengl.GLSurfaceView
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import io.github.steve_linux.photograin.math.Affine
 import io.github.steve_linux.photograin.model.Adjustments
@@ -15,6 +17,7 @@ import io.github.steve_linux.photograin.model.Geometry
 import io.github.steve_linux.photograin.model.LocalAdjustment
 import io.github.steve_linux.photograin.model.GeometryMapper
 import io.github.steve_linux.photograin.model.Subjects
+import java.nio.ByteBuffer
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 
@@ -38,6 +41,8 @@ data class PreviewFrame(
     val showMask: Int = -1,
     /** What the subject masks cover. */
     val subjects: Subjects? = null,
+    val onHistogram: ((RgbHistogram) -> Unit)? = null,
+    val showClipping: Boolean = false,
 )
 
 /** Renders [PreviewFrame]s into a [GLSurfaceView] on demand. */
@@ -51,6 +56,10 @@ class PreviewRenderer : GLSurfaceView.Renderer {
     private var intermediateKey: Any? = null
     private var surfaceWidth = 1
     private var surfaceHeight = 1
+    private val mainThread = Handler(Looper.getMainLooper())
+    private var histogramTarget: RenderTarget? = null
+    private var histogramPixels: ByteBuffer? = null
+    private var histogramKey: List<Any?>? = null
 
     /** Called from the UI thread; the owner must call requestRender() afterwards. */
     fun submit(frame: PreviewFrame) {
@@ -63,6 +72,8 @@ class PreviewRenderer : GLSurfaceView.Renderer {
         sourceTexture = 0
         uploadedBitmap = null
         intermediateKey = null
+        histogramTarget = null
+        histogramKey = null
     }
 
     override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
@@ -131,10 +142,52 @@ class PreviewRenderer : GLSurfaceView.Renderer {
             sourceHeight = bitmap.height,
             subjects = frame.subjects,
             showMask = frame.showMask,
+            showClipping = frame.showClipping,
         )
+        try {
+            sampleHistogram(p, frame, bitmap, mapper, out.width, out.height)
+        } finally {
+            GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, 0)
+        }
+    }
+
+    private fun sampleHistogram(p: Pipeline, frame: PreviewFrame, bitmap: Bitmap, mapper: GeometryMapper, width: Int, height: Int) {
+        val publish = frame.onHistogram ?: return
+        // Ignore display-only changes such as zoom, pan, split position and clipping colors.
+        val key = listOf(bitmap, frame.base, frame.geometry, frame.adjustments, frame.lut, frame.profile, frame.masks, frame.subjects, publish)
+        if (key == histogramKey) return
+        val target = histogramTarget ?: RenderTarget(SAMPLE_SIZE, SAMPLE_SIZE, mipmap = false, halfFloat = false)
+            .also { histogramTarget = it }
+        target.bind()
+        p.renderColor(
+            adjustments = frame.adjustments,
+            lut = frame.lut,
+            clipRect = Pipeline.FULL_CLIP,
+            geoUvRect = Pipeline.UNIT_RECT,
+            imageMap = Pipeline.UNIT_RECT,
+            outputWidth = width,
+            outputHeight = height,
+            compareSplit = -1f,
+            composite = false,
+            working = frame.profile,
+            masks = frame.masks,
+            posToSource = mapper.normalizedOutputToSource(),
+            sourceWidth = bitmap.width,
+            sourceHeight = bitmap.height,
+            subjects = frame.subjects,
+            histogramSample = true,
+        )
+        val pixels = histogramPixels ?: ByteBuffer.allocateDirect(SAMPLE_SIZE * SAMPLE_SIZE * 4).also { histogramPixels = it }
+        pixels.clear()
+        GLES30.glReadPixels(0, 0, SAMPLE_SIZE, SAMPLE_SIZE, GLES30.GL_RGBA, GLES30.GL_UNSIGNED_BYTE, pixels)
+        pixels.rewind()
+        val histogram = RgbHistogram.fromRgba(pixels)
+        histogramKey = key
+        mainThread.post { publish(histogram) }
     }
 
     private companion object {
+        const val SAMPLE_SIZE = 128
         const val TAG = "PreviewRenderer"
     }
 }

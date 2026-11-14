@@ -48,6 +48,7 @@ import kotlinx.coroutines.launch
 import io.github.steve_linux.photograin.model.ToolGroup
 import io.github.steve_linux.photograin.render.PreviewFrame
 import io.github.steve_linux.photograin.render.PreviewRenderer
+import io.github.steve_linux.photograin.render.RgbHistogram
 import kotlin.math.min
 import kotlin.math.roundToInt
 
@@ -58,6 +59,8 @@ fun PhotoView(
     viewModel: EditorViewModel,
     background: Color,
     modifier: Modifier = Modifier,
+    onHistogram: ((RgbHistogram) -> Unit)? = null,
+    showClipping: Boolean = false,
 ) {
     val image = state.image ?: return
     val cropMode = state.tool == ToolGroup.CROP
@@ -125,6 +128,8 @@ fun PhotoView(
             profile = image.profile,
             masks = state.edit.masks,
             subjects = state.subjects,
+            onHistogram = onHistogram.takeUnless { state.showOriginal },
+            showClipping = showClipping,
             showMask = if (maskMode && (state.showMask || state.maskDragging)) state.activeMask ?: -1 else -1,
         )
 

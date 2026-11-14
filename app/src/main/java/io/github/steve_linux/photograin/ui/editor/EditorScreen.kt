@@ -86,6 +86,7 @@ import io.github.steve_linux.photograin.data.ExportOptions
 import io.github.steve_linux.photograin.data.ObjectRemover
 import io.github.steve_linux.photograin.data.SettingsStore
 import io.github.steve_linux.photograin.model.ToolGroup
+import io.github.steve_linux.photograin.render.RgbHistogram
 import io.github.steve_linux.photograin.ui.guide.guideTopicFor
 import io.github.steve_linux.photograin.ui.theme.PhotoBackgroundDark
 import io.github.steve_linux.photograin.ui.theme.PhotoBackgroundLight
@@ -108,6 +109,10 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit, onGuide: (topi
     var showVersions by rememberSaveable { mutableStateOf(false) }
     var lightCurves by rememberSaveable { mutableStateOf(false) }
     var colorHsl by rememberSaveable { mutableStateOf(false) }
+    var histogramOpen by rememberSaveable { mutableStateOf(false) }
+    var showClipping by rememberSaveable { mutableStateOf(false) }
+    val histogram = remember(state.image) { mutableStateOf<RgbHistogram?>(null) }
+    val receiveHistogram: (RgbHistogram) -> Unit = remember(histogram) { { histogram.value = it } }
 
     // The full screen button in the top bar, there in every tool, hides the bars and panels so the
     // photo fills the screen; the button on the photo, or back, brings them back. A tap on the photo
@@ -282,7 +287,12 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit, onGuide: (topi
                     CircularProgressIndicator()
                 } else {
                     val bg = if (MaterialTheme.colorScheme.background.luminance() < 0.5f) PhotoBackgroundDark else PhotoBackgroundLight
-                    PhotoView(state, viewModel, bg)
+                    val diagnostics = state.tool == ToolGroup.LIGHT && histogramOpen && !fullPhoto
+                    PhotoView(
+                        state, viewModel, bg,
+                        onHistogram = receiveHistogram.takeIf { diagnostics },
+                        showClipping = diagnostics && showClipping,
+                    )
                     // With the bars hidden, this is the way back.
                     if (fullPhoto) {
                         FilledTonalIconButton(
@@ -405,6 +415,15 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit, onGuide: (topi
                         onRemoveQuad = viewModel::removeQuad,
                     )
                 } else {
+                    if (state.tool == ToolGroup.LIGHT) {
+                        HistogramPanel(
+                            histogram = histogram.value,
+                            expanded = histogramOpen,
+                            onExpandedChange = { histogramOpen = it },
+                            showClipping = showClipping,
+                            onClippingChange = { showClipping = it },
+                        )
+                    }
                     val advanced = state.tool == ToolGroup.LIGHT || state.tool == ToolGroup.COLOR
                     if (advanced) {
                         PanelModeSelector(

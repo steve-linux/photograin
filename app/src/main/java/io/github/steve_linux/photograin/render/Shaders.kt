@@ -171,6 +171,8 @@ uniform vec4 uCutoutFill;
 uniform float uCompare;
 // 1.0 composites over uBg (screen); 0.0 writes the color with the geometry alpha (export).
 uniform float uComposite;
+uniform bool uHistogramSample;
+uniform bool uShowClipping;
 uniform vec3 uBg;
 
 in vec2 vCoord;
@@ -468,7 +470,18 @@ void main() {
     }
     if (uShowMask >= 0) rgb = mix(rgb, vec3(1.0, 0.1, 0.1), 0.6 * maskWeight(uShowMask, pos, src.rgb));
     if (uOutConvert > 0.5) rgb = toOutput(rgb);
+    if (uHistogramSample) {
+        // Keep straight RGB so coverage cannot turn a translucent edge into a dark pixel.
+        oColor = vec4(rgb, keep * src.a);
+        return;
+    }
     if (uComposite > 0.5) {
+        if (uShowClipping && !original && keep * src.a >= 0.5) {
+            float peak = max(rgb.r, max(rgb.g, rgb.b));
+            // Match the end bins of an 8-bit RGB histogram.
+            if (peak <= 0.5 / 255.0) rgb = vec3(0.15, 0.40, 1.0);
+            else if (peak >= 254.5 / 255.0) rgb = vec3(1.0, 0.13, 0.13);
+        }
         // A transparent background shows as a checkerboard on screen.
         vec2 cell = floor(gl_FragCoord.xy / 12.0);
         vec3 bg = keep < 1.0 ? mix(vec3(0.42), vec3(0.58), mod(cell.x + cell.y, 2.0)) : uBg;
