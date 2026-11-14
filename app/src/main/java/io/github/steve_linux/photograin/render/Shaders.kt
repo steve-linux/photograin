@@ -160,6 +160,7 @@ uniform float uSaturation;
 uniform float uSharpness;
 uniform float uSharpnessRadius;
 uniform float uSharpnessMasking;
+uniform float uTextureAmount;
 uniform float uClarity;
 uniform float uDehaze;
 uniform float uVignette;
@@ -468,7 +469,43 @@ vec3 sharpen(vec3 source) {
     return clamp(source + detail * uSharpness * 1.5 * weight, 0.0, 1.0);
 }
 
+// Binomial 3x3 smoothing at two scales. Subtracting the two responses isolates
+// mid-frequency detail and attenuates isolated pixel noise and gradual tone changes.
+float textureSample(vec2 offset, vec2 lo, vec2 hi) {
+    return dot(texture(uGeo, clamp(vCoord + offset, lo, hi)).rgb, LUMA);
+}
+
+float textureBlur(float center, vec2 radius, vec2 lo, vec2 hi, out float edge) {
+    vec2 x = vec2(radius.x, 0.0);
+    vec2 y = vec2(0.0, radius.y);
+    float left = textureSample(-x, lo, hi);
+    float right = textureSample(x, lo, hi);
+    float top = textureSample(-y, lo, hi);
+    float bottom = textureSample(y, lo, hi);
+    float diagonals = textureSample(-x-y, lo, hi) + textureSample(x-y, lo, hi)
+                    + textureSample(-x+y, lo, hi) + textureSample(x+y, lo, hi);
+    edge = max(abs(right - left), abs(bottom - top));
+    return 0.25 * center + 0.125 * (left + right + top + bottom) + 0.0625 * diagonals;
+}
+
+float textureDetail(vec3 original) {
+    // Clip the neighborhood to the photo's output bounds in both preview and tiled export.
+    vec2 lo = -uImgMap.xy / uImgMap.zw + 0.5 * uGeoTexel;
+    vec2 hi = (vec2(1.0) - uImgMap.xy) / uImgMap.zw - 0.5 * uGeoTexel;
+    float center = dot(original, LUMA);
+    vec2 fine = uGeoTexel * max(0.75, 0.0007 * uLongEdgePx);
+    vec2 coarse = uGeoTexel * max(2.0, 0.0025 * uLongEdgePx);
+    float fineEdge, coarseEdge;
+    float small = textureBlur(center, fine, lo, hi, fineEdge);
+    float large = textureBlur(center, coarse, lo, hi, coarseEdge);
+    float guard = 1.0 - smoothstep(0.08, 0.30, max(fineEdge, coarseEdge));
+    return clamp(small - large, -0.10, 0.10) * guard;
+}
+
 vec3 process(vec3 s, vec2 pos) {
+    float textureDelta = 0.0;
+    if (uTextureAmount != 0.0) textureDelta = textureDetail(s) * uTextureAmount;
+
     vec4 la = vec4(0.0);
     vec4 lb = vec4(0.0);
     for (int i = 0; i < 8; i++) {
@@ -514,6 +551,13 @@ vec3 process(vec3 s, vec2 pos) {
     v = clamp((v - bp) / (wp - bp), 0.0, 1.0);
 
     v = contrastCurve(v, uContrast + la.y);
+
+    if (textureDelta != 0.0) {
+        // An equal RGB shift changes texture luminance without boosting chroma.
+        float low = min(v.r, min(v.g, v.b));
+        float high = max(v.r, max(v.g, v.b));
+        v += clamp(textureDelta, -low, 1.0 - high);
+    }
 
     if (clarity != 0.0) {
         float lv = dot(v, LUMA);

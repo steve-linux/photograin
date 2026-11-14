@@ -42,6 +42,7 @@
     <string name="param_sharpness">Sharpening</string>
     <string name="param_sharpness_radius">Sharpening radius</string>
     <string name="param_sharpness_masking">Sharpening masking</string>
+    <string name="param_texture">Texture</string>
     <string name="param_clarity">Clarity</string>
     <string name="param_dehaze">Dehaze</string>
     <string name="param_vignette">Vignette</string>
@@ -248,7 +249,7 @@
     <string name="guide_color_title">Color</string>
     <string name="guide_color_body">Temperature, tint, vibrance and saturation. In “HSL” you change the hue, saturation and lightness of a single color, such as the blue of the sky. With the Eyedropper, tap something that should be white or gray and the white balance is set for you.</string>
     <string name="guide_detail_title">Detail and Effects</string>
-    <string name="guide_detail_body">In Detail you set sharpness, clarity and haze, and reduce the noise of shots taken in low light. Effects adds a vignette and film grain.</string>
+    <string name="guide_detail_body">In Detail you set sharpness, texture, clarity and haze, and reduce the noise of shots taken in low light. Effects adds a vignette and film grain.</string>
     <string name="guide_crop_title">Crop</string>
     <string name="guide_crop_body">Choose a ratio (1:1, 4:3, 16:9…), drag the corners, straighten the horizon, rotate or flip the photo. The perspective sliders straighten buildings and lines that lean. Auto straighten levels the photo from its lines; for something shot at an angle, use 4-point perspective: mark something rectangular and it is squared up.</string>
     <string name="guide_copy_title">Same edits on many photos</string>
@@ -402,6 +403,7 @@
     <string name="help_param_sharpness">Strengthens fine edges so details look crisper. Too much adds halos and noise.</string>
     <string name="help_param_sharpness_radius">Sets how many pixels around an edge are used for sharpening. Use a small radius for fine details.</string>
     <string name="help_param_sharpness_masking">With Sharpening above zero, raise masking to favor strong edges and protect smooth or noisy areas.</string>
+    <string name="help_param_texture">Move right to accentuate textures like fabric or stone, or left to soften them.</string>
     <string name="help_param_clarity">Adds contrast to mid-sized details and textures (stone, wood, faces). Left softens them.</string>
     <string name="help_param_dehaze">Removes haze and fog from landscapes and brings back depth; left adds a dreamy mist.</string>
     <string name="help_param_noise_reduction">Smooths the grainy speckles of photos taken in low light. Too much makes surfaces look plastic.</string>
