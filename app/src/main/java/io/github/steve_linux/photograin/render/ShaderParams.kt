@@ -68,7 +68,7 @@ object ShaderParams {
         return out
     }
 
-    /** Local adjustments packed as four vec4 arrays; see the mask uniforms in the color shader. */
+    /** Geometry, ranges and per-mask adjustments packed for the color shader. */
     class MaskUniforms(
         val count: Int,
         val geo: FloatArray,
@@ -76,6 +76,7 @@ object ShaderParams {
         val range: FloatArray,
         val locA: FloatArray,
         val locB: FloatArray,
+        val effects: FloatArray,
     )
 
     fun maskUniforms(masks: List<LocalAdjustment>): MaskUniforms {
@@ -85,6 +86,7 @@ object ShaderParams {
         val range = FloatArray(LocalAdjustment.MAX * 4)
         val locA = FloatArray(LocalAdjustment.MAX * 4)
         val locB = FloatArray(LocalAdjustment.MAX * 4)
+        val effects = FloatArray(LocalAdjustment.MAX * 2)
         for (i in 0 until n) {
             val l = masks[i]
             val m = l.mask
@@ -118,8 +120,10 @@ object ShaderParams {
             }
             locA[k] = l.exposure; locA[k + 1] = l.contrast; locA[k + 2] = l.highlights; locA[k + 3] = l.shadows
             locB[k] = l.temperature; locB[k + 1] = l.tint; locB[k + 2] = l.saturation; locB[k + 3] = l.clarity
+            effects[i * 2] = l.texture
+            effects[i * 2 + 1] = l.dehaze
         }
-        return MaskUniforms(n, geo, opt, range, locA, locB)
+        return MaskUniforms(n, geo, opt, range, locA, locB, effects)
     }
 
     /**

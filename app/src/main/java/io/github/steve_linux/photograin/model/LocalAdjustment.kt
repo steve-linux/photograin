@@ -203,6 +203,8 @@ data class LocalAdjustment(
     val clarity: Float = 0f,
     val background: Background = Background.KEEP,
     val backgroundColor: Int = WHITE,
+    val texture: Float = 0f,
+    val dehaze: Float = 0f,
 ) {
     companion object {
         const val WHITE = 0xFFFFFFFF.toInt()
@@ -284,6 +286,8 @@ object LocalParams {
         LocalParamSpec("temperature", -1f, 1f, { it.temperature }, { a, v -> a.copy(temperature = v) }),
         LocalParamSpec("tint", -1f, 1f, { it.tint }, { a, v -> a.copy(tint = v) }),
         LocalParamSpec("saturation", -1f, 1f, { it.saturation }, { a, v -> a.copy(saturation = v) }),
+        LocalParamSpec("texture", -1f, 1f, { it.texture }, { a, v -> a.copy(texture = v) }),
         LocalParamSpec("clarity", -1f, 1f, { it.clarity }, { a, v -> a.copy(clarity = v) }),
+        LocalParamSpec("dehaze", -1f, 1f, { it.dehaze }, { a, v -> a.copy(dehaze = v) }),
     )
 }
