@@ -16,13 +16,13 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.GpsFixed
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -34,11 +34,21 @@ import androidx.compose.ui.unit.dp
 import io.github.steve_linux.photograin.R
 import io.github.steve_linux.photograin.model.Hsl
 import io.github.steve_linux.photograin.model.HslBand
+import io.github.steve_linux.photograin.model.HslControl
 
 /** Hue, saturation and luminance for one of eight color bands at a time. */
 @Composable
-fun HslPanel(hsl: Hsl, onChange: (Hsl) -> Unit, onChangeFinished: () -> Unit) {
-    var band by rememberSaveable { mutableStateOf(HslBand.RED) }
+internal fun HslPanel(
+    hsl: Hsl,
+    band: HslBand,
+    onBand: (HslBand) -> Unit,
+    targeting: Boolean,
+    onTargeting: (Boolean) -> Unit,
+    control: HslControl,
+    onControl: (HslControl) -> Unit,
+    onChange: (Hsl) -> Unit,
+    onChangeFinished: () -> Unit,
+) {
     val i = band.ordinal
     Column(
         Modifier
@@ -47,7 +57,24 @@ fun HslPanel(hsl: Hsl, onChange: (Hsl) -> Unit, onChangeFinished: () -> Unit) {
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp, vertical = 4.dp),
     ) {
-        HueBandPicker(band, onSelect = { band = it })
+        FilterChip(
+            selected = targeting,
+            onClick = { onTargeting(!targeting) },
+            label = { Text(stringResource(R.string.hsl_target)) },
+            leadingIcon = { Icon(Icons.Outlined.GpsFixed, contentDescription = null, Modifier.size(18.dp)) },
+        )
+        if (targeting) {
+            WorkspaceModeTabs(
+                listOf(R.string.hsl_hue, R.string.hsl_saturation, R.string.hsl_luminance),
+                control.ordinal,
+            ) { onControl(HslControl.entries[it]) }
+            Text(
+                stringResource(R.string.hsl_target_hint),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(vertical = 6.dp),
+            )
+        }
+        HueBandPicker(band, onSelect = onBand)
         Text(
             stringResource(bandLabel(band)),
             style = MaterialTheme.typography.titleSmall,

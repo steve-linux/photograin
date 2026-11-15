@@ -114,6 +114,9 @@
     <string name="grade_balance">Balance</string>
     <string name="grade_balance_help">Move left to extend the shadow grade, or right to extend the highlight grade.</string>
     <string name="grade_reset">Reset grading</string>
+    <string name="hsl_target">Targeted adjustment</string>
+    <string name="hsl_target_hint">Tap a color to select its band. Drag left or right on the photo to adjust the selected setting.</string>
+    <string name="msg_hsl_color_not_found">Choose an area with more color.</string>
     <string name="hsl_hue">Hue</string>
     <string name="hsl_saturation">Saturation</string>
     <string name="hsl_luminance">Luminance</string>

@@ -53,6 +53,7 @@ import io.github.steve_linux.photograin.model.MaskType
 import io.github.steve_linux.photograin.model.MonochromeMix
 import io.github.steve_linux.photograin.model.ColorGrade
 import io.github.steve_linux.photograin.model.Hsl
+import io.github.steve_linux.photograin.model.HslBand
 import io.github.steve_linux.photograin.model.Look
 import io.github.steve_linux.photograin.model.ParamSpec
 import io.github.steve_linux.photograin.model.Preset
@@ -85,7 +86,7 @@ import kotlin.math.roundToInt
 enum class Message {
     EXPORTED, EXPORTED_TO_PICTURES, EXPORTED_TO_DOWNLOADS, EXPORT_FAILED, LOAD_FAILED, ADJUSTMENTS_COPIED, ADJUSTMENTS_PASTED, OUT_OF_MEMORY,
     LUT_IMPORTED, LUT_INVALID, LUT_MISSING, PRESET_SAVED, HORIZON_NOT_FOUND, SUBJECT_FAILED,
-    REMOVE_FAILED, AUTO_LIGHT_UNAVAILABLE,
+    REMOVE_FAILED, AUTO_LIGHT_UNAVAILABLE, HSL_COLOR_NOT_FOUND,
 }
 
 data class EditorUiState(
@@ -149,6 +150,7 @@ data class EditorUiState(
     val selectedShape: Int? = null,
     /** A tap on the photo picks a color for this, instead of its usual meaning. */
     val picker: Picker = Picker.NONE,
+    val hslBand: HslBand = HslBand.RED,
     /** The four perspective points being placed, shown on the uncorrected photo; null when not placing them. */
     val quadDraft: Quad? = null,
     /** The version of the photo being edited, by id; see [RecipeStore.versions]. */
@@ -181,7 +183,7 @@ data class BrushSettings(
 )
 
 /** What a tap on the photo picks a color for. */
-enum class Picker { NONE, MASK_COLOR, WHITE_BALANCE }
+enum class Picker { NONE, MASK_COLOR, WHITE_BALANCE, HSL }
 
 /** An export waiting for the user to pick where it goes. */
 data class SaveRequest(val options: ExportOptions, val fileName: String)
@@ -341,6 +343,27 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setPicker(picker: Picker) = _state.update { it.copy(picker = picker) }
 
+    fun selectHslBand(band: HslBand) = _state.update { it.copy(hslBand = band) }
+
+    internal fun pickHslBand(x: Float, y: Float): HslBand? {
+        val s = _state.value
+        if (s.picker != Picker.HSL) return null
+        val bitmap = s.image?.preview ?: return null
+        val (r, g, b) = averageColor(bitmap, x, y)
+        val band = HslBand.fromColor(r, g, b)
+        if (band == null) {
+            _state.update { it.copy(message = Message.HSL_COLOR_NOT_FOUND) }
+        } else {
+            selectHslBand(band)
+        }
+        return band
+    }
+
+    internal fun finishHslDrag(image: LoadedImage, version: Int) {
+        val current = _state.value
+        if (current.image === image && current.version == version) commit()
+    }
+
     /**
      * Uses the color at source-normalized ([x], [y]) for the current [Picker]: the hue of the
      * selected mask's color range, or the white balance that makes it gray.
@@ -350,7 +373,7 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         val bitmap = s.image?.preview ?: return
         val (r, g, b) = averageColor(bitmap, x, y)
         when (s.picker) {
-            Picker.NONE -> return
+            Picker.NONE, Picker.HSL -> return
             Picker.MASK_COLOR -> {
                 val range = s.activeMask?.let { s.edit.masks[it].mask.range } ?: return
                 updateMask { it.copy(mask = it.mask.copy(range = range.copy(type = RangeType.COLOR, hue = MaskRange.hueOf(r, g, b), saturation = MaskRange.saturationOf(r, g, b)))) }

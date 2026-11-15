@@ -64,6 +64,7 @@ import io.github.steve_linux.photograin.R
 import io.github.steve_linux.photograin.data.ExportOptions
 import io.github.steve_linux.photograin.data.ObjectRemover
 import io.github.steve_linux.photograin.data.SettingsStore
+import io.github.steve_linux.photograin.model.HslControl
 import io.github.steve_linux.photograin.model.ToolGroup
 import io.github.steve_linux.photograin.render.RgbHistogram
 import io.github.steve_linux.photograin.ui.guide.guideTopicFor
@@ -103,6 +104,7 @@ private fun PhotoWorkspace(viewModel: EditorViewModel, onClose: () -> Unit, onGu
     }
     var lightCurves by rememberSaveable { mutableStateOf(false) }
     var colorMode by rememberSaveable { mutableStateOf(0) }
+    var hslControl by rememberSaveable { mutableStateOf(HslControl.SATURATION) }
     var histogramOpen by rememberSaveable { mutableStateOf(false) }
     var showClipping by rememberSaveable { mutableStateOf(false) }
     val histogram = remember(state.image) { mutableStateOf<RgbHistogram?>(null) }
@@ -228,7 +230,11 @@ private fun PhotoWorkspace(viewModel: EditorViewModel, onClose: () -> Unit, onGu
                                 text = { Text(stringResource(R.string.photo_full)) },
                                 leadingIcon = { Icon(Icons.Outlined.Fullscreen, null) },
                                 enabled = state.image != null,
-                                onClick = { menuOpen = false; fullPhoto = true },
+                                onClick = {
+                                    menuOpen = false
+                                    viewModel.setPicker(Picker.NONE)
+                                    fullPhoto = true
+                                },
                             )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.versions_title)) },
@@ -272,7 +278,10 @@ private fun PhotoWorkspace(viewModel: EditorViewModel, onClose: () -> Unit, onGu
                     retouch = state.retouchMode,
                     actions = showActions,
                     hasActions = QuickAction.availableEntries().isNotEmpty(),
-                    onActions = { showActions = !showActions },
+                    onActions = {
+                        viewModel.setPicker(Picker.NONE)
+                        showActions = !showActions
+                    },
                     onLooks = { selectTool(ToolGroup.LOOK) },
                     onCrop = { selectTool(ToolGroup.CROP) },
                     onEdit = { selectTool(editTool) },
@@ -294,6 +303,7 @@ private fun PhotoWorkspace(viewModel: EditorViewModel, onClose: () -> Unit, onGu
                     val diagnostics = previewState.tool == ToolGroup.LIGHT && histogramOpen && !fullPhoto
                     PhotoView(
                         previewState, viewModel, bg,
+                        hslControl = hslControl,
                         onHistogram = receiveHistogram.takeIf { diagnostics },
                         showClipping = diagnostics && showClipping,
                     )
@@ -452,8 +462,8 @@ private fun PhotoWorkspace(viewModel: EditorViewModel, onClose: () -> Unit, onGu
                     } else if (state.tool == ToolGroup.COLOR) {
                         val modes = listOf(R.string.mode_basic, R.string.mode_hsl, R.string.mode_grading, R.string.mode_monochrome)
                         WorkspaceModeTabs(modes, colorMode) { index ->
+                            if (colorMode != index) viewModel.setPicker(Picker.NONE)
                             colorMode = index
-                            if (index != 0) viewModel.setPicker(Picker.NONE)
                         }
                     }
                     when {
@@ -464,6 +474,12 @@ private fun PhotoWorkspace(viewModel: EditorViewModel, onClose: () -> Unit, onGu
                         )
                         state.tool == ToolGroup.COLOR && colorMode == 1 -> HslPanel(
                             hsl = state.edit.adjustments.hsl,
+                            band = state.hslBand,
+                            onBand = viewModel::selectHslBand,
+                            targeting = state.picker == Picker.HSL,
+                            onTargeting = { viewModel.setPicker(if (it) Picker.HSL else Picker.NONE) },
+                            control = hslControl,
+                            onControl = { hslControl = it },
                             onChange = viewModel::setHsl,
                             onChangeFinished = viewModel::commit,
                         )
@@ -557,6 +573,7 @@ private fun messageText(m: Message): Int = when (m) {
     Message.LUT_MISSING -> R.string.look_lut_missing
     Message.PRESET_SAVED -> R.string.msg_preset_saved
     Message.AUTO_LIGHT_UNAVAILABLE -> R.string.msg_auto_light_unavailable
+    Message.HSL_COLOR_NOT_FOUND -> R.string.msg_hsl_color_not_found
     Message.HORIZON_NOT_FOUND -> R.string.msg_horizon_not_found
     Message.SUBJECT_FAILED -> R.string.msg_subject_failed
     Message.REMOVE_FAILED -> R.string.msg_remove_failed

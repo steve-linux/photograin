@@ -39,6 +39,8 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import io.github.steve_linux.photograin.model.CropRect
 import io.github.steve_linux.photograin.model.Frame
+import io.github.steve_linux.photograin.model.HslBand
+import io.github.steve_linux.photograin.model.HslControl
 import io.github.steve_linux.photograin.model.LocalAdjustment
 import io.github.steve_linux.photograin.model.MaskType
 import io.github.steve_linux.photograin.model.RetouchType
@@ -49,18 +51,20 @@ import io.github.steve_linux.photograin.model.ToolGroup
 import io.github.steve_linux.photograin.render.PreviewFrame
 import io.github.steve_linux.photograin.render.PreviewRenderer
 import io.github.steve_linux.photograin.render.RgbHistogram
+import kotlin.math.abs
 import kotlin.math.min
 import kotlin.math.roundToInt
 
 /** The photo with live GPU rendering, zoom/pan, press-to-compare and the crop overlay. */
 @Composable
-fun PhotoView(
+internal fun PhotoView(
     state: EditorUiState,
     viewModel: EditorViewModel,
     background: Color,
     modifier: Modifier = Modifier,
     onHistogram: ((RgbHistogram) -> Unit)? = null,
     showClipping: Boolean = false,
+    hslControl: HslControl = HslControl.SATURATION,
 ) {
     val image = state.image ?: return
     val cropMode = state.tool == ToolGroup.CROP
@@ -191,6 +195,8 @@ fun PhotoView(
             )
         } else {
             val currentRect by rememberUpdatedState(rect)
+            val currentHsl by rememberUpdatedState(state.edit.adjustments.hsl)
+            val currentTargeting by rememberUpdatedState(state.picker == Picker.HSL)
             val space = if (localMode || picking) {
                 MaskSpace(rect, mapper.normalizedOutputToSource(), image.preview.width, image.preview.height, lens)
             } else {
@@ -253,7 +259,7 @@ fun PhotoView(
                                 coroutineScope {
                                     val reveal = launch {
                                         delay(180)
-                                        if (!handleHeld) viewModel.setShowOriginal(true)
+                                        if (!handleHeld && !currentTargeting) viewModel.setShowOriginal(true)
                                     }
                                     tryAwaitRelease()
                                     reveal.cancel()
@@ -487,8 +493,50 @@ fun PhotoView(
                             }
                         }
                     }
-                    .pointerInput(picking) {
+                    .pointerInput(state.picker, hslControl, image, state.version) {
                         if (!picking) return@pointerInput
+                        if (state.picker == Picker.HSL) {
+                            awaitEachGesture {
+                                val down = awaitFirstDown(requireUnconsumed = false)
+                                val sp = currentSpace ?: return@awaitEachGesture
+                                if (!sp.rect.contains(down.position.x, down.position.y)) return@awaitEachGesture
+                                val (x, y) = sp.toSource(down.position)
+                                if (x !in 0.0..1.0 || y !in 0.0..1.0) return@awaitEachGesture
+                                var band: HslBand? = null
+                                var initial = 0f
+                                val travel = 160.dp.toPx()
+                                var edited = false
+                                try {
+                                    while (true) {
+                                        val event = awaitPointerEvent()
+                                        if (event.changes.count { it.pressed } > 1) return@awaitEachGesture
+                                        val change = event.changes.firstOrNull { it.id == down.id } ?: return@awaitEachGesture
+                                        if (change.isConsumed) return@awaitEachGesture
+                                        val delta = change.position - down.position
+                                        if (!change.pressed) {
+                                            if (band == null && delta.getDistance() <= viewConfiguration.touchSlop) {
+                                                viewModel.pickHslBand(x.toFloat(), y.toFloat())
+                                            }
+                                            change.consume()
+                                            return@awaitEachGesture
+                                        }
+                                        if (band == null) {
+                                            if (delta.getDistance() <= viewConfiguration.touchSlop) continue
+                                            if (abs(delta.x) < abs(delta.y)) return@awaitEachGesture
+                                            band = viewModel.pickHslBand(x.toFloat(), y.toFloat()) ?: return@awaitEachGesture
+                                            initial = hslControl.value(currentHsl, band)
+                                        }
+                                        val next = hslControl.update(currentHsl, band, initial + delta.x / travel)
+                                        viewModel.setHsl(next)
+                                        edited = true
+                                        change.consume()
+                                    }
+                                } finally {
+                                    if (edited) viewModel.finishHslDrag(image, state.version)
+                                }
+                            }
+                            return@pointerInput
+                        }
                         awaitEachGesture {
                             val down = awaitFirstDown(requireUnconsumed = false)
                             val sp = currentSpace ?: return@awaitEachGesture
