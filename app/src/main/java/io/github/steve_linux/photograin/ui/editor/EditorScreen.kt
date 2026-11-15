@@ -92,6 +92,7 @@ private fun PhotoWorkspace(viewModel: EditorViewModel, onClose: () -> Unit, onGu
     var lastExport by remember { mutableStateOf<ExportOptions?>(null) }
     var menuOpen by remember { mutableStateOf(false) }
     var showInfo by remember { mutableStateOf(false) }
+    var showCopy by rememberSaveable { mutableStateOf(false) }
     var showVersions by rememberSaveable { mutableStateOf(false) }
     var showOptics by rememberSaveable { mutableStateOf(false) }
     var showActions by rememberSaveable { mutableStateOf(false) }
@@ -245,7 +246,8 @@ private fun PhotoWorkspace(viewModel: EditorViewModel, onClose: () -> Unit, onGu
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.copy_adjustments)) },
                                 leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
-                                onClick = { menuOpen = false; viewModel.copyAdjustments() },
+                                enabled = state.image != null,
+                                onClick = { menuOpen = false; showCopy = true },
                             )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.paste_adjustments)) },
@@ -514,6 +516,16 @@ private fun PhotoWorkspace(viewModel: EditorViewModel, onClose: () -> Unit, onGu
         }
     }
 
+    if (showCopy && state.image != null) {
+        CopyAdjustmentsDialog(
+            adjustments = state.edit.adjustments,
+            onDismiss = { showCopy = false },
+            onCopy = { groups ->
+                viewModel.copyAdjustments(groups)
+                showCopy = false
+            },
+        )
+    }
     if (showInfo) {
         state.image?.let { PhotoInfoDialog(it, onDismiss = { showInfo = false }) }
     }

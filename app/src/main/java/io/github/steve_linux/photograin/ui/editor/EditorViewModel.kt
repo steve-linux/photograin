@@ -25,7 +25,9 @@ import io.github.steve_linux.photograin.data.SaveLocation
 import io.github.steve_linux.photograin.data.SettingsStore
 import io.github.steve_linux.photograin.data.ObjectSelector
 import io.github.steve_linux.photograin.data.SubjectSegmenter
+import io.github.steve_linux.photograin.model.AdjustmentGroup
 import io.github.steve_linux.photograin.model.Adjustments
+import io.github.steve_linux.photograin.model.CopiedAdjustments
 import io.github.steve_linux.photograin.model.AspectRatio
 import io.github.steve_linux.photograin.model.AutoLight
 import io.github.steve_linux.photograin.model.CropRect
@@ -490,14 +492,16 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         commit()
     }
 
-    fun copyAdjustments() {
-        prefs.copiedAdjustments = _state.value.edit.adjustments
+    fun copyAdjustments(groups: Set<AdjustmentGroup>) {
+        val current = _state.value
+        if (current.image == null || groups.isEmpty()) return
+        prefs.copiedAdjustments = CopiedAdjustments(current.edit.adjustments, groups)
         _state.update { it.copy(hasCopiedAdjustments = true, message = Message.ADJUSTMENTS_COPIED) }
     }
 
     fun pasteAdjustments() {
-        val copied: Adjustments = prefs.copiedAdjustments ?: return
-        updateLive { it.copy(adjustments = copied) }
+        val copied = prefs.copiedAdjustments ?: return
+        updateLive { it.copy(adjustments = copied.applyTo(it.adjustments)) }
         commit()
         _state.update { it.copy(message = Message.ADJUSTMENTS_PASTED) }
     }

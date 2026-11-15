@@ -19,6 +19,11 @@
     <string name="redo">Redo</string>
     <string name="compare">Compare before and after</string>
     <string name="more">More options</string>
+    <string name="copy_groups_confirm">Copy</string>
+    <string name="copy_groups_all">All</string>
+    <string name="copy_groups_modified">Modified</string>
+    <string name="copy_groups_none">None</string>
+    <string name="copy_groups_hint">Choose which groups to copy.</string>
     <string name="copy_adjustments">Copy adjustments</string>
     <string name="paste_adjustments">Paste adjustments</string>
     <string name="reset_all">Reset all</string>
@@ -262,7 +267,7 @@
     <string name="guide_crop_title">Crop</string>
     <string name="guide_crop_body">Choose a ratio (1:1, 4:3, 16:9…), drag the corners, straighten the horizon, rotate or flip the photo. The perspective sliders straighten buildings and lines that lean. Auto straighten levels the photo from its lines; for something shot at an angle, use 4-point perspective: mark something rectangular and it is squared up.</string>
     <string name="guide_copy_title">Same edits on many photos</string>
-    <string name="guide_copy_body">From the editor menu, copy the adjustments and paste them onto another photo. For many photos at once, tap “Batch” on the home screen: apply the copied adjustments or a preset and, if you like, export them all in one go.</string>
+    <string name="guide_copy_body">From the editor menu, choose which adjustment groups to copy, then paste them onto another photo. For many photos at once, tap “Batch” on the home screen: apply the copied adjustments or a preset and, if you like, export them all in one go.</string>
     <string name="guide_export_title">Save the photo</string>
     <string name="guide_export_body">Tap {icon} to save a copy. Choose format, quality and size (TIFF keeps 16 bits per color): you can also enlarge the photo 2× or 4×, with AI to restore detail. The sRGB color profile is right for sharing; Display P3 and Adobe RGB keep more color for printing. Under the shooting data you choose what goes with the photo: date, camera, settings, author, location (off by default). Photo information in the ⋮ menu shows what the original contains.</string>
     <string name="guide_settings_title">Settings</string>

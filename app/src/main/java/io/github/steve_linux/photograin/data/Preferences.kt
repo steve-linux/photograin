@@ -4,7 +4,7 @@ package io.github.steve_linux.photograin.data
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import io.github.steve_linux.photograin.model.Adjustments
+import io.github.steve_linux.photograin.model.CopiedAdjustments
 import kotlinx.serialization.json.Json
 
 /** Recently edited photos and the copied adjustments, kept in SharedPreferences. */
@@ -27,13 +27,13 @@ class Preferences(private val context: Context) {
         prefs.edit().putString(KEY_RECENTS, recents().filter { it != uri }.joinToString("\n")).apply()
     }
 
-    var copiedAdjustments: Adjustments?
+    var copiedAdjustments: CopiedAdjustments?
         get() = prefs.getString(KEY_COPIED, null)?.let {
-            runCatching { json.decodeFromString(Adjustments.serializer(), it) }.getOrNull()
+            CopiedAdjustments.decode(json, it)
         }
         set(value) {
             prefs.edit().apply {
-                if (value == null) remove(KEY_COPIED) else putString(KEY_COPIED, json.encodeToString(Adjustments.serializer(), value))
+                if (value == null) remove(KEY_COPIED) else putString(KEY_COPIED, json.encodeToString(CopiedAdjustments.serializer(), value))
             }.apply()
         }
 

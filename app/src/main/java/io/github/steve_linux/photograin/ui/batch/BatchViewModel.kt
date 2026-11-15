@@ -19,6 +19,7 @@ import io.github.steve_linux.photograin.data.LensProfiles
 import io.github.steve_linux.photograin.data.SubjectSegmenter
 import io.github.steve_linux.photograin.data.SettingsStore
 import io.github.steve_linux.photograin.model.Adjustments
+import io.github.steve_linux.photograin.model.CopiedAdjustments
 import io.github.steve_linux.photograin.model.EditState
 import io.github.steve_linux.photograin.model.Preset
 import io.github.steve_linux.photograin.render.Exporter
@@ -42,9 +43,9 @@ data class BatchItem(val uri: Uri, val status: ItemStatus = ItemStatus.PENDING)
 sealed interface BatchSource {
     fun applyTo(current: Adjustments): Adjustments
 
-    /** The adjustments copied in the editor, pasted as they are. */
-    data class Copied(val adjustments: Adjustments) : BatchSource {
-        override fun applyTo(current: Adjustments) = adjustments
+    /** The groups selected when copying in the editor. */
+    data class Copied(val settings: CopiedAdjustments) : BatchSource {
+        override fun applyTo(current: Adjustments) = settings.applyTo(current)
     }
 
     data class FromPreset(val preset: Preset) : BatchSource {
@@ -54,7 +55,7 @@ sealed interface BatchSource {
 
 data class BatchUiState(
     val items: List<BatchItem> = emptyList(),
-    val copied: Adjustments? = null,
+    val copied: CopiedAdjustments? = null,
     val userPresets: List<Preset> = emptyList(),
     val source: BatchSource? = null,
     val running: Boolean = false,
