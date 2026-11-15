@@ -446,7 +446,7 @@ private fun PhotoWorkspace(viewModel: EditorViewModel, onClose: () -> Unit, onGu
                     if (state.tool == ToolGroup.LIGHT) {
                         HistogramPanel(
                             histogram = histogram.value,
-                            autoLightEnabled = !state.autoLighting,
+                            autoLightEnabled = !state.autoAdjusting,
                             onAutoLight = {
                                 lightCurves = false
                                 viewModel.autoLight()
@@ -500,6 +500,8 @@ private fun PhotoWorkspace(viewModel: EditorViewModel, onClose: () -> Unit, onGu
                                 WhiteBalancePicker(
                                     picking = state.picker == Picker.WHITE_BALANCE,
                                     onPicking = { viewModel.setPicker(if (it) Picker.WHITE_BALANCE else Picker.NONE) },
+                                    autoEnabled = !state.autoAdjusting,
+                                    onAuto = viewModel::autoWhiteBalance,
                                 )
                             }
                             AdjustmentPanel(
@@ -584,6 +586,7 @@ private fun messageText(m: Message): Int = when (m) {
     Message.LUT_INVALID -> R.string.msg_lut_invalid
     Message.LUT_MISSING -> R.string.look_lut_missing
     Message.PRESET_SAVED -> R.string.msg_preset_saved
+    Message.AUTO_WB_UNAVAILABLE -> R.string.msg_auto_wb_unavailable
     Message.AUTO_LIGHT_UNAVAILABLE -> R.string.msg_auto_light_unavailable
     Message.HSL_COLOR_NOT_FOUND -> R.string.msg_hsl_color_not_found
     Message.HORIZON_NOT_FOUND -> R.string.msg_horizon_not_found

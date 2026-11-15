@@ -385,6 +385,8 @@
     <string name="range_pick">Pick the color</string>
     <string name="range_tolerance">Tolerance</string>
     <string name="wb_pick">White balance eyedropper</string>
+    <string name="wb_auto">Auto white balance</string>
+    <string name="msg_auto_wb_unavailable">No consistent neutral tones found for white balance</string>
     <string name="wb_pick_hint">Tap something that should be white or gray.</string>
     <string name="wb_pick_label">Eyedropper</string>
     <string name="mode_shapes">Shapes</string>

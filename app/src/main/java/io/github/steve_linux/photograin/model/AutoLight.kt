@@ -1,14 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package io.github.steve_linux.photograin.model
 
-import io.github.steve_linux.photograin.math.Homography
 import kotlin.math.abs
 import kotlin.math.log2
 import kotlin.math.pow
 import kotlin.math.roundToInt
 
 internal object AutoLight {
-    private const val GRID = 96
     private val linear = DoubleArray(256) { toLinear(it / 255.0) }
 
     data class Settings(val exposure: Float, val contrast: Float, val shadows: Float, val highlights: Float) {
@@ -18,31 +16,17 @@ internal object AutoLight {
     }
 
     /** Samples the original photo within the current crop, before tonal adjustments. */
-    fun estimate(
-        width: Int,
-        height: Int,
-        pixels: IntArray,
-        outputToSource: Homography,
-        lens: LensMapping? = null,
-    ): Settings? {
+    fun estimate(samples: CropSamples): Settings? {
         val luminance = IntArray(256)
         val peaks = IntArray(256)
         var count = 0
-        for (y in 0 until GRID) for (x in 0 until GRID) {
-            val position = outputToSource.apply((x + 0.5) / GRID, (y + 0.5) / GRID)
-            val source = lens?.toOriginal(position) ?: position
-            if (!(source.x >= 0 && source.x < 1 && source.y >= 0 && source.y < 1)) continue
-            val pixel = pixels[(source.y * height).toInt() * width + (source.x * width).toInt()]
-            if ((pixel ushr 24) < 128) continue
-            val r = pixel shr 16 and 255
-            val g = pixel shr 8 and 255
-            val b = pixel and 255
+        samples.forEachPixel { r, g, b ->
             val luma = 0.2126 * linear[r] + 0.7152 * linear[g] + 0.0722 * linear[b]
             luminance[(255 * toSrgb(luma)).roundToInt()]++
             peaks[maxOf(r, g, b)]++
             count++
         }
-        if (count < GRID) return null
+        if (count < 96) return null
 
         val dark = percentile(luminance, count, 0.10)
         val mid = percentile(luminance, count, 0.50)
