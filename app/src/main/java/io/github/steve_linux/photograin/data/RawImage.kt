@@ -79,14 +79,22 @@ object RawImage {
     }
 
     /**
-     * LibRaw reads by path. A local document is reachable through /proc/self/fd; anything else
-     * (a pipe from a cloud provider) is copied to the cache first.
+     * LibRaw reads by path. Try reopening a regular descriptor through /proc/self/fd first.
+     * Some providers expose descriptors that the app cannot reopen by path, even when they
+     * report a regular file. Read those through the provider and give LibRaw a cache file.
      */
     private inline fun <T> withPath(context: Context, uri: Uri, block: (String) -> T): T {
         if (!loaded) throw IOException("RAW support is not available on this device")
         val pfd = context.contentResolver.openFileDescriptor(uri, "r") ?: throw IOException("Cannot open $uri")
+        var directError: IOException? = null
         pfd.use {
-            if (isRegularFile(it)) return block("/proc/self/fd/${it.fd}")
+            if (isRegularFile(it)) {
+                try {
+                    return block("/proc/self/fd/${it.fd}")
+                } catch (e: IOException) {
+                    directError = e
+                }
+            }
         }
         val copy = File.createTempFile("raw", null, context.cacheDir)
         try {
@@ -94,6 +102,9 @@ object RawImage {
                 copy.outputStream().use { input.copyTo(it) }
             } ?: throw IOException("Cannot open $uri")
             return block(copy.path)
+        } catch (e: IOException) {
+            directError?.let(e::addSuppressed)
+            throw e
         } finally {
             copy.delete()
         }

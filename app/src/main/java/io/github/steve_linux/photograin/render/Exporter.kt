@@ -145,7 +145,8 @@ object Exporter {
             val halfFloat = deep && pipeline.halfFloatTargets
             val config = if (halfFloat) Bitmap.Config.RGBA_F16 else Bitmap.Config.ARGB_8888
             val bytesPerPixel = if (halfFloat) 8 else 4
-            val result = Bitmap.createBitmap(layout.size.width, layout.size.height, config, false, colorSpace)
+            val resultHasAlpha = !opaque && edit.frame.style == FrameStyle.NONE
+            val result = Bitmap.createBitmap(layout.size.width, layout.size.height, config, resultHasAlpha, colorSpace)
             val canvas = Canvas(result)
             // Colors given in sRGB are converted to the bitmap's space by the canvas.
             if (edit.frame.style != FrameStyle.NONE) {
@@ -258,7 +259,8 @@ object Exporter {
                         GLES30.glReadPixels(0, 0, tw, th, GLES30.GL_RGBA, GLES30.GL_UNSIGNED_BYTE, pixels)
                     }
                     val tileBitmap = tileBitmaps.getOrPut((tw.toLong() shl 32) or th.toLong()) {
-                        Bitmap.createBitmap(tw, th, config, false, colorSpace)
+                        // Keep the shader's premultiplied coverage so Canvas can composite a cutout.
+                        Bitmap.createBitmap(tw, th, config, true, colorSpace)
                     }
                     // A raw copy: setPixels() would treat the values as sRGB and convert them.
                     pixels.position(0)
