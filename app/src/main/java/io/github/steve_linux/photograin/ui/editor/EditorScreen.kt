@@ -310,6 +310,9 @@ private fun PhotoWorkspace(viewModel: EditorViewModel, onClose: () -> Unit, onGu
             }
             if (state.image != null && !fullPhoto) {
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                if (!showActions && state.tool in colorAndToneTools) {
+                    EditCategoryBar(selected = state.tool, onSelect = ::selectTool)
+                }
                 if (showActions) {
                     QuickActionsBar(onAction = ::quickAction)
                 } else if (state.tool == ToolGroup.LOOK) {
@@ -428,7 +431,6 @@ private fun PhotoWorkspace(viewModel: EditorViewModel, onClose: () -> Unit, onGu
                         )
                     }
                 } else {
-                    EditCategoryBar(selected = state.tool, onSelect = ::selectTool)
                     if (state.tool == ToolGroup.LIGHT) {
                         HistogramPanel(
                             histogram = histogram.value,
