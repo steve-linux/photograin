@@ -48,6 +48,7 @@ class MainActivity : ComponentActivity() {
                 val state by editor.state.collectAsStateWithLifecycle()
                 val batchState by batch.state.collectAsStateWithLifecycle()
                 var recents by remember { mutableStateOf(prefs.recents()) }
+                var minimumRating by rememberSaveable { mutableStateOf(0) }
                 var showTip by remember { mutableStateOf(!prefs.presetTipDismissed) }
                 var showSettings by rememberSaveable { mutableStateOf(false) }
                 var showGuide by rememberSaveable { mutableStateOf(false) }
@@ -91,6 +92,8 @@ class MainActivity : ComponentActivity() {
                 } else {
                     HomeScreen(
                         recents = recents,
+                        minimumRating = minimumRating,
+                        onMinimumRating = { minimumRating = it },
                         onOpenPicker = { picker.launch(OPEN_TYPES) },
                         onOpen = { uri, version -> editor.open(uri, version) },
                         onQuickAction = { action ->

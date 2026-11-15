@@ -27,6 +27,19 @@ class Preferences(private val context: Context) {
         prefs.edit().putString(KEY_RECENTS, recents().filter { it != uri }.joinToString("\n")).apply()
     }
 
+    /** A rating belongs to the source photo and is shared by its edit versions. */
+    fun rating(uri: Uri): Int = prefs.getInt(ratingKey(uri), 0).coerceIn(0, 5)
+
+    fun setRating(uri: Uri, stars: Int) {
+        require(stars in 0..5)
+        val key = ratingKey(uri)
+        prefs.edit().apply {
+            if (stars == 0) remove(key) else putInt(key, stars)
+        }.apply()
+    }
+
+    private fun ratingKey(uri: Uri): String = "rating_" + RecipeStore.keyOf(uri.toString())
+
     var copiedAdjustments: CopiedAdjustments?
         get() = prefs.getString(KEY_COPIED, null)?.let {
             CopiedAdjustments.decode(json, it)

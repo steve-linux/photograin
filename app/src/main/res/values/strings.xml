@@ -173,6 +173,20 @@
     <string name="msg_exported_pictures">Photo saved to Pictures/Photograin</string>
     <string name="export_keep_metadata">Keep shooting data (EXIF)</string>
     <string name="export_metadata_hint">Tap a kind of information to leave it out of the saved photo.</string>
+    <string name="photo_rating">Rating</string>
+    <string name="photo_rating_clear">Clear rating</string>
+    <string name="home_rating_filter">Rating</string>
+    <string name="home_rating_all">All recent photos</string>
+    <string name="home_rating_empty">No recent photos match this rating.</string>
+    <string name="photo_rating_number" translatable="false">%d</string>
+    <plurals name="photo_rating_stars">
+        <item quantity="one">%d star</item>
+        <item quantity="other">%d stars</item>
+    </plurals>
+    <plurals name="home_rating_at_least">
+        <item quantity="one">%d star or more</item>
+        <item quantity="other">%d stars or more</item>
+    </plurals>
     <string name="photo_info">Photo information</string>
     <string name="tool_help">Help for this tool</string>
     <string name="close">Close</string>
