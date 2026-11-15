@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -26,15 +27,20 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.AddPhotoAlternate
 import androidx.compose.material.icons.outlined.Compare
+import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -46,6 +52,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.produceState
@@ -55,7 +62,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.Placeholder
 import androidx.compose.ui.text.PlaceholderVerticalAlign
 import androidx.compose.ui.text.buildAnnotatedString
@@ -65,6 +75,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import io.github.steve_linux.photograin.R
 import io.github.steve_linux.photograin.data.ImageLoader
+import io.github.steve_linux.photograin.data.Preferences
 import io.github.steve_linux.photograin.data.RecipeStore
 import io.github.steve_linux.photograin.data.RecipeVersion
 import io.github.steve_linux.photograin.ui.editor.versionLabel
@@ -79,6 +90,8 @@ import kotlinx.coroutines.withContext
 @Composable
 fun HomeScreen(
     recents: List<Uri>,
+    minimumRating: Int,
+    onMinimumRating: (Int) -> Unit,
     onOpenPicker: () -> Unit,
     onOpen: (uri: Uri, version: Int) -> Unit,
     onQuickAction: (QuickAction) -> Unit,
@@ -89,7 +102,10 @@ fun HomeScreen(
     onGuide: () -> Unit,
 ) {
     PhotoWorkspaceTheme {
-        PhotoLibrary(recents, onOpenPicker, onOpen, onQuickAction, onBatch, showTip, onDismissTip, onSettings, onGuide)
+        PhotoLibrary(
+            recents, minimumRating, onMinimumRating, onOpenPicker, onOpen,
+            onQuickAction, onBatch, showTip, onDismissTip, onSettings, onGuide,
+        )
     }
 }
 
@@ -97,6 +113,8 @@ fun HomeScreen(
 @Composable
 private fun PhotoLibrary(
     recents: List<Uri>,
+    minimumRating: Int,
+    onMinimumRating: (Int) -> Unit,
     onOpenPicker: () -> Unit,
     onOpen: (uri: Uri, version: Int) -> Unit,
     onQuickAction: (QuickAction) -> Unit,
@@ -118,6 +136,12 @@ private fun PhotoLibrary(
             }
         }
     }
+    // The home screen is entered again after the editor closes, so ratings are read afresh.
+    val ratings = remember(context, recents) {
+        val preferences = Preferences(context)
+        recents.associateWith(preferences::rating)
+    }
+    val visible = entries.filter { (ratings[it.uri] ?: 0) >= minimumRating }
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
@@ -190,23 +214,38 @@ private fun PhotoLibrary(
                 modifier = Modifier.fillMaxSize().padding(padding),
             ) {
                 item(span = { GridItemSpan(maxLineSpan) }) {
-                    Text(
-                        stringResource(R.string.recent_edits),
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.padding(4.dp),
-                    )
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            stringResource(R.string.recent_edits),
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.weight(1f),
+                        )
+                        RatingFilter(minimumRating, onMinimumRating)
+                    }
                 }
-                if (comparing) {
+                if (visible.isEmpty() && minimumRating > 0) {
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        Text(
+                            stringResource(R.string.home_rating_empty),
+                            Modifier.padding(12.dp),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+                } else if (comparing) {
                     item(span = { GridItemSpan(maxLineSpan) }) { CompareHeader() }
-                    items(entries, key = { "compare ${it.key}" }, span = { GridItemSpan(maxLineSpan) }) { entry ->
-                        CompareRow(entry, onClick = { onOpen(entry.uri, entry.version.id) })
+                    items(visible, key = { "compare ${it.key}" }, span = { GridItemSpan(maxLineSpan) }) { entry ->
+                        CompareRow(entry, ratings[entry.uri] ?: 0) { onOpen(entry.uri, entry.version.id) }
                     }
                 } else {
-                    items(entries, key = { it.key }) { entry ->
+                    items(visible, key = { it.key }) { entry ->
+                        val stars = ratings[entry.uri] ?: 0
                         if (entry.count > 1) {
-                            VersionTile(entry, onClick = { onOpen(entry.uri, entry.version.id) })
+                            VersionTile(entry, stars) { onOpen(entry.uri, entry.version.id) }
                         } else {
-                            RecentThumbnail(entry.uri, onClick = { onOpen(entry.uri, 1) }, modifier = Modifier)
+                            RecentThumbnail(entry.uri, onClick = { onOpen(entry.uri, 1) }, modifier = Modifier, rating = stars)
                         }
                     }
                 }
@@ -217,6 +256,54 @@ private fun PhotoLibrary(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun RatingFilter(minimumRating: Int, onMinimumRating: (Int) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        FilterChip(
+            selected = minimumRating > 0,
+            onClick = { open = true },
+            label = {
+                Text(
+                    if (minimumRating == 0) stringResource(R.string.home_rating_filter)
+                    else pluralStringResource(R.plurals.home_rating_at_least, minimumRating, minimumRating),
+                )
+            },
+            leadingIcon = { Icon(Icons.Outlined.FilterList, contentDescription = null, Modifier.size(18.dp)) },
+        )
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            for (min in 0..5) {
+                val label = if (min == 0) stringResource(R.string.home_rating_all)
+                else pluralStringResource(R.plurals.home_rating_at_least, min, min)
+                DropdownMenuItem(
+                    text = { Text(label) },
+                    onClick = {
+                        onMinimumRating(min)
+                        open = false
+                    },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RatingBadge(rating: Int, modifier: Modifier = Modifier) {
+    if (rating == 0) return
+    val description = pluralStringResource(R.plurals.photo_rating_stars, rating, rating)
+    Row(
+        modifier.clip(RoundedCornerShape(4.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .clearAndSetSemantics { contentDescription = description }
+            .padding(horizontal = 5.dp, vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
+        Icon(Icons.Filled.Star, contentDescription = null, modifier = Modifier.size(12.dp), tint = MaterialTheme.colorScheme.primary)
+        Text(stringResource(R.string.photo_rating_number, rating), style = MaterialTheme.typography.labelSmall)
     }
 }
 
@@ -265,7 +352,12 @@ private fun PresetTip(onDismiss: () -> Unit) {
 private const val COMPARE_ICON = "compare"
 
 @Composable
-internal fun RecentThumbnail(uri: Uri, onClick: () -> Unit, modifier: Modifier = Modifier.clip(RoundedCornerShape(8.dp))) {
+internal fun RecentThumbnail(
+    uri: Uri,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier.clip(RoundedCornerShape(8.dp)),
+    rating: Int = 0,
+) {
     val context = LocalContext.current
     val thumb: Bitmap? by produceState<Bitmap?>(null, uri) {
         value = withContext(Dispatchers.IO) { ImageLoader.thumbnail(context, uri, 384) }
@@ -285,6 +377,7 @@ internal fun RecentThumbnail(uri: Uri, onClick: () -> Unit, modifier: Modifier =
                 modifier = Modifier.fillMaxSize(),
             )
         }
+        RatingBadge(rating, Modifier.align(Alignment.TopEnd).padding(4.dp))
     }
 }
 
@@ -295,7 +388,7 @@ private data class HomeEntry(val uri: Uri, val version: RecipeVersion, val count
 
 /** A version of a photo with several: its own edit, and its name in a corner. */
 @Composable
-private fun VersionTile(entry: HomeEntry, onClick: () -> Unit) {
+private fun VersionTile(entry: HomeEntry, rating: Int, onClick: () -> Unit) {
     val context = LocalContext.current
     val thumb: Bitmap? by produceState<Bitmap?>(null, entry.uri, entry.version.id) {
         value = EditedThumbnails.load(context, entry.uri, 384, entry.version.id)
@@ -317,6 +410,7 @@ private fun VersionTile(entry: HomeEntry, onClick: () -> Unit) {
             )
         }
         VersionBadge(entry.version, Modifier.align(Alignment.BottomStart).padding(4.dp))
+        RatingBadge(rating, Modifier.align(Alignment.TopEnd).padding(4.dp))
     }
 }
 
@@ -352,7 +446,7 @@ private fun CompareHeader() {
 
 /** The original and the edited photo side by side, whole, so the change is easy to judge. */
 @Composable
-private fun CompareRow(entry: HomeEntry, onClick: () -> Unit) {
+private fun CompareRow(entry: HomeEntry, rating: Int, onClick: () -> Unit) {
     val context = LocalContext.current
     val uri = entry.uri
     val original: Bitmap? by produceState<Bitmap?>(null, uri) {
@@ -367,7 +461,8 @@ private fun CompareRow(entry: HomeEntry, onClick: () -> Unit) {
         modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable(onClick = onClick),
     ) {
         // Without a recipe the photo is unchanged, so both sides show the original.
-        for (bitmap in listOf(original, if (edited.first) edited.second ?: original else null)) {
+        val previews = listOf(original, if (edited.first) edited.second ?: original else null)
+        for ((index, bitmap) in previews.withIndex()) {
             Box(
                 Modifier
                     .weight(1f)
@@ -383,6 +478,7 @@ private fun CompareRow(entry: HomeEntry, onClick: () -> Unit) {
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
+                if (index == 1) RatingBadge(rating, Modifier.align(Alignment.TopEnd).padding(4.dp))
                 if (entry.count > 1 && bitmap != null && bitmap !== original) {
                     VersionBadge(entry.version, Modifier.align(Alignment.BottomStart).padding(4.dp))
                 }

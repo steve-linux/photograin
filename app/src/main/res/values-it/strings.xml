@@ -160,6 +160,19 @@
     <string name="msg_exported_pictures">Foto salvata in Immagini/Photograin</string>
     <string name="export_keep_metadata">Mantieni i dati di scatto (EXIF)</string>
     <string name="export_metadata_hint">Tocca un tipo di informazione per toglierlo dalla foto salvata.</string>
+    <string name="photo_rating">Valutazione</string>
+    <string name="photo_rating_clear">Rimuovi valutazione</string>
+    <string name="home_rating_filter">Valutazione</string>
+    <string name="home_rating_all">Tutte le recenti</string>
+    <string name="home_rating_empty">Nessuna foto recente corrisponde a questa valutazione.</string>
+    <plurals name="photo_rating_stars">
+        <item quantity="one">%d stella</item>
+        <item quantity="other">%d stelle</item>
+    </plurals>
+    <plurals name="home_rating_at_least">
+        <item quantity="one">Almeno %d stella</item>
+        <item quantity="other">Almeno %d stelle</item>
+    </plurals>
     <string name="photo_info">Informazioni foto</string>
     <string name="tool_help">Guida a questo strumento</string>
     <string name="close">Chiudi</string>
