@@ -213,8 +213,7 @@ esecuzioni danno lo stesso zip.
 
 A 1024 pixel le attivazioni sono grandi: con le convoluzioni veloci di ncnn (Winograd e sgemm)
 il picco di memoria arriva a 2,3 GB sul PC, e su un Galaxy A52s (5,5 GB) il sistema chiudeva
-l'app. `segmenter.cpp` le disattiva per i modelli dei pacchetti, legge i pesi dal file senza
-tenerne una copia intera e, su ARM, conserva le attivazioni in fp16 (calcoli sempre in fp32): il
-picco scende a circa 0,5 GB, misurato con ncnn compilato per aarch64 ed eseguito in qemu, con la
-maschera ancora uguale a onnxruntime sul 99,96% dei pixel (differenza media 0,001). Se il
-telefono ha meno di 1 GB libero, l'app usa U²-Net-p per quella volta.
+l'app. `segmenter.cpp` le disattiva per i modelli dei pacchetti e legge i pesi dal file senza
+tenerne una copia intera: il picco scende a circa 1 GB. Conservare le attivazioni in fp16 lo
+dimezzerebbe ancora, ma sui telefoni (non in qemu) rompeva la maschera in strisce orizzontali.
+Se il telefono ha meno di 1,5 GB libero, l'app usa U²-Net-p per quella volta.
