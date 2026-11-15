@@ -18,6 +18,11 @@
     <string name="redo">Ripeti</string>
     <string name="compare">Confronta prima e dopo</string>
     <string name="more">Altre opzioni</string>
+    <string name="copy_groups_confirm">Copia</string>
+    <string name="copy_groups_all">Tutte</string>
+    <string name="copy_groups_modified">Modificate</string>
+    <string name="copy_groups_none">Nessuna</string>
+    <string name="copy_groups_hint">Scegli quali gruppi copiare.</string>
     <string name="copy_adjustments">Copia regolazioni</string>
     <string name="paste_adjustments">Incolla regolazioni</string>
     <string name="reset_all">Ripristina tutto</string>
@@ -249,7 +254,7 @@
     <string name="guide_crop_title">Ritaglio</string>
     <string name="guide_crop_body">Scegli un formato (1:1, 4:3, 16:9…), trascina gli angoli, raddrizza l\'orizzonte, ruota o capovolgi la foto. Con la prospettiva raddrizzi palazzi e linee che pendono. Raddrizza automaticamente livella la foto dalle sue linee; per un oggetto fotografato di sbieco usa la prospettiva a 4 punti: segni qualcosa di rettangolare e viene squadrato.</string>
     <string name="guide_copy_title">Stesse modifiche su più foto</string>
-    <string name="guide_copy_body">Dal menu dell\'editor copia le regolazioni e incollale su un\'altra foto. Per molte foto insieme tocca «In serie» nella schermata iniziale: applichi le regolazioni copiate o un preset e, se vuoi, le esporti tutte in una volta.</string>
+    <string name="guide_copy_body">Dal menu dell\'editor scegli quali gruppi di regolazioni copiare, poi incollali su un\'altra foto. Per molte foto insieme tocca «In serie» nella schermata iniziale: applichi le regolazioni copiate o un preset e, se vuoi, le esporti tutte in una volta.</string>
     <string name="guide_export_title">Salva la foto</string>
     <string name="guide_export_body">Tocca {icon} per salvare una copia. Scegli formato, qualità e dimensione (TIFF conserva 16 bit per colore): puoi anche ingrandire la foto 2× o 4×, con l\'IA per recuperare i dettagli. Il profilo colore sRGB va bene per condividere; Display P3 e Adobe RGB conservano più colori per la stampa. Sotto i dati di scatto scegli cosa accompagna la foto: data, fotocamera, impostazioni, autore, posizione (esclusa di base). Informazioni foto nella barra in alto mostra cosa contiene l\'originale.</string>
     <string name="guide_settings_title">Impostazioni</string>
