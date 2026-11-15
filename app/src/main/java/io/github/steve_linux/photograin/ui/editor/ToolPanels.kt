@@ -112,20 +112,31 @@ fun AdjustmentPanel(
     }
 }
 
-/** The white balance eyedropper: on, the next tap on the photo makes that spot neutral. */
 @Composable
-fun WhiteBalancePicker(picking: Boolean, onPicking: (Boolean) -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-        FilterChip(
-            selected = picking,
-            onClick = { onPicking(!picking) },
-            label = { Text(stringResource(R.string.wb_pick_label)) },
-            leadingIcon = {
-                Icon(Icons.Outlined.Colorize, contentDescription = stringResource(R.string.wb_pick), Modifier.size(18.dp))
-            },
-        )
+fun WhiteBalancePicker(
+    picking: Boolean,
+    onPicking: (Boolean) -> Unit,
+    autoEnabled: Boolean,
+    onAuto: () -> Unit,
+) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            AssistChip(
+                enabled = autoEnabled,
+                onClick = onAuto,
+                label = { Text(stringResource(R.string.wb_auto)) },
+                leadingIcon = { Icon(Icons.Outlined.AutoFixHigh, contentDescription = null, Modifier.size(18.dp)) },
+            )
+            FilterChip(
+                selected = picking,
+                onClick = { onPicking(!picking) },
+                label = { Text(stringResource(R.string.wb_pick_label)) },
+                leadingIcon = {
+                    Icon(Icons.Outlined.Colorize, stringResource(R.string.wb_pick), Modifier.size(18.dp))
+                },
+            )
+        }
         if (picking) {
-            Spacer(Modifier.width(12.dp))
             Text(
                 stringResource(R.string.wb_pick_hint),
                 style = MaterialTheme.typography.bodySmall,

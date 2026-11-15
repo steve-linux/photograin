@@ -30,7 +30,9 @@ import io.github.steve_linux.photograin.model.Adjustments
 import io.github.steve_linux.photograin.model.CopiedAdjustments
 import io.github.steve_linux.photograin.model.AspectRatio
 import io.github.steve_linux.photograin.model.AutoLight
+import io.github.steve_linux.photograin.model.AutoWhiteBalance
 import io.github.steve_linux.photograin.model.CropRect
+import io.github.steve_linux.photograin.model.CropSamples
 import io.github.steve_linux.photograin.model.CubeLut
 import io.github.steve_linux.photograin.model.Curves
 import io.github.steve_linux.photograin.model.EditState
@@ -88,7 +90,7 @@ import kotlin.math.roundToInt
 enum class Message {
     EXPORTED, EXPORTED_TO_PICTURES, EXPORTED_TO_DOWNLOADS, EXPORT_FAILED, LOAD_FAILED, ADJUSTMENTS_COPIED, ADJUSTMENTS_PASTED, OUT_OF_MEMORY,
     LUT_IMPORTED, LUT_INVALID, LUT_MISSING, PRESET_SAVED, HORIZON_NOT_FOUND, SUBJECT_FAILED,
-    REMOVE_FAILED, AUTO_LIGHT_UNAVAILABLE, HSL_COLOR_NOT_FOUND,
+    REMOVE_FAILED, AUTO_LIGHT_UNAVAILABLE, HSL_COLOR_NOT_FOUND, AUTO_WB_UNAVAILABLE,
 }
 
 data class EditorUiState(
@@ -96,7 +98,7 @@ data class EditorUiState(
     val loading: Boolean = false,
     /** The live edit, including a slider that is still being dragged. */
     val edit: EditState = EditState(),
-    val autoLighting: Boolean = false,
+    val autoAdjusting: Boolean = false,
     val canUndo: Boolean = false,
     val canRedo: Boolean = false,
     /** Styles first: the quickest way to a good result, and where presets are saved. */
@@ -197,7 +199,7 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
     private val settings = SettingsStore.get(app)
     private var history = History(EditState())
     private var loadJob: Job? = null
-    private var autoLightJob: Job? = null
+    private var autoAdjustJob: Job? = null
 
     /** The previews the main subject and the objects of [EditorUiState.subjects] were found in. */
     private var subjectFor: Bitmap? = null
@@ -235,7 +237,7 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
             if (action != null) _state.update { it.copy(pendingAction = action) }
             return
         }
-        autoLightJob?.cancel()
+        autoAdjustJob?.cancel()
         loadJob?.cancel()
         _state.update {
             EditorUiState(loading = true, hasCopiedAdjustments = it.hasCopiedAdjustments, luts = it.luts, userPresets = it.userPresets)
@@ -309,7 +311,7 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun close() {
-        autoLightJob?.cancel()
+        autoAdjustJob?.cancel()
         loadJob?.cancel()
         _state.update {
             EditorUiState(hasCopiedAdjustments = it.hasCopiedAdjustments, luts = it.luts, userPresets = it.userPresets)
@@ -412,33 +414,49 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
 
     // --- Adjustments -------------------------------------------------------------------------
 
-    fun autoLight() {
+    fun autoLight() = autoAdjust(Message.AUTO_LIGHT_UNAVAILABLE) { samples, adjustments ->
+        AutoLight.estimate(samples)?.applyTo(adjustments)
+    }
+
+    fun autoWhiteBalance() {
+        setPicker(Picker.NONE)
+        autoAdjust(Message.AUTO_WB_UNAVAILABLE) { samples, adjustments ->
+            AutoWhiteBalance.estimate(samples)
+                ?.let { (temperature, tint) -> adjustments.copy(temperature = temperature, tint = tint) }
+        }
+    }
+
+    private fun autoAdjust(
+        unavailable: Message,
+        estimate: (CropSamples, Adjustments) -> Adjustments?,
+    ) {
         val start = _state.value
         val image = start.image ?: return
-        if (start.autoLighting) return
-        _state.update { it.copy(autoLighting = true) }
-        autoLightJob = viewModelScope.launch {
+        if (start.autoAdjusting) return
+        _state.update { it.copy(autoAdjusting = true) }
+        autoAdjustJob = viewModelScope.launch {
             try {
-                val result = withContext(Dispatchers.Default) { estimateLight(image, start.edit) }
+                val result = withContext(Dispatchers.Default) {
+                    estimate(readCropPreview(image, start.edit), start.edit.adjustments)
+                }
                 val current = _state.value
                 if (current.image !== image || current.version != start.version || current.edit !== start.edit) return@launch
                 if (result == null) {
-                    _state.update { it.copy(message = Message.AUTO_LIGHT_UNAVAILABLE) }
-                } else {
-                    val adjustments = result.applyTo(start.edit.adjustments)
-                    if (adjustments != start.edit.adjustments) {
-                        updateLive { it.copy(adjustments = adjustments) }
-                        commit()
-                    }
+                    _state.update { it.copy(message = unavailable) }
+                } else if (result != start.edit.adjustments) {
+                    updateLive { it.copy(adjustments = result) }
+                    commit()
                 }
             } finally {
-                _state.update { if (it.image === image) it.copy(autoLighting = false) else it }
+                _state.update { if (it.image === image) it.copy(autoAdjusting = false) else it }
             }
         }
     }
 
-    private fun estimateLight(image: LoadedImage, edit: EditState): AutoLight.Settings? {
+    private fun readCropPreview(image: LoadedImage, edit: EditState): CropSamples {
         val preview = image.preview
+        val mapper = GeometryMapper(preview.width, preview.height, image.base, edit.geometry)
+        val lens = image.lens?.takeIf { edit.correctLens }?.mapping(preview.width, preview.height)
         val scale = minOf(1.0, 384.0 / maxOf(preview.width, preview.height))
         val width = (preview.width * scale).roundToInt().coerceAtLeast(1)
         val height = (preview.height * scale).roundToInt().coerceAtLeast(1)
@@ -446,9 +464,7 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         try {
             val pixels = IntArray(width * height)
             sample.getPixels(pixels, 0, width, 0, 0, width, height)
-            val mapper = GeometryMapper(preview.width, preview.height, image.base, edit.geometry)
-            val lens = image.lens?.takeIf { edit.correctLens }?.mapping(preview.width, preview.height)
-            return AutoLight.estimate(width, height, pixels, mapper.normalizedOutputToSource(), lens)
+            return CropSamples(width, height, pixels, mapper.normalizedOutputToSource(), lens, image.profile)
         } finally {
             if (sample !== preview) sample.recycle()
         }

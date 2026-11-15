@@ -10,11 +10,11 @@ object WhiteBalance {
      * neutral under the gains of ShaderParams.whiteBalanceGains, or null for a color too dark
      * to judge. Out-of-range answers are clamped, so a strongly colored pick only goes part way.
      */
-    fun neutralize(r: Float, g: Float, b: Float): Pair<Float, Float>? {
-        val lr = toLinear(r)
-        val lg = toLinear(g)
-        val lb = toLinear(b)
-        if (lr + lg + lb < 0.01) return null
+    fun neutralize(r: Float, g: Float, b: Float): Pair<Float, Float>? =
+        neutralizeLinear(toLinear(r), toLinear(g), toLinear(b))
+
+    internal fun neutralizeLinear(lr: Double, lg: Double, lb: Double): Pair<Float, Float>? {
+        if (lr + lg + lb < 0.01 || lr + lb <= 0.0) return null
         // Red and blue gains are 1 ± 0.35 t: equal red and blue.
         val t = ((lb - lr) / (0.35 * (lr + lb))).coerceIn(-1.0, 1.0)
         // Green gain is 1 - 0.25 n: green matches red after its gain.
