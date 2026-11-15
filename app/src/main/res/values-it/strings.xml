@@ -102,6 +102,9 @@
     <string name="grade_balance">Bilanciamento</string>
     <string name="grade_balance_help">Sposta a sinistra per estendere la correzione delle ombre, o a destra per estendere quella delle alte luci.</string>
     <string name="grade_reset">Azzera grading</string>
+    <string name="hsl_target">Regolazione mirata</string>
+    <string name="hsl_target_hint">Tocca un colore per sceglierne la fascia. Trascina a sinistra o a destra sulla foto per regolare il valore selezionato.</string>
+    <string name="msg_hsl_color_not_found">Scegli una zona con un colore più marcato.</string>
     <string name="hsl_hue">Tonalità</string>
     <string name="hsl_saturation">Saturazione</string>
     <string name="hsl_luminance">Luminanza</string>
