@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -17,12 +18,13 @@ import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AutoAwesome
-import androidx.compose.material.icons.outlined.Brush
+import androidx.compose.material.icons.outlined.AutoFixHigh
+import androidx.compose.material.icons.outlined.Healing
 import androidx.compose.material.icons.outlined.Crop
 import androidx.compose.material.icons.outlined.Details
-import androidx.compose.material.icons.outlined.Gradient
+import androidx.compose.material.icons.outlined.LensBlur
 import androidx.compose.material.icons.outlined.Palette
-import androidx.compose.material.icons.outlined.Style
+import androidx.compose.material.icons.outlined.Filter
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.WbSunny
 import androidx.compose.material3.HorizontalDivider
@@ -57,14 +59,14 @@ internal fun WorkspaceToolbar(
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         Row(Modifier.fillMaxWidth().selectableGroup()) {
             val item = Modifier.weight(1f)
-            if (hasActions) WorkspaceItem(item, R.string.workspace_actions, Icons.Outlined.AutoAwesome, actions, onActions)
-            WorkspaceItem(item, R.string.tool_look, Icons.Outlined.Style, !actions && tool == ToolGroup.LOOK, onLooks)
+            if (hasActions) WorkspaceItem(item, R.string.workspace_actions, Icons.Outlined.AutoFixHigh, actions, onActions)
+            WorkspaceItem(item, R.string.tool_look, Icons.Outlined.Filter, !actions && tool == ToolGroup.LOOK, onLooks)
             WorkspaceItem(item, R.string.tool_crop, Icons.Outlined.Crop, !actions && tool == ToolGroup.CROP, onCrop)
             WorkspaceItem(item, R.string.workspace_edit, Icons.Outlined.Tune, !actions && tool in colorAndToneTools, onEdit)
-            WorkspaceItem(item, R.string.mode_masks, Icons.Outlined.Gradient, !actions && tool == ToolGroup.LOCAL && !retouch) {
+            WorkspaceItem(item, R.string.mode_masks, Icons.Outlined.LensBlur, !actions && tool == ToolGroup.LOCAL && !retouch) {
                 onLocal(false)
             }
-            WorkspaceItem(item, R.string.tool_local, Icons.Outlined.Brush, !actions && tool == ToolGroup.LOCAL && retouch) {
+            WorkspaceItem(item, R.string.tool_local, Icons.Outlined.Healing, !actions && tool == ToolGroup.LOCAL && retouch) {
                 onLocal(true)
             }
         }
@@ -95,20 +97,20 @@ private fun WorkspaceItem(
     onClick: () -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
-    val color = if (selected) colors.primary else colors.onSurface
+    val color = if (selected) colors.onSurface else colors.onSurfaceVariant
     Box(
         modifier.heightIn(min = 52.dp)
             .selectable(selected = selected, role = Role.Tab, onClick = onClick),
     ) {
         if (selected) {
             HorizontalDivider(
-                modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth(0.7f),
+                modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth(0.52f),
                 thickness = 2.dp,
-                color = color,
+                color = colors.primary,
             )
         }
         Column(Modifier.align(Alignment.Center).padding(horizontal = 2.dp, vertical = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(20.dp))
+            Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(22.dp))
             BasicText(
                 stringResource(label),
                 style = MaterialTheme.typography.labelSmall.copy(color = color),
@@ -117,5 +119,45 @@ private fun WorkspaceItem(
                 autoSize = TextAutoSize.StepBased(minFontSize = 8.sp, maxFontSize = 11.sp),
             )
         }
+    }
+}
+
+/** Compact mode tabs shared by the editing panels. */
+@Composable
+internal fun WorkspaceModeTabs(
+    labels: List<Int>,
+    selected: Int,
+    onSelect: (Int) -> Unit,
+) {
+    val colors = MaterialTheme.colorScheme
+    Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp)) {
+        Row(Modifier.fillMaxWidth().selectableGroup()) {
+            labels.forEachIndexed { index, label ->
+                val active = index == selected
+                Box(
+                    modifier = Modifier.weight(1f).heightIn(min = 44.dp)
+                        .selectable(selected = active, role = Role.Tab, onClick = { onSelect(index) })
+                        .padding(horizontal = 4.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    BasicText(
+                        text = stringResource(label),
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            color = if (active) colors.onSurface else colors.onSurfaceVariant,
+                        ),
+                        maxLines = 1,
+                        softWrap = false,
+                        autoSize = TextAutoSize.StepBased(minFontSize = 10.sp, maxFontSize = 13.sp),
+                    )
+                    if (active) {
+                        Box(
+                            Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(2.dp)
+                                .background(colors.primary),
+                        )
+                    }
+                }
+            }
+        }
+        HorizontalDivider(color = colors.outlineVariant)
     }
 }

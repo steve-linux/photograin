@@ -88,6 +88,7 @@ private val LIBRARIES = listOf(
     "IS-Net (DIS), model pack" to "Apache-2.0",
     "AndroidX, Jetpack Compose, Material" to "Apache-2.0",
     "Kotlin, kotlinx.coroutines, kotlinx.serialization" to "Apache-2.0",
+    "Source Sans 3" to "SIL Open Font License 1.1",
 )
 
 @OptIn(ExperimentalMaterial3Api::class)

@@ -37,9 +37,6 @@ import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -80,20 +77,10 @@ private val SWATCHES = listOf(
     0xFFFFFFFF, 0xFFF3EBDD, 0xFFBDBDBD, 0xFF333333, 0xFF000000, 0xFFC62828, 0xFFF9A825, 0xFF1565C0,
 ).map { it.toInt() }
 
-/** "Effects | Frame | Text" switch above the Effects panel. */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EffectsModeSelector(mode: Int, onSelect: (Int) -> Unit) {
     val labels = listOf(R.string.mode_effects, R.string.mode_frame, R.string.mode_text, R.string.mode_shapes)
-    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
-        labels.forEachIndexed { i, label ->
-            SegmentedButton(
-                selected = mode == i,
-                onClick = { onSelect(i) },
-                shape = SegmentedButtonDefaults.itemShape(i, labels.size),
-            ) { Text(stringResource(label), maxLines = 1, overflow = TextOverflow.Ellipsis) }
-        }
-    }
+    WorkspaceModeTabs(labels, mode, onSelect)
 }
 
 @OptIn(ExperimentalLayoutApi::class)

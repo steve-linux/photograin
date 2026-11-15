@@ -4,6 +4,7 @@ package io.github.steve_linux.photograin.ui.theme
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
@@ -12,6 +13,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import io.github.steve_linux.photograin.R
 import io.github.steve_linux.photograin.data.ThemeMode
 
 private val Amber = Color(0xFFE0A84F)
@@ -31,7 +37,7 @@ private val LightColors = lightColorScheme(
 )
 
 /** Neutral gray behind photos, so colors are judged against a non-tinted background. */
-val PhotoBackgroundDark = Color(0xFF101010)
+val PhotoBackgroundDark = Color.Black
 val PhotoBackgroundLight = Color(0xFFE6E6E6)
 
 @Composable
@@ -59,9 +65,9 @@ private val WorkspaceDarkColors = darkColorScheme(
     onPrimaryContainer = Color(0xFFD0E6FF),
     secondaryContainer = Color(0xFF303A44),
     onSecondaryContainer = Color(0xFFEDF2F7),
-    background = Color(0xFF101010),
-    surface = Color(0xFF191919),
-    surfaceContainer = Color(0xFF232323),
+    background = Color.Black,
+    surface = Color(0xFF202020),
+    surfaceContainer = Color(0xFF252525),
     surfaceVariant = Color(0xFF303030),
     onSurface = Color(0xFFF2F2F2),
     onSurfaceVariant = Color(0xFFC6C6C6),
@@ -84,8 +90,32 @@ private val WorkspaceLightColors = lightColorScheme(
     outlineVariant = Color(0xFFD1D1D1),
 )
 
+private val WorkspaceFont = FontFamily(
+    Font(R.font.source_sans_regular, FontWeight.Normal),
+    Font(R.font.source_sans_semibold, FontWeight.SemiBold),
+)
+
+private val WorkspaceTypography = Typography().run {
+    copy(
+        headlineSmall = headlineSmall.copy(fontFamily = WorkspaceFont, fontWeight = FontWeight.SemiBold),
+        titleLarge = titleLarge.copy(fontFamily = WorkspaceFont, fontWeight = FontWeight.SemiBold),
+        titleMedium = titleMedium.copy(fontFamily = WorkspaceFont, fontWeight = FontWeight.SemiBold),
+        titleSmall = titleSmall.copy(fontFamily = WorkspaceFont, fontWeight = FontWeight.SemiBold),
+        bodyLarge = bodyLarge.copy(fontFamily = WorkspaceFont),
+        bodyMedium = bodyMedium.copy(fontFamily = WorkspaceFont),
+        bodySmall = bodySmall.copy(fontFamily = WorkspaceFont),
+        labelLarge = labelLarge.copy(fontFamily = WorkspaceFont, fontWeight = FontWeight.Normal, letterSpacing = 0.sp),
+        labelMedium = labelMedium.copy(fontFamily = WorkspaceFont, fontWeight = FontWeight.SemiBold, letterSpacing = 0.sp),
+        labelSmall = labelSmall.copy(fontFamily = WorkspaceFont, fontWeight = FontWeight.Normal, letterSpacing = 0.sp),
+    )
+}
+
 @Composable
 internal fun PhotoWorkspaceTheme(content: @Composable () -> Unit) {
     val dark = MaterialTheme.colorScheme.background.luminance() < 0.5f
-    MaterialTheme(colorScheme = if (dark) WorkspaceDarkColors else WorkspaceLightColors, content = content)
+    MaterialTheme(
+        colorScheme = if (dark) WorkspaceDarkColors else WorkspaceLightColors,
+        typography = WorkspaceTypography,
+        content = content,
+    )
 }
