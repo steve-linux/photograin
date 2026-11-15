@@ -2,7 +2,10 @@
 package io.github.steve_linux.photograin.ui.editor
 
 import androidx.annotation.StringRes
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -12,6 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.absolutePadding
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -29,6 +33,7 @@ import androidx.compose.material.icons.outlined.Rotate90DegreesCw
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -46,7 +51,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -54,7 +62,10 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import io.github.steve_linux.photograin.R
 import io.github.steve_linux.photograin.model.Adjustments
@@ -124,6 +135,7 @@ fun WhiteBalancePicker(picking: Boolean, onPicking: (Boolean) -> Unit) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ParamSlider(
     label: String,
@@ -137,35 +149,79 @@ internal fun ParamSlider(
 ) {
     var showHelp by remember { mutableStateOf(false) }
     val resetValue by rememberUpdatedState(onReset)
-    // One row per slider (name, track, value) leaves more of the screen to the photo.
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        // A double tap on the name or value resets the slider; a long press explains it.
+    val interaction = remember { MutableInteractionSource() }
+    val dragging by interaction.collectIsDraggedAsState()
+    val colors = MaterialTheme.colorScheme
+    val direction = LocalLayoutDirection.current
+    val bipolar = range.start < 0f && range.endInclusive > 0f
+    val position = ((value - range.start) / (range.endInclusive - range.start)).coerceIn(0f, 1f)
+    val zero = if (bipolar) -range.start / (range.endInclusive - range.start) else 0f
+
+    Column(Modifier.fillMaxWidth().padding(top = 6.dp)) {
+        // Double tap the label or value to reset. Hold either for the control's help.
         val reset = Modifier.pointerInput(help) {
             detectTapGestures(
                 onDoubleTap = { resetValue() },
                 onLongPress = { if (help != null) showHelp = true },
             )
         }
-        Text(
-            label,
-            style = MaterialTheme.typography.labelLarge,
-            maxLines = 2,
-            modifier = reset.width(96.dp),
-        )
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                label,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = reset.weight(1f),
+            )
+            Text(
+                display,
+                style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"),
+                color = if (dragging) colors.primary else colors.onSurfaceVariant,
+                textAlign = TextAlign.End,
+                maxLines = 1,
+                modifier = reset.padding(start = 12.dp),
+            )
+        }
         Slider(
             value = value,
             onValueChange = onChange,
             onValueChangeFinished = onChangeFinished,
             valueRange = range,
-            modifier = Modifier.weight(1f).clearOfEdgeGestures(),
-        )
-        Text(
-            display,
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.primary,
-            textAlign = TextAlign.End,
-            maxLines = 1,
-            modifier = reset.width(48.dp),
+            interactionSource = interaction,
+            modifier = Modifier.fillMaxWidth().clearOfEdgeGestures()
+                .semantics { contentDescription = label },
+            thumb = {
+                Canvas(Modifier.size(18.dp)) {
+                    if (dragging) drawCircle(colors.primary.copy(alpha = 0.20f), radius = 9.dp.toPx())
+                    drawCircle(colors.surface, radius = 6.dp.toPx())
+                    drawCircle(
+                        if (dragging) colors.primary else colors.onSurface,
+                        radius = 6.dp.toPx(),
+                        style = Stroke(1.5.dp.toPx()),
+                    )
+                }
+            },
+            track = {
+                Canvas(Modifier.fillMaxWidth().height(14.dp)) {
+                    fun x(fraction: Float): Float = size.width *
+                        if (direction == LayoutDirection.Rtl) 1f - fraction else fraction
+                    val mid = size.height / 2
+                    drawLine(
+                        colors.onSurface.copy(alpha = 0.32f), Offset(0f, mid), Offset(size.width, mid),
+                        strokeWidth = 1.dp.toPx(), cap = StrokeCap.Round,
+                    )
+                    if (position != zero) {
+                        drawLine(
+                            colors.primary, Offset(x(zero), mid), Offset(x(position), mid),
+                            strokeWidth = 2.dp.toPx(), cap = StrokeCap.Round,
+                        )
+                    }
+                    if (bipolar) {
+                        drawLine(
+                            colors.onSurfaceVariant, Offset(x(zero), mid - 3.dp.toPx()),
+                            Offset(x(zero), mid + 3.dp.toPx()), strokeWidth = 1.dp.toPx(),
+                        )
+                    }
+                }
+            },
         )
     }
     if (showHelp && help != null) {

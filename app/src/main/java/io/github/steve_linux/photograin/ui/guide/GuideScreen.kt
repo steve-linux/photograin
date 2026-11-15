@@ -29,7 +29,7 @@ import androidx.compose.material.icons.outlined.Gradient
 import androidx.compose.material.icons.outlined.Healing
 import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material.icons.outlined.Palette
-import androidx.compose.material.icons.outlined.Save
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Style
 import androidx.compose.material.icons.outlined.TextFields
@@ -72,7 +72,7 @@ private val TOPICS = listOf(
     Topic(Icons.Outlined.TextFields, R.string.guide_decor_title, R.string.guide_decor_body),
     Topic(Icons.Outlined.Crop, R.string.guide_crop_title, R.string.guide_crop_body),
     Topic(Icons.Outlined.ContentCopy, R.string.guide_copy_title, R.string.guide_copy_body),
-    Topic(Icons.Outlined.Save, R.string.guide_export_title, R.string.guide_export_body, Icons.Outlined.Save),
+    Topic(Icons.Outlined.Share, R.string.guide_export_title, R.string.guide_export_body, Icons.Outlined.Share),
     Topic(Icons.Outlined.Settings, R.string.guide_settings_title, R.string.guide_settings_body, Icons.Outlined.Settings),
 )
 

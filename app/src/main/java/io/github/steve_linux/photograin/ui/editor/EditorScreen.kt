@@ -13,8 +13,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.text.BasicText
-import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
@@ -29,7 +27,7 @@ import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.RestartAlt
-import androidx.compose.material.icons.outlined.Save
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -38,17 +36,14 @@ import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconToggleButton
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -64,7 +59,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.steve_linux.photograin.R
 import io.github.steve_linux.photograin.data.ExportOptions
@@ -178,7 +172,8 @@ private fun PhotoWorkspace(viewModel: EditorViewModel, onClose: () -> Unit, onGu
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             if (!fullPhoto) TopAppBar(
-                expandedHeight = 52.dp,
+                expandedHeight = 48.dp,
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
                 title = {
                     Column {
                         Text(
@@ -206,6 +201,9 @@ private fun PhotoWorkspace(viewModel: EditorViewModel, onClose: () -> Unit, onGu
                     }
                 },
                 actions = {
+                    IconButton(onClick = { showInfo = true }, enabled = state.image != null) {
+                        Icon(Icons.Outlined.Info, stringResource(R.string.photo_info))
+                    }
                     IconButton(onClick = viewModel::undo, enabled = state.canUndo) {
                         Icon(Icons.AutoMirrored.Outlined.Undo, stringResource(R.string.undo))
                     }
@@ -213,7 +211,7 @@ private fun PhotoWorkspace(viewModel: EditorViewModel, onClose: () -> Unit, onGu
                         Icon(Icons.Outlined.Compare, stringResource(R.string.compare))
                     }
                     IconButton(onClick = { showExport = true }, enabled = state.image != null) {
-                        Icon(Icons.Outlined.Save, stringResource(R.string.export_title))
+                        Icon(Icons.Outlined.Share, stringResource(R.string.export_title))
                     }
                     Box {
                         IconButton(onClick = { menuOpen = true }) {
@@ -261,12 +259,6 @@ private fun PhotoWorkspace(viewModel: EditorViewModel, onClose: () -> Unit, onGu
                                     menuOpen = false
                                     onGuide(guideTopicFor(state.tool, state.retouchMode))
                                 },
-                            )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.photo_info)) },
-                                leadingIcon = { Icon(Icons.Outlined.Info, null) },
-                                enabled = state.image != null,
-                                onClick = { menuOpen = false; showInfo = true },
                             )
                         }
                     }
@@ -318,6 +310,9 @@ private fun PhotoWorkspace(viewModel: EditorViewModel, onClose: () -> Unit, onGu
             }
             if (state.image != null && !fullPhoto) {
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                if (!showActions && state.tool in colorAndToneTools) {
+                    EditCategoryBar(selected = state.tool, onSelect = ::selectTool)
+                }
                 if (showActions) {
                     QuickActionsBar(onAction = ::quickAction)
                 } else if (state.tool == ToolGroup.LOOK) {
@@ -436,7 +431,6 @@ private fun PhotoWorkspace(viewModel: EditorViewModel, onClose: () -> Unit, onGu
                         )
                     }
                 } else {
-                    EditCategoryBar(selected = state.tool, onSelect = ::selectTool)
                     if (state.tool == ToolGroup.LIGHT) {
                         HistogramPanel(
                             histogram = histogram.value,
@@ -457,25 +451,9 @@ private fun PhotoWorkspace(viewModel: EditorViewModel, onClose: () -> Unit, onGu
                         )
                     } else if (state.tool == ToolGroup.COLOR) {
                         val modes = listOf(R.string.mode_basic, R.string.mode_hsl, R.string.mode_grading, R.string.mode_monochrome)
-                        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
-                            modes.forEachIndexed { index, label ->
-                                SegmentedButton(
-                                    selected = colorMode == index,
-                                    onClick = {
-                                        colorMode = index
-                                        if (index != 0) viewModel.setPicker(Picker.NONE)
-                                    },
-                                    shape = SegmentedButtonDefaults.itemShape(index, modes.size),
-                                    icon = {},
-                                ) {
-                                    BasicText(
-                                        text = stringResource(label),
-                                        style = MaterialTheme.typography.labelLarge.copy(color = LocalContentColor.current),
-                                        maxLines = 1,
-                                        autoSize = TextAutoSize.StepBased(minFontSize = 10.sp, maxFontSize = 14.sp),
-                                    )
-                                }
-                            }
+                        WorkspaceModeTabs(modes, colorMode) { index ->
+                            colorMode = index
+                            if (index != 0) viewModel.setPicker(Picker.NONE)
                         }
                     }
                     when {
@@ -553,8 +531,6 @@ private fun PhotoWorkspace(viewModel: EditorViewModel, onClose: () -> Unit, onGu
     state.exportProgress?.let { ExportProgressDialog(it) }
 }
 
-/** "Basic | Curves" or "Basic | HSL" switch above the Light and Color panels. */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PanelModeSelector(
     secondLabel: Int,
@@ -562,17 +538,8 @@ private fun PanelModeSelector(
     onSelect: (Boolean) -> Unit,
     firstLabel: Int = R.string.mode_basic,
 ) {
-    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
-        SegmentedButton(
-            selected = !showSecond,
-            onClick = { onSelect(false) },
-            shape = SegmentedButtonDefaults.itemShape(0, 2),
-        ) { Text(stringResource(firstLabel)) }
-        SegmentedButton(
-            selected = showSecond,
-            onClick = { onSelect(true) },
-            shape = SegmentedButtonDefaults.itemShape(1, 2),
-        ) { Text(stringResource(secondLabel)) }
+    WorkspaceModeTabs(listOf(firstLabel, secondLabel), if (showSecond) 1 else 0) {
+        onSelect(it == 1)
     }
 }
 
