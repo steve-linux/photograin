@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package io.github.steve_linux.photograin.data
 
+import io.github.steve_linux.photograin.model.RawWhiteBalance
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -28,10 +29,10 @@ interface RegionSource : Closeable {
          * Opens [uri] with [BitmapRegionDecoder] so huge images never need to fit in memory
          * at once, falling back to a full decode for formats it does not support.
          */
-        fun open(context: Context, uri: Uri): RegionSource {
+        fun open(context: Context, uri: Uri, rawHighlight: Int = 2, whiteBalance: RawWhiteBalance = RawWhiteBalance()): RegionSource {
             val resolver = context.contentResolver
             if (RawImage.isRaw(resolver.getType(uri), ImageLoader.queryName(context, uri))) {
-                return BitmapRegionSource(RawImage.develop(context, uri, halfSize = false), ColorSpaces.RAW_WORKING_SPACE)
+                return BitmapRegionSource(RawImage.develop(context, uri, halfSize = false, highlight = rawHighlight, whiteBalance = whiteBalance), ColorSpaces.RAW_WORKING_SPACE)
             }
             if (ImageCodecs.isJxl(resolver.getType(uri), ImageLoader.queryName(context, uri))) {
                 val (bitmap, profile) = ImageCodecs.decodeJxl(context, uri)

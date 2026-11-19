@@ -52,13 +52,13 @@ Java_io_github_steve_1linux_photograin_data_RawImage_nativeProbe(JNIEnv* env, jo
 
 JNIEXPORT jlong JNICALL
 Java_io_github_steve_1linux_photograin_data_RawImage_nativeDevelop(
-        JNIEnv* env, jobject, jstring path, jboolean halfSize) {
+        JNIEnv* env, jobject, jstring path, jboolean halfSize, jint highlight, jint whiteBalance, jfloat red, jfloat blue, jboolean hotPixels) {
     auto* decoder = new RawDecoder();
     if (!open(env, decoder, path)) {
         delete decoder;
         return 0;
     }
-    int ret = decoder->develop(halfSize == JNI_TRUE);
+    int ret = decoder->develop(halfSize == JNI_TRUE, highlight, whiteBalance, red, blue, hotPixels == JNI_TRUE);
     if (ret != 0) {
         delete decoder;
         throwIo(env, RawDecoder::errorMessage(ret));

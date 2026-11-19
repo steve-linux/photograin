@@ -21,8 +21,8 @@ import io.github.steve_linux.photograin.model.BaseOrientation
 import io.github.steve_linux.photograin.model.ColorProfile
 import io.github.steve_linux.photograin.model.CubeLut
 import io.github.steve_linux.photograin.model.EditState
-import io.github.steve_linux.photograin.model.FrameStyle
 import io.github.steve_linux.photograin.model.GeometryMapper
+import io.github.steve_linux.photograin.model.FrameStyle
 import io.github.steve_linux.photograin.model.PxSize
 import io.github.steve_linux.photograin.model.RetouchSpot
 import io.github.steve_linux.photograin.model.Subjects
@@ -119,6 +119,8 @@ object Exporter {
         subjects: Subjects? = null,
         opaque: Boolean = false,
         inpaint: Retoucher.Inpaint? = null,
+        layerBitmaps: Map<String, Bitmap> = emptyMap(),
+        outputSharpen: Float = 0f,
         onProgress: (Float) -> Unit,
     ): Bitmap {
         val mapper = GeometryMapper(source.width, source.height, base, edit.geometry)
@@ -141,10 +143,10 @@ object Exporter {
             val halfFloat = deep && pipeline.halfFloatTargets
             val config = if (halfFloat) Bitmap.Config.RGBA_F16 else Bitmap.Config.ARGB_8888
             val bytesPerPixel = if (halfFloat) 8 else 4
-            val result = Bitmap.createBitmap(layout.size.width, layout.size.height, config, false, colorSpace)
+            val result = Bitmap.createBitmap(layout.size.width, layout.size.height, config, !opaque, colorSpace)
             val canvas = Canvas(result)
             // Colors given in sRGB are converted to the bitmap's space by the canvas.
-            if (edit.frame.style != FrameStyle.NONE) {
+            if (edit.frame.style != FrameStyle.NONE && edit.frame.style != FrameStyle.EXTEND_EDGES) {
                 canvas.drawColor(edit.frame.color)
             } else if (opaque) {
                 canvas.drawColor(Color.WHITE)
@@ -157,7 +159,15 @@ object Exporter {
                 while (sample * 2 <= 1.0 / scale) sample *= 2
                 var tile = if (source is AiUpscaleSource) AI_TILE else TILE
                 val stretch = mapper.perspectiveStretch()
-                while (tile > 256 && regionSpan(tile, margin, scale, sample) * stretch > maxTex) tile /= 2
+                val lens = edit.adjustments.lensDistortion.coerceIn(-1f, 1f)
+                val warpX = ceil(out.width * 0.15 * kotlin.math.abs(lens)).toInt()
+                val warpY = ceil(out.height * 0.15 * kotlin.math.abs(lens)).toInt()
+                val expandedMargin = margin + maxOf(warpX, warpY)
+                while (lens != 0f && regionSpan(256, expandedMargin, scale, sample) * stretch > maxTex &&
+                    sample < maxOf(source.width, source.height)) {
+                    sample *= 2
+                }
+                while (tile > 256 && regionSpan(tile, expandedMargin, scale, sample) * stretch > maxTex) tile /= 2
 
                 val cols = ceil(out.width / tile.toDouble()).toInt()
                 val rows = ceil(out.height / tile.toDouble()).toInt()
@@ -179,7 +189,10 @@ object Exporter {
                     val gw = tw + 2 * margin
                     val gh = th + 2 * margin
 
-                    val region = sourceBounds(outToSource, gx, gy, gw, gh, source.width, source.height)
+                    val region = sourceBounds(
+                        outToSource, gx - warpX, gy - warpY, gw + 2 * warpX, gh + 2 * warpY,
+                        source.width, source.height,
+                    )
                     val bitmap = retouched(source.decode(region, sample), region, sample, source, edit, patches, inpaint)
                     sourceTexture = GlUtil.uploadBitmap(bitmap, sourceTexture)
                     val coveredW = bitmap.width * sample.toDouble()
@@ -193,11 +206,14 @@ object Exporter {
                     pipeline.renderIntermediate(
                         sourceTexture, toUv, gx.toFloat(), gy.toFloat(), gw, gh, out.longEdge,
                         cubicSize = textureSize.takeIf { cubic },
+                        lensAmount = lens,
+                        lensSize = out,
                     )
 
                     target.bind(tw, th)
                     pipeline.renderColor(
                         adjustments = edit.adjustments,
+                        outputSharpen = outputSharpen,
                         lut = lut,
                         clipRect = Pipeline.FULL_CLIP,
                         geoUvRect = floatArrayOf(
@@ -228,17 +244,25 @@ object Exporter {
                         GLES30.glReadPixels(0, 0, tw, th, GLES30.GL_RGBA, GLES30.GL_UNSIGNED_BYTE, pixels)
                     }
                     val tileBitmap = tileBitmaps.getOrPut((tw.toLong() shl 32) or th.toLong()) {
-                        Bitmap.createBitmap(tw, th, config, false, colorSpace)
+                        // The shader writes premultiplied cutout alpha. Tiles must retain it
+                        // even for JPEG, so Canvas composites them over the white destination.
+                        Bitmap.createBitmap(tw, th, config, true, colorSpace)
                     }
                     // A raw copy: setPixels() would treat the values as sRGB and convert them.
                     pixels.position(0)
                     tileBitmap.copyPixelsFromBuffer(pixels)
-                    canvas.drawBitmap(tileBitmap, (tx + layout.imageLeft).toFloat(), (ty + layout.imageTop).toFloat(), null)
+                    val left = tx + layout.imageLeft
+                    val top = ty + layout.imageTop
+                    if (edit.frame.style == FrameStyle.EXTEND_EDGES && layout.imageLeft > 0) {
+                        extendTileEdges(canvas, tileBitmap, left, top, layout.imageLeft, tx, ty, out)
+                    }
+                    canvas.drawBitmap(tileBitmap, left.toFloat(), top.toFloat(), null)
                     onProgress((row * cols + col + 1f) / (rows * cols))
                 }
                 GlUtil.deleteTexture(sourceTexture)
                 target.release()
                 patches.values.forEach { it.bitmap.recycle() }
+                DecorPainter.drawImages(canvas, layout.size, edit.images, layerBitmaps)
                 DecorPainter.drawShapes(canvas, layout.size, edit.shapes)
                 DecorPainter.drawTexts(canvas, layout.size, edit.texts)
                 tileBitmaps.values.forEach(Bitmap::recycle)
@@ -291,6 +315,28 @@ object Exporter {
     }
 
     /** Pixel span of the decoded region for a tile, in the worst (45 degree) case. */
+    /** Extends only the outer rows/columns of each rendered tile into the expanded canvas. */
+    private fun extendTileEdges(canvas: Canvas, tile: Bitmap, left: Int, top: Int, pad: Int, x: Int, y: Int, photo: PxSize) {
+        val w = tile.width
+        val h = tile.height
+        val right = left + w
+        val bottom = top + h
+        val firstX = x == 0
+        val firstY = y == 0
+        val lastX = x + w == photo.width
+        val lastY = y + h == photo.height
+
+        fun stretch(source: Rect, destination: Rect) = canvas.drawBitmap(tile, source, destination, null)
+        if (firstX) stretch(Rect(0, 0, 1, h), Rect(left - pad, top, left, bottom))
+        if (lastX) stretch(Rect(w - 1, 0, w, h), Rect(right, top, right + pad, bottom))
+        if (firstY) stretch(Rect(0, 0, w, 1), Rect(left, top - pad, right, top))
+        if (lastY) stretch(Rect(0, h - 1, w, h), Rect(left, bottom, right, bottom + pad))
+        if (firstX && firstY) stretch(Rect(0, 0, 1, 1), Rect(left - pad, top - pad, left, top))
+        if (lastX && firstY) stretch(Rect(w - 1, 0, w, 1), Rect(right, top - pad, right + pad, top))
+        if (firstX && lastY) stretch(Rect(0, h - 1, 1, h), Rect(left - pad, bottom, left, bottom + pad))
+        if (lastX && lastY) stretch(Rect(w - 1, h - 1, w, h), Rect(right, bottom, right + pad, bottom + pad))
+    }
+
     private fun regionSpan(tile: Int, margin: Int, scale: Double, sample: Int): Double =
         (tile + 2.0 * margin) / scale / sample * 1.4143 + 4
 

@@ -13,9 +13,9 @@ import kotlin.math.sqrt
  * The strokes of a brush mask drawn into an 8-bit grid over the whole source image, at a fixed
  * density ([LONG_EDGE] texels on the long edge) so the preview and the export use the same mask.
  *
- * Painting keeps the strongest value and erasing the weakest, so drawing a stamp twice changes
- * nothing: a stroke that grows can be drawn segment by segment and gives the same result as
- * drawing it whole.
+ * Stamps in one stroke keep the strongest coverage. With partial flow, a stroke is applied
+ * against the grid as it was before that stroke, so the effect builds across separate passes
+ * and stays the same whether the renderer draws a stroke whole or segment by segment.
  */
 class BrushRaster(sourceWidth: Int, sourceHeight: Int) {
     val width: Int
@@ -26,6 +26,8 @@ class BrushRaster(sourceWidth: Int, sourceHeight: Int) {
     private val scale: Double
     private var drawn: List<BrushStroke> = emptyList()
     private var drawnBase: ByteArray? = null
+    /** Coverage before the latest partial-flow stroke, reused for incremental draws. */
+    private var strokeBase: ByteArray? = null
 
     init {
         val size = size(sourceWidth, sourceHeight)
@@ -52,7 +54,7 @@ class BrushRaster(sourceWidth: Int, sourceHeight: Int) {
                 drawnBase = base
             }
             strokes.size == n && n > 0 && samePrefix(strokes, n - 1) && extends(strokes[n - 1], drawn[n - 1]) ->
-                draw(strokes[n - 1], from = drawn[n - 1].pointCount - 1)
+                draw(strokes[n - 1], from = drawn[n - 1].pointCount - 1, extending = true)
             strokes.size == n + 1 && samePrefix(strokes, n) -> draw(strokes[n], from = 0)
             strokes.size == n && samePrefix(strokes, n) -> Unit
             else -> {
@@ -77,20 +79,31 @@ class BrushRaster(sourceWidth: Int, sourceHeight: Int) {
     }
 
     private fun extends(new: BrushStroke, old: BrushStroke): Boolean =
-        !new.fill && !old.fill && new.radius == old.radius && new.hardness == old.hardness && new.erase == old.erase &&
+        old.pointCount > 0 && !new.fill && !old.fill && new.radius == old.radius && new.hardness == old.hardness && new.erase == old.erase &&
+            new.flow == old.flow && new.density == old.density &&
             new.points.size >= old.points.size && new.points.subList(0, old.points.size) == old.points
 
     /** Draws the segments of [stroke] that start at point [from] or later. */
-    private fun draw(stroke: BrushStroke, from: Int) {
+    private fun draw(stroke: BrushStroke, from: Int, extending: Boolean = false) {
         val count = stroke.pointCount
         if (count == 0) return
         if (stroke.fill) {
             fill(stroke)
             return
         }
+        val flow = stroke.flow.coerceIn(0f, 1f)
+        val density = stroke.density.coerceIn(0f, 1f)
+        if (flow == 0f || density == 0f) return
+        val before = if (flow < 1f) {
+            val buffer = strokeBase ?: ByteArray(data.size).also { strokeBase = it }
+            if (!extending) data.copyInto(buffer)
+            buffer
+        } else {
+            null
+        }
         val r = stroke.radius * scale
         if (count == 1) {
-            stamp(px(stroke, 0), py(stroke, 0), r, stroke)
+            stamp(px(stroke, 0), py(stroke, 0), r, stroke, flow, density, before)
             return
         }
         // Each segment places its own evenly spaced stamps, so it draws the same whenever it is drawn.
@@ -103,7 +116,7 @@ class BrushRaster(sourceWidth: Int, sourceHeight: Int) {
             val steps = max(1, ceil(hypot(bx - ax, by - ay) / spacing).toInt())
             for (s in 0..steps) {
                 val t = s.toDouble() / steps
-                stamp(ax + (bx - ax) * t, ay + (by - ay) * t, r, stroke)
+                stamp(ax + (bx - ax) * t, ay + (by - ay) * t, r, stroke, flow, density, before)
             }
         }
     }
@@ -112,7 +125,15 @@ class BrushRaster(sourceWidth: Int, sourceHeight: Int) {
     private fun py(s: BrushStroke, k: Int) = s.points[2 * k + 1] * height.toDouble()
 
     /** A soft disc centered on ([cx], [cy]) texels, of radius [r] texels. */
-    private fun stamp(cx: Double, cy: Double, r: Double, stroke: BrushStroke) {
+    private fun stamp(
+        cx: Double,
+        cy: Double,
+        r: Double,
+        stroke: BrushStroke,
+        flow: Float,
+        density: Float,
+        before: ByteArray?,
+    ) {
         val radius = max(r, 0.5)
         val hard = stroke.hardness.coerceIn(0f, 0.99f).toDouble()
         val x0 = max(0, floor(cx - radius).toInt())
@@ -128,11 +149,22 @@ class BrushRaster(sourceWidth: Int, sourceHeight: Int) {
                 val d2 = dx * dx + dy * dy
                 if (d2 >= r2) continue
                 val t = ((sqrt(d2) / radius - hard) / (1 - hard)).coerceIn(0.0, 1.0)
-                val v = ((1 - t * t * (3 - 2 * t)) * 255).roundToInt()
-                if (v == 0) continue
-                val old = data[row + x].toInt() and 0xFF
-                val new = if (stroke.erase) min(old, 255 - v) else max(old, v)
-                if (new != old) data[row + x] = new.toByte()
+                val coverage = 1 - t * t * (3 - 2 * t)
+                val limit = (coverage * 255 * density).roundToInt()
+                if (limit == 0) continue
+                val index = row + x
+                val strength = if (before == null) {
+                    limit
+                } else {
+                    val base = before[index].toInt() and 0xFF
+                    val initial = if (stroke.erase) 255 - base else base
+                    // Keep low flow from stalling before the cap on the 8-bit grid.
+                    val increment = max(1, ((255 - initial) * flow * coverage).roundToInt())
+                    min(limit, initial + increment)
+                }
+                val old = data[index].toInt() and 0xFF
+                val new = if (stroke.erase) min(old, 255 - strength) else max(old, strength)
+                if (new != old) data[index] = new.toByte()
             }
         }
     }

@@ -4,6 +4,7 @@ package io.github.steve_linux.photograin.ui.editor
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,13 +16,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -32,11 +30,21 @@ import androidx.compose.ui.unit.dp
 import io.github.steve_linux.photograin.R
 import io.github.steve_linux.photograin.model.Hsl
 import io.github.steve_linux.photograin.model.HslBand
+import io.github.steve_linux.photograin.model.HslControl
 
 /** Hue, saturation and luminance for one of eight color bands at a time. */
 @Composable
-fun HslPanel(hsl: Hsl, onChange: (Hsl) -> Unit, onChangeFinished: () -> Unit) {
-    var band by rememberSaveable { mutableStateOf(HslBand.RED) }
+internal fun HslPanel(
+    hsl: Hsl,
+    band: HslBand,
+    onBand: (HslBand) -> Unit,
+    targeting: Boolean,
+    onTargeting: (Boolean) -> Unit,
+    control: HslControl,
+    onControl: (HslControl) -> Unit,
+    onChange: (Hsl) -> Unit,
+    onChangeFinished: () -> Unit,
+) {
     val i = band.ordinal
     Column(
         Modifier
@@ -45,6 +53,26 @@ fun HslPanel(hsl: Hsl, onChange: (Hsl) -> Unit, onChangeFinished: () -> Unit) {
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp, vertical = 4.dp),
     ) {
+        FilterChip(
+            selected = targeting,
+            onClick = { onTargeting(!targeting) },
+            label = { Text(stringResource(R.string.hsl_target)) },
+        )
+        if (targeting) {
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                HslControl.entries.forEach { option ->
+                    FilterChip(
+                        selected = control == option,
+                        onClick = { onControl(option) },
+                        label = { Text(stringResource(option.label())) },
+                    )
+                }
+            }
+            Text(stringResource(R.string.hsl_target_hint), style = MaterialTheme.typography.bodySmall)
+        }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             for (b in HslBand.entries) {
                 val label = stringResource(bandLabel(b))
@@ -58,7 +86,7 @@ fun HslPanel(hsl: Hsl, onChange: (Hsl) -> Unit, onChangeFinished: () -> Unit) {
                             color = MaterialTheme.colorScheme.onSurface,
                             shape = CircleShape,
                         )
-                        .clickable { band = b }
+                        .clickable { onBand(b) }
                         .semantics { contentDescription = label },
                 )
             }
@@ -78,6 +106,12 @@ fun HslPanel(hsl: Hsl, onChange: (Hsl) -> Unit, onChangeFinished: () -> Unit) {
             onChange(hsl.withLuminance(band, 0f)); onChangeFinished()
         }
     }
+}
+
+private fun HslControl.label() = when (this) {
+    HslControl.HUE -> R.string.hsl_hue
+    HslControl.SATURATION -> R.string.hsl_saturation
+    HslControl.LUMINANCE -> R.string.hsl_luminance
 }
 
 @Composable

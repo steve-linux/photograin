@@ -15,10 +15,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import io.github.steve_linux.photograin.model.CropDrag
+import io.github.steve_linux.photograin.model.CropGuide
 import io.github.steve_linux.photograin.model.CropHandle
 import io.github.steve_linux.photograin.model.CropRect
 
@@ -29,6 +31,8 @@ import io.github.steve_linux.photograin.model.CropRect
 @Composable
 fun CropOverlay(
     crop: CropRect,
+    guide: CropGuide,
+    guideOrientation: Int,
     imageRect: RectF,
     aspect: Float?,
     frameWidth: Float,
@@ -92,13 +96,16 @@ fun CropOverlay(
         drawRect(shade, Offset(0f, t), Size(l, b - t))
         drawRect(shade, Offset(r, t), Size(size.width - r, b - t))
 
-        // Rule of thirds, more visible while dragging.
-        val grid = Color.White.copy(alpha = if (handle != null) 0.6f else 0.3f)
-        for (i in 1..2) {
-            val x = l + (r - l) * i / 3
-            val y = t + (b - t) * i / 3
-            drawLine(grid, Offset(x, t), Offset(x, b), strokeWidth = 1.dp.toPx())
-            drawLine(grid, Offset(l, y), Offset(r, y), strokeWidth = 1.dp.toPx())
+        val guideColor = Color.White.copy(alpha = if (handle != null) 0.6f else 0.4f)
+        val guideStroke = Stroke(1.dp.toPx())
+        for (points in guide.paths((r - l).toDouble() / (b - t), guideOrientation)) {
+            val path = Path()
+            points.forEachIndexed { index, point ->
+                val x = l + (r - l) * point.x.toFloat()
+                val y = t + (b - t) * point.y.toFloat()
+                if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
+            }
+            drawPath(path, guideColor, style = guideStroke)
         }
         drawRect(Color.White, Offset(l, t), Size(r - l, b - t), style = Stroke(1.5.dp.toPx()))
 

@@ -14,6 +14,7 @@ import io.github.steve_linux.photograin.model.LocalParams
 import io.github.steve_linux.photograin.model.Mask
 import io.github.steve_linux.photograin.model.MaskType
 import io.github.steve_linux.photograin.render.ShaderParams
+import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -144,5 +145,60 @@ class LocalAdjustmentTest {
         val whole = BrushRaster(1200, 900)
         whole.sync(listOf(BrushStroke(points, 0.04f, 0.3f)))
         assertTrue(live.data.contentEquals(whole.data))
+    }
+
+    @Test
+    fun flowAccumulatesAcrossPassesUpToDensityForPaintAndErase() {
+        val dab = BrushStroke(listOf(0.5f, 0.5f), 0.04f, flow = 0.25f, density = 0.6f)
+        val paint = BrushRaster(1024, 1024)
+        val erase = BrushRaster(1024, 1024)
+        val base = ByteArray(erase.data.size) { 255.toByte() }
+        for ((index, expected) in listOf(64, 112, 148, 153, 153).withIndex()) {
+            val strokes = List(index + 1) { dab }
+            paint.sync(strokes)
+            erase.sync(strokes.map { it.copy(erase = true) }, base)
+            assertEquals(expected / 255f, paint.valueAt(0.5f, 0.5f), 0f)
+            assertEquals((255 - expected) / 255f, erase.valueAt(0.5f, 0.5f), 0f)
+        }
+        assertEquals(0f, paint.valueAt(0.1f, 0.1f), 0f)
+        assertEquals(1f, erase.valueAt(0.1f, 0.1f), 0f)
+        paint.sync(listOf(dab.copy(flow = 0f)))
+        assertEquals(0f, paint.valueAt(0.5f, 0.5f), 0f)
+    }
+
+    @Test
+    fun partialFlowMatchesReplayWithIncrementalDrawAndUndoRedo() {
+        val points = listOf(0.25f, 0.4f, 0.5f, 0.4f, 0.55f, 0.43f, 0.5f, 0.4f)
+        val stroke = BrushStroke(points, 0.05f, flow = 0.3f, density = 0.8f)
+        val base = ByteArray(1024 * 512) { 40 }
+        val previous = stroke.copy(points = listOf(0.5f, 0.4f))
+        val live = BrushRaster(1024, 512)
+        live.sync(listOf(previous), base)
+        val before = live.data.copyOf()
+        for (n in 2..points.size step 2) {
+            live.sync(listOf(previous, stroke.copy(points = points.take(n), erase = true)), base)
+        }
+        val after = live.data.copyOf()
+        val replay = BrushRaster(1024, 512)
+        val completed = listOf(previous, stroke.copy(erase = true))
+        replay.sync(completed, base)
+        assertTrue(after.contentEquals(replay.data))
+        assertTrue(!after.contentEquals(before))
+        live.sync(listOf(previous), base)
+        assertTrue(before.contentEquals(live.data))
+        live.sync(completed, base)
+        assertTrue(after.contentEquals(live.data))
+    }
+
+    @Test
+    fun brushSettingsRoundTripAndLegacyStrokesKeepFullStrength() {
+        val legacy = Json.decodeFromString<BrushStroke>("""{"points":[0.5,0.5],"radius":0.04}""")
+        assertEquals(1f, legacy.flow, 0f)
+        assertEquals(1f, legacy.density, 0f)
+        val raster = BrushRaster(1024, 512)
+        raster.sync(listOf(legacy))
+        assertEquals(1f, raster.valueAt(0.5f, 0.5f), 0f)
+        val stroke = legacy.copy(flow = 0.22f, density = 0.42f)
+        assertEquals(stroke, Json.decodeFromString<BrushStroke>(Json.encodeToString(stroke)))
     }
 }

@@ -158,7 +158,15 @@ data class Curves(
 
 /** The eight hue bands of the HSL tool. */
 enum class HslBand(val hueDegrees: Float) {
-    RED(0f), ORANGE(30f), YELLOW(60f), GREEN(120f), AQUA(180f), BLUE(240f), PURPLE(270f), MAGENTA(300f),
+    RED(0f), ORANGE(30f), YELLOW(60f), GREEN(120f), AQUA(180f), BLUE(240f), PURPLE(270f), MAGENTA(300f);
+
+    companion object {
+        internal fun fromColor(r: Float, g: Float, b: Float): HslBand? {
+            if (maxOf(r, g, b) - minOf(r, g, b) < 0.025f) return null
+            val hue = 360f * MaskRange.hueOf(r, g, b)
+            return entries.minBy { abs((hue - it.hueDegrees + 180f).mod(360f) - 180f) }
+        }
+    }
 }
 
 /** Per-band hue shift, saturation and luminance, each -1..1. */
@@ -179,5 +187,21 @@ data class Hsl(
 
     companion object {
         val ZERO = List(8) { 0f }
+    }
+}
+
+internal enum class HslControl {
+    HUE, SATURATION, LUMINANCE;
+
+    fun value(hsl: Hsl, band: HslBand): Float = when (this) {
+        HUE -> hsl.hue
+        SATURATION -> hsl.saturation
+        LUMINANCE -> hsl.luminance
+    }.getOrElse(band.ordinal) { 0f }
+
+    fun update(hsl: Hsl, band: HslBand, value: Float): Hsl = when (this) {
+        HUE -> hsl.withHue(band, value)
+        SATURATION -> hsl.withSaturation(band, value)
+        LUMINANCE -> hsl.withLuminance(band, value)
     }
 }

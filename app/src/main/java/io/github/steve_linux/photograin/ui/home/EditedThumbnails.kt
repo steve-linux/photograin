@@ -44,12 +44,18 @@ object EditedThumbnails {
             try {
                 val base = ImageLoader.baseOrientation(context, uri)
                 val lut = edit.adjustments.look.lutId?.let { LookLibrary(context).loadLut(it) }
-                RegionSource.open(context, uri).use {
-                    val subjects = SubjectSegmenter.forEdit(context, it, base, edit)
-                    Exporter.render(
-                        it, base, edit, lut, size, ColorProfile.SRGB, subjects = subjects, inpaint = ObjectRemover.with(context),
-                    ) {}
-                }.also { cache.put(key, it) }
+                val layers = io.github.steve_linux.photograin.data.ImageLayerStore(context).load(edit.images.map { it.id }.toSet())
+                try {
+                    RegionSource.open(context, uri, edit.rawHighlight.libRawMode, edit.rawWhiteBalance).use {
+                        val subjects = SubjectSegmenter.forEdit(context, it, base, edit)
+                        Exporter.render(
+                            it, base, edit, lut, size, ColorProfile.SRGB, subjects = subjects, inpaint = ObjectRemover.with(context),
+                            layerBitmaps = layers,
+                        ) {}
+                    }.also { cache.put(key, it) }
+                } finally {
+                    layers.values.forEach(Bitmap::recycle)
+                }
             } catch (e: Exception) {
                 Log.w(TAG, "Cannot render $uri", e)
                 null

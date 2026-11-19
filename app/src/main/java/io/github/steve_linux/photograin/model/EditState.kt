@@ -20,6 +20,11 @@ data class EditState(
     val texts: List<TextItem> = emptyList(),
     /** Lines, arrows and boxes, drawn under the texts. */
     val shapes: List<ShapeItem> = emptyList(),
+    val images: List<ImageLayer> = emptyList(),
+    val gpsLatitude: Double? = null,
+    val gpsLongitude: Double? = null,
+    val rawHighlight: RawHighlight = RawHighlight.BLEND,
+    val rawWhiteBalance: RawWhiteBalance = RawWhiteBalance(),
 ) {
     fun toJson(): String = json.encodeToString(Recipe(version = Recipe.CURRENT_VERSION, edit = this))
 
@@ -43,3 +48,18 @@ private data class Recipe(val version: Int, val edit: EditState) {
         const val CURRENT_VERSION = 1
     }
 }
+
+/** LibRaw highlight handling, applied during development before the editor adjustments. */
+@Serializable
+enum class RawHighlight(val libRawMode: Int) { CLIP(0), UNCLIP(1), BLEND(2), RECONSTRUCT(5) }
+
+@Serializable
+enum class RawWhiteBalanceMode { CAMERA, AUTO, MANUAL }
+
+@Serializable
+data class RawWhiteBalance(
+    val mode: RawWhiteBalanceMode = RawWhiteBalanceMode.CAMERA,
+    val red: Float = 1f,
+    val blue: Float = 1f,
+    val hotPixels: Boolean = false,
+)

@@ -6,6 +6,8 @@ import android.net.Uri
 import androidx.annotation.StringRes
 import androidx.exifinterface.media.ExifInterface
 import io.github.steve_linux.photograin.R
+import io.github.steve_linux.photograin.model.GalleryOrder
+import java.time.LocalDateTime
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -66,10 +68,20 @@ data class MetadataEntry(val group: MetadataGroup, @param:StringRes val label: I
 
 object Metadata {
     /** The EXIF data of the photo at [uri] worth showing, grouped as [MetadataGroup]; empty if none. */
-    fun read(context: Context, uri: Uri): List<MetadataEntry> {
-        val exif = runCatching {
-            context.contentResolver.openInputStream(uri)?.use { ExifInterface(it) }
-        }.getOrNull() ?: return emptyList()
+    fun read(context: Context, uri: Uri): List<MetadataEntry> =
+        openExif(context, uri)?.let(::entries).orEmpty()
+
+    internal fun readForGallery(context: Context, uri: Uri): Pair<List<MetadataEntry>, LocalDateTime?> {
+        val exif = openExif(context, uri) ?: return emptyList<MetadataEntry>() to null
+        val date = GalleryOrder.captureTime(exif.getAttribute(ExifInterface.TAG_DATETIME_ORIGINAL))
+        return entries(exif) to date
+    }
+
+    private fun openExif(context: Context, uri: Uri): ExifInterface? = runCatching {
+        context.contentResolver.openInputStream(uri)?.use { ExifInterface(it) }
+    }.getOrNull()
+
+    private fun entries(exif: ExifInterface): List<MetadataEntry> {
         val out = ArrayList<MetadataEntry>()
         fun add(group: MetadataGroup, label: Int, value: String?) {
             if (!value.isNullOrBlank()) out += MetadataEntry(group, label, value.trim())

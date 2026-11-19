@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package io.github.steve_linux.photograin.data
 
+import io.github.steve_linux.photograin.model.RawWhiteBalance
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -24,17 +25,19 @@ class LoadedImage(
     val mimeType: String?,
     /** Color space of [preview] and of the regions decoded for export. */
     val profile: ColorProfile,
+    val rawHighlight: Int? = null,
+    val rawWhiteBalance: RawWhiteBalance = RawWhiteBalance(),
 )
 
 object ImageLoader {
     /** Long edge of the preview bitmap. Large enough for tablets, small enough to stay fluid. */
     const val PREVIEW_LONG_EDGE = 2560
 
-    fun load(context: Context, uri: Uri, maxLongEdge: Int = PREVIEW_LONG_EDGE): LoadedImage {
+    fun load(context: Context, uri: Uri, maxLongEdge: Int = PREVIEW_LONG_EDGE, rawHighlight: Int = 2, whiteBalance: RawWhiteBalance = RawWhiteBalance()): LoadedImage {
         val resolver = context.contentResolver
         val name = queryName(context, uri)
         val mime = resolver.getType(uri)
-        if (RawImage.isRaw(mime, name)) return loadRaw(context, uri, name, mime, maxLongEdge)
+        if (RawImage.isRaw(mime, name)) return loadRaw(context, uri, name, mime, maxLongEdge, rawHighlight, whiteBalance)
         if (ImageCodecs.isJxl(mime, name)) return loadJxl(context, uri, name, maxLongEdge)
 
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
@@ -67,9 +70,9 @@ object ImageLoader {
     }
 
     /** RAW previews skip demosaicing (half size), which is plenty for a screen and much faster. */
-    private fun loadRaw(context: Context, uri: Uri, name: String?, mime: String?, maxLongEdge: Int): LoadedImage {
+    private fun loadRaw(context: Context, uri: Uri, name: String?, mime: String?, maxLongEdge: Int, highlight: Int, whiteBalance: RawWhiteBalance): LoadedImage {
         val info = RawImage.probe(context, uri)
-        val developed = RawImage.develop(context, uri, halfSize = max(info.width, info.height) >= maxLongEdge)
+        val developed = RawImage.develop(context, uri, halfSize = max(info.width, info.height) >= maxLongEdge, highlight = highlight, whiteBalance = whiteBalance)
         return LoadedImage(
             uri = uri,
             preview = scaleDown(developed, maxLongEdge),
@@ -79,6 +82,8 @@ object ImageLoader {
             displayName = name,
             mimeType = mime,
             profile = ColorSpaces.RAW_WORKING_SPACE,
+            rawHighlight = highlight,
+            rawWhiteBalance = whiteBalance,
         )
     }
 

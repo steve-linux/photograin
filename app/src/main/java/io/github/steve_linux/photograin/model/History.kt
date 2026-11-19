@@ -11,6 +11,16 @@ class History<T>(initial: T) {
 
     val canUndo get() = undoStack.isNotEmpty()
     val canRedo get() = redoStack.isNotEmpty()
+    val position get() = undoStack.size
+
+    fun steps(): List<T> = undoStack.toList() + current + redoStack.reversed()
+
+    fun goTo(index: Int): T {
+        if (index !in steps().indices) return current
+        while (undoStack.size > index) undo()
+        while (undoStack.size < index) redo()
+        return current
+    }
 
     /** Records [state] as a new step. Does nothing if it equals the current state. */
     fun commit(state: T) {

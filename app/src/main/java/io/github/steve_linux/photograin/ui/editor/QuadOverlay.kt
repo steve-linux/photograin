@@ -25,7 +25,7 @@ import io.github.steve_linux.photograin.model.Quad
  * dragged by itself. Lines join them so it shows which edges will become straight.
  */
 @Composable
-fun QuadOverlay(quad: Quad, imageRect: RectF, onChange: (Quad) -> Unit) {
+fun QuadOverlay(quad: Quad, imageRect: RectF, onChange: (Quad) -> Unit, verticalGuides: Boolean = false) {
     val currentQuad by rememberUpdatedState(quad)
     val currentRect by rememberUpdatedState(imageRect)
     var corner by remember { mutableStateOf<Int?>(null) }
@@ -67,6 +67,10 @@ fun QuadOverlay(quad: Quad, imageRect: RectF, onChange: (Quad) -> Unit) {
         }
         drawPath(outline, Color.Black.copy(alpha = 0.5f), style = Stroke(3.dp.toPx()))
         drawPath(outline, Color.White, style = Stroke(1.5.dp.toPx()))
+        if (verticalGuides) {
+            drawLine(Color.Yellow, p[0], p[3], strokeWidth = 3.dp.toPx())
+            drawLine(Color.Yellow, p[1], p[2], strokeWidth = 3.dp.toPx())
+        }
         // Lines through the middle of opposite sides, which will end up level and upright.
         val guide = Color.White.copy(alpha = 0.45f)
         drawLine(guide, (p[0] + p[3]) / 2f, (p[1] + p[2]) / 2f, strokeWidth = 1.dp.toPx())

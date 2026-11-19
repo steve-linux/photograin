@@ -80,6 +80,34 @@ class RemovalTest {
     }
 
     @Test
+    fun removalDoesNotBlendTheObjectBackInsideTheBrush() {
+        val crop = Removal.crop(listOf(dot), 4000, 3000)!!
+        val n = Removal.MODEL_SIZE
+        val before = Removal.raster(listOf(dot), crop, 4000, 3000, n, n)
+        val blend = Removal.blendRaster(listOf(dot), crop, 4000, 3000, n, n)
+        val holes = Removal.raster(listOf(dot), crop, 4000, 3000, n, n, Removal.GROW)
+        val inside = (n / 2) * n + n / 2 + 110
+        assertTrue((before[inside].toInt() and 255) in 1..254)
+        assertEquals(255, blend[inside].toInt() and 255)
+        assertTrue(blend.any { (it.toInt() and 255) in 1..254 })
+        for (i in blend.indices) if (blend[i] != 0.toByte()) assertTrue(holes[i] != 0.toByte())
+        assertEquals(0, blend[0].toInt())
+    }
+
+    @Test
+    fun removalFeatherScalesWithExportResolution() {
+        val crop = intArrayOf(0, 0, 1024, 1024)
+        val stroke = BrushStroke(listOf(0.5f, 0.5f), radius = 0.1f)
+        val small = Removal.blendRaster(listOf(stroke), crop, 1024, 1024, 512, 512)
+        val large = Removal.blendRaster(listOf(stroke), crop, 1024, 1024, 1024, 1024)
+        // At either size, all painted pixels are replaced; only the external fringe is soft.
+        assertEquals(255, small[256 * 512 + 306].toInt() and 255)
+        assertEquals(255, large[512 * 1024 + 613].toInt() and 255)
+        assertEquals(0, small[256 * 512 + 310].toInt() and 255)
+        assertEquals(0, large[512 * 1024 + 620].toInt() and 255)
+    }
+
+    @Test
     fun paddingMirrorsTheImage() {
         // A 3 x 2 image: each pixel's red is its index.
         val rgba = ByteArray(3 * 2 * 4) { if (it % 4 == 0) (it / 4).toByte() else 0 }

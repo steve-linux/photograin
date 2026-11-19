@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import io.github.steve_linux.photograin.model.Adjustments
+import io.github.steve_linux.photograin.model.CropGuide
 import kotlinx.serialization.json.Json
 
 /** Recently edited photos and the copied adjustments, kept in SharedPreferences. */
@@ -36,6 +37,20 @@ class Preferences(private val context: Context) {
                 if (value == null) remove(KEY_COPIED) else putString(KEY_COPIED, json.encodeToString(Adjustments.serializer(), value))
             }.apply()
         }
+
+    var copiedAutomaticMasks: List<io.github.steve_linux.photograin.model.LocalAdjustment>
+        get() = prefs.getString("copied_automatic_masks", null)?.let {
+            io.github.steve_linux.photograin.model.EditState.fromJson(it)?.masks
+        }.orEmpty()
+        set(value) {
+            prefs.edit().putString("copied_automatic_masks", io.github.steve_linux.photograin.model.EditState(masks = value).toJson()).apply()
+        }
+
+    var cropGuide: CropGuide
+        get() = prefs.getString("crop_guide", null).let { saved ->
+            CropGuide.entries.firstOrNull { it.name == saved } ?: CropGuide.THIRDS
+        }
+        set(value) = prefs.edit().putString("crop_guide", value.name).apply()
 
     /** Whether the home screen tip about saving presets was closed. */
     var presetTipDismissed: Boolean

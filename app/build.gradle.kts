@@ -74,6 +74,7 @@ kotlin {
 }
 
 dependencies {
+    implementation("cz.adaptech.tesseract4android:tesseract4android:4.9.0")
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)

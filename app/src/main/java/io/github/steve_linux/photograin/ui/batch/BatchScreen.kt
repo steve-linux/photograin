@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -67,6 +69,15 @@ fun BatchScreen(viewModel: BatchViewModel, onClose: () -> Unit) {
     val settings by SettingsStore.get(LocalContext.current).state.collectAsStateWithLifecycle()
     var showExport by rememberSaveable { mutableStateOf(false) }
     var pendingOptions by remember { mutableStateOf<ExportOptions?>(null) }
+    val context = LocalContext.current
+    val profiles = remember(context) { context.getSharedPreferences("export_profiles", android.content.Context.MODE_PRIVATE) }
+    var showMulti by rememberSaveable { mutableStateOf(false) }
+    var selectedProfiles by remember { mutableStateOf(emptySet<String>()) }
+    var pendingMulti by remember { mutableStateOf(emptyList<ExportOptions>()) }
+    val multiFolderPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { tree: Uri? ->
+        if (tree != null) viewModel.runProfiles(pendingMulti, tree)
+        pendingMulti = emptyList()
+    }
     val folderPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { tree: Uri? ->
         val options = pendingOptions
         if (tree != null && options != null) viewModel.run(options, tree)
@@ -166,6 +177,16 @@ fun BatchScreen(viewModel: BatchViewModel, onClose: () -> Unit) {
                             modifier = Modifier.padding(vertical = 4.dp),
                         )
                     }
+                    if (state.availableMasks > 0) {
+                        FilterChip(selected = state.copyMasks, onClick = { viewModel.setCopyMasks(!state.copyMasks) },
+                            label = { Text(stringResource(R.string.batch_copy_masks)) })
+                    }
+                    if (state.source != null && profiles.all.isNotEmpty()) {
+                        androidx.compose.material3.TextButton(onClick = {
+                            selectedProfiles = emptySet()
+                            showMulti = true
+                        }) { Text(stringResource(R.string.batch_multi_export)) }
+                    }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(
                             onClick = { viewModel.run(null) },
@@ -183,9 +204,47 @@ fun BatchScreen(viewModel: BatchViewModel, onClose: () -> Unit) {
         }
     }
 
+    if (showMulti) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showMulti = false },
+            title = { Text(stringResource(R.string.batch_multi_export)) },
+            text = {
+                Column(Modifier.heightIn(max = 320.dp).verticalScroll(rememberScrollState())) {
+                    for (name in profiles.all.keys.sorted()) {
+                        FilterChip(selected = name in selectedProfiles, onClick = {
+                            selectedProfiles = if (name in selectedProfiles) selectedProfiles - name else selectedProfiles + name
+                        }, label = { Text(name) })
+                    }
+                }
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(enabled = selectedProfiles.isNotEmpty(), onClick = {
+                    val options = selectedProfiles.sorted().mapNotNull { name ->
+                        profiles.getString(name, null)?.let {
+                            runCatching { kotlinx.serialization.json.Json.decodeFromString(ExportOptions.serializer(), it) }.getOrNull()
+                        }
+                    }
+                    showMulti = false
+                    if (options.isNotEmpty()) {
+                        if (ExportDestination.isAutomatic(settings)) viewModel.runProfiles(options)
+                        else {
+                            pendingMulti = options
+                            multiFolderPicker.launch(null)
+                        }
+                    }
+                }) { Text(stringResource(R.string.batch_export)) }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { showMulti = false }) {
+                    Text(stringResource(R.string.close))
+                }
+            },
+        )
+    }
     if (showExport) {
         ExportDialog(
             initial = settings.export,
+            batch = true,
             sizeFor = { null },
             onDismiss = { showExport = false },
             onExport = { options ->

@@ -55,6 +55,10 @@ Editor fotografico non distruttivo per Android, libero (GPL-3.0-or-later) e pens
 - **Nessun permesso** richiesto: si apre tramite le finestre di sistema e si salva in `Immagini`
   tramite MediaStore (da Android 10) o nella cartella scelta.
 
+## Guida utente
+
+La [guida di Photograin](docs/USER_GUIDE.md) descrive i pannelli, la composizione di più foto, l’estensione dei bordi e le opzioni di esportazione.
+
 ## Architettura
 
 ```

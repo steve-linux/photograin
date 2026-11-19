@@ -7,6 +7,7 @@ import android.graphics.ColorSpace
 import android.net.Uri
 import android.os.Build
 import androidx.exifinterface.media.ExifInterface
+import io.github.steve_linux.photograin.model.HighlightGain
 import io.github.steve_linux.photograin.model.ColorProfile
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -15,6 +16,7 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.zip.Inflater
 
+@kotlinx.serialization.Serializable
 enum class ExportFormat(
     val mimeType: String,
     val extension: String,
@@ -32,9 +34,12 @@ enum class ExportFormat(
     /** At quality 100 JPEG XL is mathematically lossless. */
     JXL("image/jxl", "jxl", "JPEG XL", lossy = true),
     /** 16 bits per channel, for further editing or printing: large files, no rounding to 8 bits. */
-    TIFF("image/tiff", "tif", "TIFF 16 bit", lossy = false, deep = true),
+    TIFF("image/tiff", "tif", "TIFF 16 bit", lossy = false, deep = true);
+
+    val supportsSizeLimit: Boolean get() = this == JPEG || this == WEBP
 }
 
+@kotlinx.serialization.Serializable
 data class ExportOptions(
     val format: ExportFormat = ExportFormat.JPEG,
     val quality: Int = 92,
@@ -52,7 +57,22 @@ data class ExportOptions(
     val keepMetadata: Boolean = true,
     /** Kinds of metadata left out even when [keepMetadata] is on; location follows [keepLocation]. */
     val dropped: Set<MetadataGroup> = emptySet(),
+    val maxFileSizeKb: Int? = null,
+    val metadataEdits: ExportMetadataEdits = ExportMetadataEdits(),
+    val ultraHdr: Boolean = false,
+    val gpsLatitude: Double? = null,
+    val gpsLongitude: Double? = null,
+    val printPpi: Int? = null,
+    val outputSharpen: Float = 0f,
+    val batchPrefix: String = "",
+    val batchStart: Int = 1,
+    val hdrHighlightStops: Float = HighlightGain.DEFAULT_STOPS,
+    val hdrHighlightThreshold: Float = HighlightGain.DEFAULT_THRESHOLD,
 ) {
+    /** Only formats with a tunable Android encoder support a byte limit. */
+    val effectiveMaxBytes: Long?
+        get() = maxFileSizeKb?.takeIf { it > 0 && format.supportsSizeLimit }?.times(1000L)
+
     /** The kinds of metadata this export carries. */
     val keptGroups: List<MetadataGroup>
         get() = if (!keepMetadata) {
@@ -61,6 +81,44 @@ data class ExportOptions(
             MetadataGroup.entries.filter { it !in dropped && (it != MetadataGroup.LOCATION || keepLocation) }
         }
 }
+
+/** User-supplied EXIF values for the exported copy. Blank fields preserve the export defaults. */
+@kotlinx.serialization.Serializable
+data class ExportMetadataEdits(
+    val author: String = "",
+    val copyright: String = "",
+    val description: String = "",
+    val date: String = "",
+) {
+    internal fun applyTo(target: ExifInterface) {
+        if (author.isNotBlank()) target.setAttribute(ExifInterface.TAG_ARTIST, author.trim())
+        if (copyright.isNotBlank()) target.setAttribute(ExifInterface.TAG_COPYRIGHT, copyright.trim())
+        if (description.isNotBlank()) target.setAttribute(ExifInterface.TAG_IMAGE_DESCRIPTION, description.trim())
+        if (date.isNotBlank()) {
+            val stamp = java.time.LocalDateTime.parse(date).format(EXIF_DATE)
+            target.setAttribute(ExifInterface.TAG_DATETIME_ORIGINAL, stamp)
+            target.setAttribute(ExifInterface.TAG_DATETIME_DIGITIZED, stamp)
+            target.setAttribute(ExifInterface.TAG_DATETIME, stamp)
+            target.setAttribute(ExifInterface.TAG_OFFSET_TIME_ORIGINAL, null)
+            target.setAttribute(ExifInterface.TAG_OFFSET_TIME_DIGITIZED, null)
+            target.setAttribute(ExifInterface.TAG_OFFSET_TIME, null)
+            target.setAttribute(ExifInterface.TAG_SUBSEC_TIME_ORIGINAL, null)
+            target.setAttribute(ExifInterface.TAG_SUBSEC_TIME_DIGITIZED, null)
+            target.setAttribute(ExifInterface.TAG_SUBSEC_TIME, null)
+        }
+    }
+
+    companion object {
+        private val EXIF_DATE = java.time.format.DateTimeFormatter.ofPattern("uuuu:MM:dd HH:mm:ss", java.util.Locale.ROOT)
+
+        fun validDate(text: String): Boolean = text.isBlank() || runCatching {
+            text.matches(Regex("[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}")) &&
+                java.time.LocalDateTime.parse(text).year in 1..9999
+        }.getOrDefault(false)
+    }
+}
+
+class ExportSizeLimitException : IOException("The encoded image cannot fit the requested size")
 
 /** Encodes a rendered bitmap, carries over useful metadata and writes it to a user-chosen document. */
 object ExportWriter {
@@ -85,10 +143,36 @@ object ExportWriter {
         }
         val tmp = File.createTempFile("export", ".${options.format.extension}", context.cacheDir)
         try {
-            tmp.outputStream().use { out ->
-                check(bitmap.compress(compressFormat(options.format), options.quality, out)) { "Encoding failed" }
+            fun encode(image: Bitmap, quality: Int) {
+                val gain = if (options.ultraHdr && options.format == ExportFormat.JPEG && Build.VERSION.SDK_INT >= 34) {
+                    attachHighlightGainMap(image, options)
+                } else null
+                try {
+                    tmp.outputStream().use { out ->
+                        check(image.compress(compressFormat(options.format), quality, out)) { "Encoding failed" }
+                    }
+                } finally {
+                    if (Build.VERSION.SDK_INT >= 34 && gain != null) image.setGainmap(null)
+                    gain?.recycle()
+                }
+                runCatching { copyMetadata(context, original, tmp, options) }
+                if (gain != null && Build.VERSION.SDK_INT >= 34) {
+                    val bounds = android.graphics.BitmapFactory.Options().apply { inSampleSize = 8 }
+                    val decoded = android.graphics.BitmapFactory.decodeFile(tmp.path, bounds)
+                    try {
+                        check(decoded?.hasGainmap() == true) { "JPEG gain map was lost during encoding" }
+                    } finally {
+                        decoded?.recycle()
+                    }
+                }
             }
-            runCatching { copyMetadata(context, original, tmp, options) }
+
+            val limit = options.effectiveMaxBytes
+            if (limit == null) {
+                encode(bitmap, options.quality)
+            } else {
+                encodeWithinLimit(bitmap, options.quality, limit, tmp, ::encode)
+            }
             val out = context.contentResolver.openOutputStream(destination, "wt")
                 ?: throw IOException("Cannot write $destination")
             out.use { stream -> tmp.inputStream().use { it.copyTo(stream) } }
@@ -97,11 +181,99 @@ object ExportWriter {
         }
     }
 
+    private fun encodeWithinLimit(
+        original: Bitmap,
+        quality: Int,
+        limit: Long,
+        file: File,
+        encode: (Bitmap, Int) -> Unit,
+    ) {
+        val topQuality = quality.coerceIn(0, 100)
+        val bottomQuality = minOf(topQuality, 45)
+        var image = original
+        try {
+            while (true) {
+                encode(image, topQuality)
+                if (file.length() <= limit) return
+
+                if (bottomQuality < topQuality) encode(image, bottomQuality)
+                val smallest = file.length()
+                if (smallest <= limit) {
+                    var best = bottomQuality
+                    var upper = topQuality - 1
+                    var current = bottomQuality
+                    while (best < upper) {
+                        current = (best + upper + 1) / 2
+                        encode(image, current)
+                        if (file.length() <= limit) best = current else upper = current - 1
+                    }
+                    if (current != best) encode(image, best)
+                    if (file.length() > limit) throw ExportSizeLimitException()
+                    return
+                }
+
+                if (image.width == 1 && image.height == 1) throw ExportSizeLimitException()
+                val scale = (kotlin.math.sqrt(limit.toDouble() / smallest) * 0.95).coerceIn(0.1, 0.8)
+                val width = (image.width * scale).toInt().coerceAtLeast(1)
+                val height = (image.height * scale).toInt().coerceAtLeast(1)
+                val resized = Bitmap.createScaledBitmap(original, width, height, true)
+                if (image !== original) image.recycle()
+                image = resized
+            }
+        } finally {
+            if (image !== original) image.recycle()
+        }
+    }
+
+    /** Creates an SDR-to-HDR highlight expansion map from the rendered JPEG base. */
+    @androidx.annotation.RequiresApi(34)
+    private fun attachHighlightGainMap(image: Bitmap, options: ExportOptions): Bitmap {
+        val width = ((image.width + 7) / 8).coerceAtLeast(1)
+        val height = ((image.height + 7) / 8).coerceAtLeast(1)
+        val reduced = Bitmap.createScaledBitmap(image, width, height, true)
+        val pixels = IntArray(width * height)
+        try {
+            reduced.getPixels(pixels, 0, width, 0, 0, width, height)
+        } finally {
+            if (reduced !== image) reduced.recycle()
+        }
+        for (index in pixels.indices) {
+            val value = HighlightGain.encode(pixels[index], options.hdrHighlightThreshold)
+            pixels[index] = android.graphics.Color.rgb(value, value, value)
+        }
+        val contents = Bitmap.createBitmap(pixels, width, height, Bitmap.Config.ARGB_8888)
+        val ratio = HighlightGain.ratio(options.hdrHighlightStops)
+        val map = android.graphics.Gainmap(contents).apply {
+            setRatioMin(1f, 1f, 1f)
+            setRatioMax(ratio, ratio, ratio)
+            setGamma(1f, 1f, 1f)
+            setMinDisplayRatioForHdrTransition(1f)
+            setDisplayRatioForFullHdr(ratio)
+        }
+        image.setGainmap(map)
+        return contents
+    }
+
     private fun copyMetadata(context: Context, original: Uri, file: File, options: ExportOptions) {
-        val source = context.contentResolver.openInputStream(original)?.use { ExifInterface(it) } ?: return
+        val source = runCatching {
+            context.contentResolver.openInputStream(original)?.use { ExifInterface(it) }
+        }.getOrNull()
         val target = ExifInterface(file)
         val tags = options.keptGroups.flatMap { it.tags }
-        for (tag in tags) source.getAttribute(tag)?.let { target.setAttribute(tag, it) }
+        for (tag in tags) source?.getAttribute(tag)?.let { target.setAttribute(tag, it) }
+        if (options.keepMetadata) options.metadataEdits.applyTo(target)
+        val latitude = options.gpsLatitude
+        val longitude = options.gpsLongitude
+        if (MetadataGroup.LOCATION in options.keptGroups && latitude != null && longitude != null &&
+            latitude in -90.0..90.0 && longitude in -180.0..180.0) {
+            for (tag in MetadataGroup.LOCATION.tags) target.setAttribute(tag, null)
+            target.setLatLong(latitude, longitude)
+        }
+        options.printPpi?.takeIf { it in 1..2400 }?.let {
+            target.setAttribute(ExifInterface.TAG_X_RESOLUTION, "$it/1")
+            target.setAttribute(ExifInterface.TAG_Y_RESOLUTION, "$it/1")
+            target.setAttribute(ExifInterface.TAG_RESOLUTION_UNIT, "2")
+        }
         target.setAttribute(ExifInterface.TAG_SOFTWARE, "Photograin")
         // EXIF can only name sRGB; anything else is "uncalibrated" and described by the embedded ICC profile.
         target.setAttribute(
@@ -131,7 +303,7 @@ object ExportWriter {
         var halves = buffer.asShortBuffer()
         val tmp = File.createTempFile("export", ".tif", context.cacheDir)
         try {
-            TiffWriter.write(tmp, w, bitmap.height, icc, exif, "Photograin") { y, samples ->
+            TiffWriter.write(tmp, w, bitmap.height, icc, exif, "Photograin", ppi = options.printPpi ?: 72) { y, samples ->
                 if (bandTop < 0 || y >= bandTop + bandRows) {
                     bandTop = y
                     bandRows = minOf(band, bitmap.height - y)

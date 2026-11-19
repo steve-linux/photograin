@@ -43,6 +43,7 @@ object TiffWriter {
         icc: ByteArray?,
         exif: ByteArray?,
         software: String,
+        ppi: Int = 72,
         row: (y: Int, samples: ShortArray) -> Unit,
     ) {
         require(width > 0 && height > 0)
@@ -94,8 +95,8 @@ object TiffWriter {
             entries += shorts(277, 3)
             entries += long(278, rowsPerStrip.toLong())
             entries += longs(279, counts)
-            entries += rational(282, 72, 1)
-            entries += rational(283, 72, 1)
+            entries += rational(282, ppi.coerceIn(1, 2400).toLong(), 1)
+            entries += rational(283, ppi.coerceIn(1, 2400).toLong(), 1)
             entries += shorts(284, 1)
             entries += shorts(296, 2)
             entries += ascii(305, software)
