@@ -83,6 +83,8 @@ import io.github.steve_linux.photograin.data.PhotoKeywordStore
 import io.github.steve_linux.photograin.data.PhotoRatingStore
 import io.github.steve_linux.photograin.data.RecipeStore
 import io.github.steve_linux.photograin.data.RecipeVersion
+import io.github.steve_linux.photograin.model.BurstFrame
+import io.github.steve_linux.photograin.model.BurstReview
 import io.github.steve_linux.photograin.model.CollectionPhoto
 import io.github.steve_linux.photograin.model.GalleryGrouping
 import io.github.steve_linux.photograin.model.GalleryOrder
@@ -91,6 +93,7 @@ import io.github.steve_linux.photograin.model.GallerySortKey
 import io.github.steve_linux.photograin.model.PhotoCollection
 import io.github.steve_linux.photograin.model.PhotoKeywords
 import io.github.steve_linux.photograin.model.PhotoFlag
+import io.github.steve_linux.photograin.model.SmartAlbum
 import io.github.steve_linux.photograin.model.PhotoRating
 import io.github.steve_linux.photograin.ui.editor.versionLabel
 import io.github.steve_linux.photograin.ui.editor.QuickAction
@@ -99,6 +102,7 @@ import io.github.steve_linux.photograin.ui.guide.GuideEntry
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
+import kotlinx.serialization.json.Json
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
@@ -116,6 +120,8 @@ fun HomeScreen(
     onSettings: () -> Unit,
     onGuide: () -> Unit,
 ) {
+    var showBursts by rememberSaveable { mutableStateOf(false) }
+    var burst by remember { mutableStateOf<List<Uri>>(emptyList()) }
     var shotPair by remember { mutableStateOf<List<Uri>>(emptyList()) }
     val comparePicker = androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.OpenMultipleDocuments(),
@@ -141,7 +147,6 @@ fun HomeScreen(
     var ratingFilter by rememberSaveable { mutableStateOf(0) }
     var ratingTarget by rememberSaveable { mutableStateOf<String?>(null) }
     fun rating(uri: Uri): Int = marks[uri.toString()]?.stars ?: 0
-    fun flag(uri: Uri): PhotoFlag = marks[uri.toString()]?.flag ?: PhotoFlag.NONE
 
     ratingTarget?.let { key ->
         val uri = Uri.parse(key)
@@ -167,9 +172,79 @@ fun HomeScreen(
     var showAlbums by rememberSaveable { mutableStateOf(false) }
     var albumTargetUri by rememberSaveable { mutableStateOf<String?>(null) }
     var albumDraft by rememberSaveable { mutableStateOf("") }
+    var query by rememberSaveable { mutableStateOf("") }
+    var rawOnly by rememberSaveable { mutableStateOf(false) }
+    var editedOnly by rememberSaveable { mutableStateOf(false) }
+    var smartNames by remember {
+        mutableStateOf(albumPreferences.getStringSet("smart_names", emptySet()).orEmpty().sorted())
+    }
+    var smartName by rememberSaveable { mutableStateOf<String?>(null) }
+    var savingSmart by rememberSaveable { mutableStateOf(false) }
+    var smartDraft by rememberSaveable { mutableStateOf("") }
+    var smartStars by rememberSaveable { mutableStateOf(0) }
+    val smartRule = remember(smartName) {
+        smartName?.let { name ->
+            albumPreferences.getString("smart:$name", null)?.let {
+                runCatching { Json.decodeFromString<SmartAlbum>(it) }.getOrNull()
+            }
+        }
+    }
+    val liveRule = remember(query, rawOnly, editedOnly, keywordFilter, ratingFilter) {
+        SmartAlbum(
+            query = query, rawOnly = rawOnly, editedOnly = editedOnly, keyword = keywordFilter,
+            minimumStars = if (ratingFilter == 2) 3 else 0,
+            flag = when (ratingFilter) {
+                1 -> PhotoFlag.PICKED.stored
+                3 -> PhotoFlag.REJECTED.stored
+                else -> null
+            },
+            excludeRejected = ratingFilter == 2,
+        )
+    }
+    if (savingSmart) {
+        val name = smartDraft.trim()
+        AlertDialog(
+            onDismissRequest = { savingSmart = false },
+            title = { Text(stringResource(R.string.smart_save)) },
+            text = {
+                Column {
+                    androidx.compose.material3.OutlinedTextField(
+                        value = smartDraft, onValueChange = { smartDraft = it.take(64) },
+                        label = { Text(stringResource(R.string.photo_album_name)) }, singleLine = true,
+                    )
+                    TextButton(onClick = { smartStars = (smartStars + 1) % 6 }) {
+                        Text(stringResource(R.string.smart_min_stars, smartStars))
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(enabled = name.isNotEmpty() && name !in smartNames && name !in albumNames, onClick = {
+                    smartNames = (smartNames + name).sorted()
+                    albumPreferences.edit().putStringSet("smart_names", smartNames.toSet())
+                        .putString("smart:$name", Json.encodeToString(liveRule.copy(minimumStars = smartStars))).apply()
+                    savingSmart = false
+                }) { Text(stringResource(R.string.photo_album_create)) }
+            },
+            dismissButton = { TextButton(onClick = { savingSmart = false }) { Text(stringResource(R.string.close)) } },
+        )
+    }
+    fun openSmart(name: String) {
+        album = null
+        smartName = name
+        query = ""
+        rawOnly = false
+        editedOnly = false
+        keywordFilter = null
+        ratingFilter = 0
+        showAlbums = false
+    }
     fun members(name: String): Set<String> = albumPreferences.getStringSet("album:$name", emptySet()).orEmpty()
-    val photos = remember(recents, album, albumRevision) {
-        album?.let { name -> members(name).sorted().map(Uri::parse) } ?: recents
+    val photos = remember(recents, album, albumRevision, smartRule, albumNames) {
+        when {
+            smartRule != null -> (recents + albumNames.flatMap { members(it).map(Uri::parse) }).distinct()
+            album != null -> members(checkNotNull(album)).sorted().map(Uri::parse)
+            else -> recents
+        }
     }
 
     if (showKeywordFilter) {
@@ -194,8 +269,21 @@ fun HomeScreen(
             text = {
                 Column(Modifier.heightIn(max = 340.dp).verticalScroll(rememberScrollState())) {
                     if (target == null) {
-                        TextButton(onClick = { album = null; showAlbums = false }) {
+                        TextButton(onClick = { album = null; smartName = null; showAlbums = false }) {
                             Text(stringResource(R.string.photo_recent_album))
+                        }
+                        for (name in smartNames) {
+                            TextButton(onClick = { openSmart(name) }) {
+                                Text(stringResource(R.string.smart_album_label, name))
+                            }
+                        }
+                        smartName?.let { name ->
+                            TextButton(onClick = {
+                                smartNames = smartNames - name
+                                albumPreferences.edit().putStringSet("smart_names", smartNames.toSet())
+                                    .remove("smart:$name").apply()
+                                smartName = null
+                            }) { Text(stringResource(R.string.photo_album_delete)) }
                         }
                         val currentAlbum = album
                         if (currentAlbum != null) {
@@ -213,6 +301,7 @@ fun HomeScreen(
                         TextButton(onClick = {
                             if (target == null) {
                                 album = name
+                                smartName = null
                                 showAlbums = false
                             } else {
                                 val uri = target
@@ -231,13 +320,16 @@ fun HomeScreen(
                 }
             },
             confirmButton = {
-                TextButton(enabled = proposed.isNotEmpty() && proposed !in albumNames, onClick = {
+                TextButton(enabled = proposed.isNotEmpty() && proposed !in albumNames && proposed !in smartNames, onClick = {
                     albumNames = (albumNames + proposed).sorted()
                     val update = albumPreferences.edit().putStringSet("names", albumNames.toSet())
                     if (target != null) update.putStringSet("album:$proposed", setOf(target))
                     update.apply()
                     albumRevision++
-                    if (target == null) album = proposed
+                    if (target == null) {
+                        album = proposed
+                        smartName = null
+                    }
                     albumDraft = ""
                     showAlbums = false
                 }) { Text(stringResource(R.string.photo_album_create)) }
@@ -247,9 +339,6 @@ fun HomeScreen(
             },
         )
     }
-    var query by rememberSaveable { mutableStateOf("") }
-    var rawOnly by rememberSaveable { mutableStateOf(false) }
-    var editedOnly by rememberSaveable { mutableStateOf(false) }
     var sort by rememberSaveable { mutableStateOf(GallerySort.COLLECTION) }
     var grouping by rememberSaveable { mutableStateOf(GalleryGrouping.NONE) }
     var reverseSort by rememberSaveable { mutableStateOf(false) }
@@ -260,8 +349,8 @@ fun HomeScreen(
         }
     }
 
-    val needsExif = query.isNotBlank() || sort == GallerySort.CAPTURE || grouping.usesCaptureDate
-    val needsIndex = needsExif || rawOnly || sort == GallerySort.FILE_NAME
+    val needsExif = showBursts || query.isNotBlank() || !smartRule?.query.isNullOrBlank() || sort == GallerySort.CAPTURE || grouping.usesCaptureDate
+    val needsIndex = needsExif || rawOnly || smartRule?.rawOnly == true || sort == GallerySort.FILE_NAME
     val index by produceState<PhotoSearchIndex?>(null, photos, needsIndex, needsExif) {
         value = null
         if (!needsIndex) return@produceState
@@ -274,7 +363,8 @@ fun HomeScreen(
                 val (metadata, capturedAt) = if (needsExif) Metadata.readForGallery(context, uri)
                     else emptyList<MetadataEntry>() to null
                 val terms = listOfNotNull(name, mime) + metadata.filter { it.label in photoSearchFields }.map { it.value }
-                data[uri] = PhotoSearchData(name, capturedAt, terms.joinToString(" "), RawImage.isRaw(mime, name))
+                val camera = metadata.firstOrNull { it.label == R.string.metadata_camera_model }?.value
+                data[uri] = PhotoSearchData(name, capturedAt, terms.joinToString(" "), RawImage.isRaw(mime, name), camera)
             }
             PhotoSearchIndex(photos, data, needsExif)
         }
@@ -293,25 +383,15 @@ fun HomeScreen(
         }
     }
     val entries = loadedEntries?.takeIf { it.first == photos }?.second ?: fallbackEntries
-    val filtered = remember(entries, ratingFilter, marks, query, rawOnly, editedOnly, currentIndex, photoKeywords, keywordFilter) {
-        val tokens = query.trim().split(Regex("\\s+")).filter(String::isNotEmpty)
-        val requiredKeyword = keywordFilter
-        entries.filter {
-            if (editedOnly && !it.edited) return@filter false
-            if (rawOnly && currentIndex?.data?.get(it.uri)?.raw != true) return@filter false
-            val keywords = photoKeywords[it.uri.toString()].orEmpty()
-            if (requiredKeyword != null && !PhotoKeywords.containsKeyword(keywords, requiredKeyword)) return@filter false
-            val text = currentIndex?.data?.get(it.uri)?.terms.orEmpty() + " " + it.version.name.orEmpty()
-            if (tokens.any { token ->
-                    !text.contains(token, ignoreCase = true) && !PhotoKeywords.matchesToken(keywords, token)
-                }
-            ) return@filter false
-            when (ratingFilter) {
-                1 -> flag(it.uri) == PhotoFlag.PICKED
-                2 -> rating(it.uri) >= 3 && flag(it.uri) != PhotoFlag.REJECTED
-                3 -> flag(it.uri) == PhotoFlag.REJECTED
-                else -> true
-            }
+    val filtered = remember(entries, liveRule, smartRule, marks, currentIndex, photoKeywords) {
+        entries.filter { entry ->
+            val indexed = currentIndex?.data?.get(entry.uri)
+            val keywords = photoKeywords[entry.uri.toString()].orEmpty()
+            val text = indexed?.terms.orEmpty() + " " + entry.version.name.orEmpty()
+            val rating = marks[entry.uri.toString()] ?: PhotoRating()
+            val raw = indexed?.raw == true
+            liveRule.accepts(text, raw, entry.edited, keywords, rating) &&
+                (smartRule?.accepts(text, raw, entry.edited, keywords, rating) ?: true)
         }
     }
     val displayedGrouping = if (grouping.usesCaptureDate && currentIndex == null) GalleryGrouping.NONE else grouping
@@ -332,6 +412,43 @@ fun HomeScreen(
     val galleryPhotos = remember(sections) {
         sections.flatMap { section -> section.photos.map { CollectionPhoto(it.uri, it.version.id) } }
     }
+    if (showBursts) {
+        val groups = remember(galleryPhotos, currentIndex) {
+            val data = currentIndex?.data.orEmpty()
+            BurstReview.groups(galleryPhotos.distinctBy { it.source }.mapNotNull { photo ->
+                val indexed = data[photo.source] ?: return@mapNotNull null
+                val time = indexed.capturedAt ?: return@mapNotNull null
+                BurstFrame(photo.source, time, indexed.camera)
+            })
+        }
+        AlertDialog(
+            onDismissRequest = { showBursts = false },
+            title = { Text(stringResource(R.string.burst_title)) },
+            text = {
+                Column(Modifier.heightIn(max = 340.dp).verticalScroll(rememberScrollState())) {
+                    when {
+                        currentIndex == null -> Text(stringResource(R.string.photo_indexing))
+                        groups.isEmpty() -> Text(stringResource(R.string.burst_empty))
+                        else -> for (group in groups) {
+                            val date = group.first().time.format(DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT))
+                            TextButton(onClick = {
+                                burst = group.map { it.photo }
+                                showBursts = false
+                            }) { Text(stringResource(R.string.burst_group, date, group.size)) }
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showBursts = false }) { Text(stringResource(R.string.close)) } },
+        )
+    }
+    if (burst.size >= 2) {
+        CompareShotsDialog(
+            photos = burst,
+            onPick = { ratingStore.flag(it, PhotoFlag.PICKED); burst = emptyList() },
+            onDismiss = { burst = emptyList() },
+        )
+    }
     fun openFromGallery(entry: HomeEntry) {
         val selected = CollectionPhoto(entry.uri, entry.version.id)
         onOpen(selected, PhotoCollection.snapshot(galleryPhotos, selected))
@@ -347,7 +464,7 @@ fun HomeScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(album ?: stringResource(R.string.app_name), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                title = { Text(smartName ?: album ?: stringResource(R.string.app_name), maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 actions = {
                     if (recents.isNotEmpty()) {
                         IconButton(onClick = { comparing = !comparing }) {
@@ -391,13 +508,13 @@ fun HomeScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
-                    stringResource(if (album == null) R.string.home_empty_title else R.string.photo_album_empty),
+                    stringResource(if (album == null && smartName == null) R.string.home_empty_title else R.string.photo_album_empty),
                     style = MaterialTheme.typography.headlineSmall,
                     textAlign = TextAlign.Center,
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    stringResource(if (album == null) R.string.home_empty_body else R.string.photo_album_empty_hint),
+                    stringResource(if (album == null && smartName == null) R.string.home_empty_body else R.string.photo_album_empty_hint),
                     style = MaterialTheme.typography.bodyMedium,
                     textAlign = TextAlign.Center,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -476,10 +593,18 @@ fun HomeScreen(
                     TextButton(onClick = { comparePicker.launch(arrayOf("image/*")) }) {
                         Text(stringResource(R.string.compare_shots))
                     }
+                    TextButton(onClick = { showBursts = true }) {
+                        Text(stringResource(R.string.burst_title))
+                    }
                     val filters = listOf(R.string.photo_filter_all, R.string.photo_pick, R.string.photo_filter_three, R.string.photo_reject)
                     TextButton(onClick = { ratingFilter = (ratingFilter + 1) % filters.size }) {
                         Text(stringResource(R.string.photo_filter, stringResource(filters[ratingFilter])))
                     }
+                    if (smartName == null) TextButton(onClick = {
+                        smartDraft = ""
+                        smartStars = liveRule.minimumStars
+                        savingSmart = true
+                    }) { Text(stringResource(R.string.smart_save)) }
                     if (filtered.isNotEmpty()) {
                         TextButton(onClick = { contactSelection = sections.flatMap { section -> section.photos.map { it.uri } }.distinct().take(12) }) {
                             Text(stringResource(R.string.combine_contact))
@@ -730,7 +855,7 @@ internal fun RecentThumbnail(uri: Uri, onClick: () -> Unit) {
 /** One version of a recent photo; [count] is how many the photo has. */
 private data class PhotoSearchIndex(val recents: List<Uri>, val data: Map<Uri, PhotoSearchData>, val hasExif: Boolean)
 
-private data class PhotoSearchData(val fileName: String?, val capturedAt: LocalDateTime?, val terms: String, val raw: Boolean)
+private data class PhotoSearchData(val fileName: String?, val capturedAt: LocalDateTime?, val terms: String, val raw: Boolean, val camera: String?)
 
 private val photoSearchFields = setOf(
     R.string.metadata_camera_model, R.string.metadata_lens, R.string.metadata_iso, R.string.metadata_taken,

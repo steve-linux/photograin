@@ -726,7 +726,7 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit, onGuide: (topi
                             onOverlayMode = viewModel::setMaskOverlayMode,
                             onOverlayColor = viewModel::setMaskOverlayColor,
                             onOverlayOpacity = viewModel::setMaskOverlayOpacity,
-                            onCombine = viewModel::combineMask,
+                            onComponents = viewModel::setMaskComponents,
                             onShowMask = viewModel::setShowMask,
                             onChangeFinished = viewModel::commit,
                             brush = state.brush,

@@ -135,6 +135,8 @@ Il riconoscimento usa l’anteprima dell’originale orientata secondo EXIF. Mod
 
 Distribuzione di un catalogo di calibrazioni misurate e verificate per obiettivi reali. Il panorama compensa piccoli spostamenti verticali e rotazioni. Le deformazioni prospettiche richiedono ulteriori interventi. La striscia orizzontale usa una composizione affiancata.
 
+In **Esporta → Profili di esportazione**, scegli **Messaggi** per un JPEG sRGB fino a 2048 px senza metadati, **Stampa** per un TIFF a 16 bit fino a 3543 px sul lato lungo a 300 PPI, o **Archivio** per un JPEG XL senza perdita a piena risoluzione. La dimensione massima limita il lato lungo senza ingrandire gli originali piccoli. I profili sono disponibili anche in **Serie**. Puoi salvare le opzioni correnti con un nome e rimuovere i profili personali dallo stesso menu.
+
 ## Album e ricerca locale
 
 Dalla schermata iniziale apri **Album** per creare o scegliere una raccolta. Usa **Album** sotto una miniatura per aggiungere o togliere la foto da una raccolta. **Foto recenti** torna alla vista di partenza. **Elimina album corrente** rimuove la raccolta e conserva le foto originali.
@@ -146,6 +148,10 @@ Per assegnare parole chiave, tocca **Parole chiave** sotto una foto nella grigli
 Usa **Filtra per parola chiave** per selezionare una voce esatta nella raccolta aperta. Il filtro si combina con testo, RAW, modifiche e valutazioni. La ricerca testuale nelle parole chiave ignora maiuscole e accenti. Le parole chiave sono salvate nel catalogo di Photograin sul dispositivo.
 
 Tocca **Ordina** per scegliere l’ordine della raccolta, la data di scatto, il nome del file o le stelle. Usa **Inverti ordine** per cambiare verso e **Raggruppa per** per mostrare sezioni per anno, mese o giorno di scatto, oppure per stelle. La data è quella originale nei metadati EXIF. Le foto senza data compaiono alla fine dell’ordinamento cronologico e hanno una sezione dedicata nei raggruppamenti per data. Le versioni dello stesso scatto restano vicine e i filtri attivi si applicano anche ai gruppi.
+
+Applica i filtri di ricerca, RAW, modifiche, parole chiave e valutazione, poi tocca **Salva come album intelligente**. Dai un nome alla ricerca e, se vuoi, imposta un minimo di stelle. Aprila da **Album**. Le regole si applicano alle foto recenti e a quelle presenti negli album manuali, e si aggiornano quando cambiano valutazioni, metadati letti o modifiche della foto. I filtri della vista possono restringere ulteriormente l’album aperto.
+
+Tocca **Confronta raffiche** per raggruppare gli originali visibili con data di scatto EXIF e intervalli fino a due secondi tra uno scatto e il successivo, per la stessa fotocamera quando indicata. Le due anteprime condividono zoom e spostamento. Porta il mirino sul soggetto e confronta l’indicatore **Dettaglio**, una stima che può essere influenzata da rumore e trama. **Seleziona** assegna la bandierina allo scatto scelto.
 
 ## Organizzare e trasferire il lavoro
 
@@ -170,7 +176,7 @@ Sono supportati esposizione, contrasto, luci, ombre, bianchi, neri, vividezza, s
 - Nella maschera, usa **Nitidezza** per accentuare i bordi con valori positivi o ammorbidire i dettagli con valori negativi. **Riduzione rumore** attenua la grana di luminanza, per esempio nelle ombre. **Rimuovi frange viola e verdi** attenua le dominanti lungo i bordi ad alto contrasto. Questi cursori seguono l’intensità e la sfumatura della maschera, in anteprima e in esportazione.
 - In **Locale**, seleziona una maschera e scorri fino a **Bianchi**, **Neri**, **Texture fine** e **Rimozione foschia**. Per esempio, aumenta la texture su una roccia o riducila su una zona di pelle. Regola la foschia del cielo e i punti di bianco e di nero senza intervenire sul resto della foto. I controlli seguono la sfumatura della maschera e si applicano anche all’esportazione.
 
-- In **Locale**, crea due maschere. Seleziona quella che vuoi modificare, poi in **Combina con un’altra maschera** scegli la seconda e usa **Aggiungi**, **Sottrai** o **Interseca**. La combinazione usa la selezione di base della seconda maschera. Le sue regolazioni restano indipendenti.
+- In **Locale**, crea la maschera principale e le selezioni da usare come componenti. Sulla maschera principale aggiungile una alla volta, scegli **Aggiungi**, **Sottrai** o **Interseca**, e usa **Anticipa** per cambiare l’ordine. Tocca il nome di un componente per modificarne la forma o l’intervallo di colore o luminanza. Il risultato usa la selezione di base di ciascun componente. Se vuoi applicare le correzioni solo alla maschera principale, disattiva quelle dei singoli componenti dal loro menu.
 - Apri **⋮** accanto alla maschera selezionata e scegli **Duplica maschera**, **Duplica e inverti** o **Inverti tutta la selezione**. L’inversione completa include l’intervallo colore o luminanza e il risultato di Aggiungi, Sottrai o Interseca. **Inverti base** agisce sulla forma o sulla selezione automatica prima di questi passaggi. Una copia mantiene le regolazioni del livello. Il ritaglio dello sfondo rimane associato all’originale.
 - Usa **Disattiva maschera** per sospenderne le regolazioni e l’eventuale ritaglio dello sfondo. Puoi continuare a visualizzarne la sovrapposizione e usarla come riferimento in una combinazione. **Attiva maschera** ripristina l’effetto.
 - **Seleziona cielo** usa colore, luminosità e posizione nell’inquadratura. Controlla la sovrapposizione della maschera. Per rifinirla, puoi sottrarre o aggiungere una maschera a pennello. Verifica soprattutto tramonti, riflessi e tetti chiari.

@@ -71,6 +71,7 @@ object ShaderParams {
 
     private const val INVERT_SELECTION = 4
     private const val DISABLED_EFFECT = 8
+    private const val MULTIPLE_COMPONENTS = 16
 
     /** Local adjustments packed for the color shader, including each mask's options and effects. */
     class MaskUniforms(
@@ -145,12 +146,26 @@ object ShaderParams {
             locB[k + 3] = l.clarity * amount
             locEffects[k] = l.blur * amount
             locEffects[k + 1] = l.pixelate * amount
-            locEffects[k + 2] = (l.combineWith?.takeIf { it in 0 until n && it != i } ?: -1).toFloat()
-            // The low two bits encode the operation; the next bits invert the result or mute the effect.
+            val components = l.components.filter { it.index in 0 until n && it.index != i }.distinctBy { it.index }
+            // Preserve the legacy layout for old recipes. New lists store up to seven operations
+            // in two exactly representable float-backed words, using five bits per operation.
             val flags = l.combination.ordinal or
                 (if (l.invertSelection) INVERT_SELECTION else 0) or
                 (if (l.enabled) 0 else DISABLED_EFFECT)
-            locEffects[k + 3] = flags.toFloat()
+            if (components.isEmpty()) {
+                locEffects[k + 2] = (l.combineWith?.takeIf { it in 0 until n && it != i } ?: -1).toFloat()
+                locEffects[k + 3] = flags.toFloat()
+            } else {
+                var first = 0
+                var rest = flags or MULTIPLE_COMPONENTS
+                components.forEachIndexed { position, component ->
+                    val code = 1 + component.index + component.operation.ordinal * 8
+                    if (position < 4) first = first or (code shl (5 * position))
+                    else rest = rest or (code shl (5 * (position - 3)))
+                }
+                locEffects[k + 2] = first.toFloat()
+                locEffects[k + 3] = rest.toFloat()
+            }
             locToneDetail[k] = l.whites * amount
             locToneDetail[k + 1] = l.blacks * amount
             locToneDetail[k + 2] = l.textureAmount * amount

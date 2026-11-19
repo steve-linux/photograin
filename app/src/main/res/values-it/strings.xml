@@ -807,4 +807,22 @@
     <string name="mask_view_image_on_black">Foto su nero</string>
     <string name="mask_view_image_on_white">Foto su bianco</string>
     <string name="mask_view_mask_only">Solo maschera</string>
+    <string name="export_profile_message">Messaggi · JPEG 2048 px</string>
+    <string name="export_profile_print">Stampa · TIFF 300 PPI</string>
+    <string name="export_profile_archive">Archivio · JPEG XL senza perdita</string>
+    <string name="export_profile_remove">Rimuovi</string>
+    <string name="smart_save">Salva come album intelligente</string>
+    <string name="smart_min_stars">Minimo di stelle · %1$d</string>
+    <string name="smart_album_label">Album intelligente · %1$s</string>
+    <string name="burst_title">Confronta raffiche</string>
+    <string name="burst_empty">Nessuna raffica tra le foto con una data di scatto in questa vista.</string>
+    <string name="burst_group">%1$s · %2$d scatti</string>
+    <string name="burst_hint">Ingrandisci e porta il mirino sul soggetto. Confronta il dettaglio prima di scegliere uno scatto.</string>
+    <string name="burst_candidate">Scatto successivo · %1$d/%2$d</string>
+    <string name="burst_sharpness">Dettaglio %1$d</string>
+    <string name="burst_pick">Seleziona</string>
+    <string name="mask_component_title">%1$d · Modifica %2$s</string>
+    <string name="mask_component_up">Anticipa</string>
+    <string name="mask_component_remove">Togli componente</string>
+    <string name="mask_component_add">Aggiungi %1$s</string>
 </resources>

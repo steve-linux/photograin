@@ -47,6 +47,12 @@ import io.github.steve_linux.photograin.model.PxSize
 private val SIZE_PRESETS = listOf<Int?>(null, 4096, 2048, 1080)
 private val UPSCALE_FACTORS = listOf(2, 4)
 
+private val BUILT_IN_PROFILES = listOf(
+    R.string.export_profile_message to ExportOptions(quality = 85, maxLongEdge = 2048, keepMetadata = false),
+    R.string.export_profile_print to ExportOptions(format = ExportFormat.TIFF, maxLongEdge = 3543, printPpi = 300),
+    R.string.export_profile_archive to ExportOptions(format = ExportFormat.JXL, quality = 100),
+)
+
 @Composable
 fun ExportDialog(
     initial: ExportOptions,
@@ -89,32 +95,42 @@ fun ExportDialog(
         maxFileSizeKb = limit.takeIf { options.format.supportsSizeLimit },
         metadataEdits = ExportMetadataEdits(author, copyright, description, date),
     )
+    fun applyProfile(stored: ExportOptions) {
+        options = stored
+        ppiText = stored.printPpi?.toString().orEmpty()
+        printCm = ""
+        batchStart = stored.batchStart.toString()
+        limitText = stored.maxFileSizeKb?.toString().orEmpty()
+        customEdge = stored.maxLongEdge?.takeUnless { it in SIZE_PRESETS }?.toString().orEmpty()
+        customSize = customEdge.isNotEmpty()
+        author = stored.metadataEdits.author
+        copyright = stored.metadataEdits.copyright
+        description = stored.metadataEdits.description
+        date = stored.metadataEdits.date
+        showProfiles = false
+    }
     if (showProfiles) {
         AlertDialog(
             onDismissRequest = { showProfiles = false },
             title = { Text(stringResource(R.string.export_profiles)) },
             text = {
                 androidx.compose.foundation.layout.Column(Modifier.heightIn(max = 350.dp).verticalScroll(rememberScrollState())) {
+                    for ((label, preset) in BUILT_IN_PROFILES) {
+                        TextButton(onClick = { applyProfile(preset) }) { Text(stringResource(label)) }
+                    }
                     for (name in profileNames) {
-                        TextButton(onClick = {
-                            val stored = profiles.getString(name, null)?.let {
-                                runCatching { kotlinx.serialization.json.Json.decodeFromString(ExportOptions.serializer(), it) }.getOrNull()
-                            }
-                            if (stored != null) {
-                                options = stored
-                                ppiText = stored.printPpi?.toString().orEmpty()
-                                printCm = ""
-                                batchStart = stored.batchStart.toString()
-                                limitText = stored.maxFileSizeKb?.toString().orEmpty()
-                                customEdge = stored.maxLongEdge?.takeUnless { it in SIZE_PRESETS }?.toString().orEmpty()
-                                customSize = customEdge.isNotEmpty()
-                                author = stored.metadataEdits.author
-                                copyright = stored.metadataEdits.copyright
-                                description = stored.metadataEdits.description
-                                date = stored.metadataEdits.date
-                            }
-                            showProfiles = false
-                        }) { Text(name) }
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            TextButton(onClick = {
+                                val stored = profiles.getString(name, null)?.let {
+                                    runCatching { kotlinx.serialization.json.Json.decodeFromString(ExportOptions.serializer(), it) }.getOrNull()
+                                }
+                                if (stored != null) applyProfile(stored)
+                            }, modifier = Modifier.weight(1f)) { Text(name) }
+                            TextButton(onClick = {
+                                profiles.edit().remove(name).apply()
+                                profileNames = profiles.all.keys.sorted()
+                            }) { Text(stringResource(R.string.export_profile_remove)) }
+                        }
                     }
                     OutlinedTextField(value = profileName, onValueChange = { if (it.length <= 64) profileName = it },
                         label = { Text(stringResource(R.string.export_profile_name)) }, singleLine = true)

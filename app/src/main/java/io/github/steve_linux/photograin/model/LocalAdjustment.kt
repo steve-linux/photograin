@@ -19,6 +19,9 @@ enum class MaskType { LINEAR, RADIAL, BRUSH, FULL, SUBJECT, DEPTH }
 enum class MaskCombination { ADD, SUBTRACT, INTERSECT }
 
 @Serializable
+data class MaskComponent(val index: Int, val operation: MaskCombination = MaskCombination.ADD)
+
+@Serializable
 enum class RangeType { NONE, LUMINANCE, COLOR }
 
 /**
@@ -238,7 +241,23 @@ data class LocalAdjustment(
     val sharpness: Float = 0f,
     val noiseReduction: Float = 0f,
     val defringe: Float = 0f,
+    val components: List<MaskComponent> = emptyList(),
 ) {
+    /** Existing saved masks use the earlier single reference. */
+    fun componentList(): List<MaskComponent> =
+        components.ifEmpty { combineWith?.let { listOf(MaskComponent(it, combination)) }.orEmpty() }
+
+    fun withComponents(value: List<MaskComponent>): LocalAdjustment =
+        copy(components = value, combineWith = null)
+
+    fun afterMaskRemoved(index: Int): LocalAdjustment = withComponents(componentList().mapNotNull {
+        when {
+            it.index < index -> it
+            it.index > index -> it.copy(index = it.index - 1)
+            else -> null
+        }
+    })
+
     /** Copies the adjustments and selection without replacing the original's cutout. */
     fun duplicate(name: String, invert: Boolean): LocalAdjustment = copy(
         name = name.trim().take(64).takeIf { it.isNotEmpty() },

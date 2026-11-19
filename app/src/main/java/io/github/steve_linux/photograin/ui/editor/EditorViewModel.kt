@@ -48,6 +48,7 @@ import io.github.steve_linux.photograin.model.History
 import io.github.steve_linux.photograin.model.LocalAdjustment
 import io.github.steve_linux.photograin.model.LocalParamSpec
 import io.github.steve_linux.photograin.model.Mask
+import io.github.steve_linux.photograin.model.MaskComponent
 import io.github.steve_linux.photograin.model.MaskOverlayMode
 import io.github.steve_linux.photograin.model.Background
 import io.github.steve_linux.photograin.model.Subjects
@@ -702,9 +703,9 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         prefs.copiedAdjustments = edit.adjustments
         prefs.copiedAutomaticMasks = edit.masks.mapNotNull { local ->
             when {
-                local.autoSky -> local.copy(combineWith = null)
+                local.autoSky -> local.withComponents(emptyList())
                 local.mask.type == MaskType.SUBJECT && local.mask.points.isEmpty() -> local.copy(
-                    mask = local.mask.copy(strokes = emptyList()), combineWith = null,
+                    mask = local.mask.copy(strokes = emptyList()), combineWith = null, components = emptyList(),
                 )
                 else -> null
             }
@@ -977,14 +978,7 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
     fun deleteMask(index: Int) {
         if (index !in _state.value.edit.masks.indices) return
         updateLive { e ->
-            e.copy(masks = e.masks.filterIndexed { i, _ -> i != index }.map { local ->
-                val other = local.combineWith
-                local.copy(combineWith = when {
-                    other == null || other == index -> null
-                    other > index -> other - 1
-                    else -> other
-                })
-            })
+            e.copy(masks = e.masks.filterIndexed { i, _ -> i != index }.map { it.afterMaskRemoved(index) })
         }
         _state.update { it.copy(selectedMask = null, picker = Picker.NONE) }
         commit()
@@ -1001,10 +995,11 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
     /** Live update of the selected mask's shape, from its handles or the feather slider. */
     fun setMaskShape(mask: Mask) = updateMask { it.copy(mask = mask) }
 
-    fun combineMask(other: Int?, mode: io.github.steve_linux.photograin.model.MaskCombination) {
+    fun setMaskComponents(components: List<MaskComponent>) {
         val state = _state.value
-        if (other != null && (other !in state.edit.masks.indices || other == state.activeMask)) return
-        updateMask { it.copy(combineWith = other, combination = mode) }
+        val active = state.activeMask ?: return
+        val valid = components.filter { it.index in state.edit.masks.indices && it.index != active }.distinctBy { it.index }
+        updateMask { it.withComponents(valid) }
         commit()
     }
 

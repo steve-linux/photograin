@@ -260,7 +260,7 @@ uniform mediump sampler2DArray uBrush;
 uniform vec4 uLocA[8];
 // Temperature, tint, saturation, clarity.
 uniform vec4 uLocB[8];
-// Blur, pixelation, referenced mask index, operation and flags (see ShaderParams).
+// Blur, pixelation, then mask reference and flags or packed components (see ShaderParams).
 uniform vec4 uLocEffects[8];
 // Whites, blacks, texture and dehaze.
 uniform vec4 uLocToneDetail[8];
@@ -474,20 +474,27 @@ float baseMaskWeight(int i, vec2 pos, vec3 s) {
     return w * rangeWeight(uMaskRange[i], s);
 }
 
+float combineMaskWeight(float weight, float selection, int operation) {
+    if (operation == 1) return weight * (1.0 - selection);
+    if (operation == 2) return weight * selection;
+    return max(weight, selection);
+}
+
 float maskWeight(int i, vec2 pos, vec3 s) {
     float weight = baseMaskWeight(i, pos, s);
-    int other = int(uLocEffects[i].z);
-    int flags = int(uLocEffects[i].w);
-    if (other >= 0 && other < uMaskCount && other != i) {
-        float selection = baseMaskWeight(other, pos, s);
-        int operation = flags & 3;
-        if (operation == 1) {
-            weight *= 1.0 - selection;
-        } else if (operation == 2) {
-            weight *= selection;
-        } else {
-            weight = max(weight, selection);
+    highp int references = int(uLocEffects[i].z);
+    highp int flags = int(uLocEffects[i].w);
+    if ((flags & 16) != 0) {
+        for (int component = 0; component < 7; component++) {
+            int code = component < 4 ? (references >> (5 * component)) & 31
+                                     : (flags >> (5 * (component - 3))) & 31;
+            if (code == 0) break;
+            int other = (code - 1) % 8;
+            int operation = (code - 1) / 8;
+            weight = combineMaskWeight(weight, baseMaskWeight(other, pos, s), operation);
         }
+    } else if (references >= 0 && references < uMaskCount && references != i) {
+        weight = combineMaskWeight(weight, baseMaskWeight(references, pos, s), flags & 3);
     }
     return (flags & 4) != 0 ? 1.0 - weight : weight;
 }
@@ -500,7 +507,8 @@ vec3 process(vec3 s, vec2 pos) {
     vec4 localDetail = vec4(0.0);
     for (int i = 0; i < 8; i++) {
         if (i >= uMaskCount) break;
-        if ((int(uLocEffects[i].w) & 8) != 0) continue;
+        highp int flags = int(uLocEffects[i].w);
+        if ((flags & 8) != 0) continue;
         float w = maskWeight(i, pos, s);
         la += w * uLocA[i];
         lb += w * uLocB[i];

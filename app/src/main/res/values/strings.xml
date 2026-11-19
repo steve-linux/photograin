@@ -820,4 +820,22 @@
     <string name="mask_view_image_on_black">Image on black</string>
     <string name="mask_view_image_on_white">Image on white</string>
     <string name="mask_view_mask_only">Mask only</string>
+    <string name="export_profile_message">Messaging · JPEG 2048 px</string>
+    <string name="export_profile_print">Print · TIFF 300 PPI</string>
+    <string name="export_profile_archive">Archive · lossless JPEG XL</string>
+    <string name="export_profile_remove">Remove</string>
+    <string name="smart_save">Save as smart album</string>
+    <string name="smart_min_stars">Minimum stars · %1$d</string>
+    <string name="smart_album_label">Smart album · %1$s</string>
+    <string name="burst_title">Review bursts</string>
+    <string name="burst_empty">No groups found among the dated photos in this view.</string>
+    <string name="burst_group">%1$s · %2$d shots</string>
+    <string name="burst_hint">Zoom and move the crosshair to the subject. Compare detail between shots before choosing one.</string>
+    <string name="burst_candidate">Next candidate · %1$d/%2$d</string>
+    <string name="burst_sharpness">Detail %1$d</string>
+    <string name="burst_pick">Pick</string>
+    <string name="mask_component_title">%1$d · Edit %2$s</string>
+    <string name="mask_component_up">Move earlier</string>
+    <string name="mask_component_remove">Remove component</string>
+    <string name="mask_component_add">Add %1$s</string>
 </resources>

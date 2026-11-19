@@ -59,6 +59,8 @@ import io.github.steve_linux.photograin.model.LocalAdjustment
 import io.github.steve_linux.photograin.model.LocalParamSpec
 import io.github.steve_linux.photograin.model.LocalParams
 import io.github.steve_linux.photograin.model.Mask
+import io.github.steve_linux.photograin.model.MaskCombination
+import io.github.steve_linux.photograin.model.MaskComponent
 import io.github.steve_linux.photograin.model.MaskOverlayMode
 import io.github.steve_linux.photograin.model.MaskRange
 import io.github.steve_linux.photograin.model.MaskType
@@ -91,7 +93,7 @@ fun LocalPanel(
     onOverlayMode: (MaskOverlayMode) -> Unit,
     onOverlayColor: (Int?) -> Unit,
     onOverlayOpacity: (Float) -> Unit,
-    onCombine: (Int?, io.github.steve_linux.photograin.model.MaskCombination) -> Unit,
+    onComponents: (List<MaskComponent>) -> Unit,
     onShowMask: (Boolean) -> Unit,
     onChangeFinished: () -> Unit,
     brush: BrushSettings,
@@ -381,32 +383,41 @@ fun LocalPanel(
             )
         }
         if (masks.size > 1) {
+            val components = local.componentList().filter { it.index in masks.indices && it.index != index }
+            val operations = listOf(R.string.mask_union, R.string.mask_subtract, R.string.mask_intersect)
             Text(stringResource(R.string.mask_combine))
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(
-                    selected = local.combineWith == null,
-                    onClick = { onCombine(null, local.combination) },
-                    label = { Text(stringResource(R.string.mask_combine_none)) },
-                )
-                masks.forEachIndexed { index, candidate ->
-                    if (index != selected) {
+            components.forEachIndexed { position, component ->
+                TextButton(onClick = { onSelect(component.index) }) {
+                    Text(stringResource(R.string.mask_component_title, position + 1, maskTitle(masks[component.index], component.index)))
+                }
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    for (operation in MaskCombination.entries) {
                         FilterChip(
-                            selected = local.combineWith == index,
-                            onClick = { onCombine(index, local.combination) },
-                            label = { Text(maskTitle(candidate, index)) },
+                            selected = component.operation == operation,
+                            onClick = {
+                                onComponents(components.mapIndexed { i, part ->
+                                    if (i == position) part.copy(operation = operation) else part
+                                })
+                            },
+                            label = { Text(stringResource(operations[operation.ordinal])) },
                         )
                     }
                 }
+                Row {
+                    if (position > 0) TextButton(onClick = {
+                        onComponents(components.toMutableList().apply { add(position - 1, removeAt(position)) })
+                    }) { Text(stringResource(R.string.mask_component_up)) }
+                    TextButton(onClick = { onComponents(components.filterIndexed { i, _ -> i != position }) }) {
+                        Text(stringResource(R.string.mask_component_remove))
+                    }
+                }
             }
-            val other = local.combineWith
-            if (other != null) {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    val labels = listOf(R.string.mask_union, R.string.mask_subtract, R.string.mask_intersect)
-                    for (operation in io.github.steve_linux.photograin.model.MaskCombination.entries) {
-                        FilterChip(
-                            selected = local.combination == operation,
-                            onClick = { onCombine(other, operation) },
-                            label = { Text(stringResource(labels[operation.ordinal])) },
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                masks.forEachIndexed { candidateIndex, candidate ->
+                    if (candidateIndex != index && components.none { it.index == candidateIndex }) {
+                        AssistChip(
+                            onClick = { onComponents(components + MaskComponent(candidateIndex)) },
+                            label = { Text(stringResource(R.string.mask_component_add, maskTitle(candidate, candidateIndex))) },
                         )
                     }
                 }
