@@ -219,6 +219,8 @@ uniform mediump sampler2DArray uBrush;
 uniform vec4 uLocA[8];
 // Temperature, tint, saturation, clarity.
 uniform vec4 uLocB[8];
+// Texture and dehaze.
+uniform vec2 uLocEffects[8];
 // Index of the mask to tint red on screen, or -1.
 uniform int uShowMask;
 // Index of the mask that cuts the photo out, or -1. Outside it the photo becomes uCutoutFill.rgb
@@ -524,17 +526,20 @@ vec3 applyVignette(vec3 color, vec2 pos) {
 }
 
 vec3 process(vec3 s, vec2 pos) {
-    float textureDelta = 0.0;
-    if (uTextureAmount != 0.0) textureDelta = textureDetail(s) * uTextureAmount;
-
     vec4 la = vec4(0.0);
     vec4 lb = vec4(0.0);
+    vec2 effects = vec2(0.0);
     for (int i = 0; i < 8; i++) {
         if (i >= uMaskCount) break;
         float w = maskWeight(i, pos, s);
         la += w * uLocA[i];
         lb += w * uLocB[i];
+        effects += w * uLocEffects[i];
     }
+    float textureAmount = clamp(uTextureAmount + effects.x, -1.0, 1.0);
+    float dehaze = clamp(uDehaze + effects.y, -1.0, 1.0);
+    // Build the same texture signal used by the global control, before sharpening or denoise.
+    float textureDelta = textureAmount != 0.0 ? textureDetail(s) * textureAmount : 0.0;
     float clarity = uClarity + lb.w;
 
     if (uLumaNr > 0.0 || uChromaNr > 0.0) {
@@ -560,11 +565,11 @@ vec3 process(vec3 s, vec2 pos) {
     vec3 v = toSrgb(c);
     vec3 bv = toSrgb(bl);
 
-    if (uDehaze > 0.0) {
-        float haze = uDehaze * 0.85 * min(min(bv.r, bv.g), bv.b);
+    if (dehaze > 0.0) {
+        float haze = dehaze * 0.85 * min(min(bv.r, bv.g), bv.b);
         v = (v - haze) / max(1.0 - haze, 0.05);
-    } else if (uDehaze < 0.0) {
-        v = mix(v, vec3(0.85), -uDehaze * 0.5);
+    } else if (dehaze < 0.0) {
+        v = mix(v, vec3(0.85), -dehaze * 0.5);
     }
 
     float bp = -uBlacks * 0.15;

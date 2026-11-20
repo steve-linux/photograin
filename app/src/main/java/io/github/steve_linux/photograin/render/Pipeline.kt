@@ -292,6 +292,7 @@ internal class Pipeline {
             p.vec4Array("uMaskRange", mu.range)
             p.vec4Array("uLocA", mu.locA)
             p.vec4Array("uLocB", mu.locB)
+            p.vec2Array("uLocEffects", mu.effects)
         }
         val cutout = LocalAdjustment.cutoutIndex(masks).takeIf { it < mu.count } ?: -1
         p.int("uCutout", cutout)
@@ -458,6 +459,7 @@ internal class GlProgram(vertex: String, fragment: String) {
     fun vec2(name: String, x: Float, y: Float) = GLES30.glUniform2f(loc(name), x, y)
     fun vec3(name: String, x: Float, y: Float, z: Float) = GLES30.glUniform3f(loc(name), x, y, z)
     fun vec4(name: String, v: FloatArray) = GLES30.glUniform4f(loc(name), v[0], v[1], v[2], v[3])
+    fun vec2Array(name: String, v: FloatArray) = GLES30.glUniform2fv(loc(name), v.size / 2, v, 0)
     fun vec3Array(name: String, v: FloatArray) = GLES30.glUniform3fv(loc(name), v.size / 3, v, 0)
     fun vec4Array(name: String, v: FloatArray) = GLES30.glUniform4fv(loc(name), v.size / 4, v, 0)
     fun mat3(name: String, m: FloatArray) = GLES30.glUniformMatrix3fv(loc(name), 1, false, m, 0)

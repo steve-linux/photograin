@@ -119,6 +119,28 @@ class LocalAdjustmentTest {
     }
 
     @Test
+    fun localEffectsRoundTripAndArePackedSeparatelyForEachMask() {
+        val legacy = requireNotNull(EditState.fromJson(
+            """{"version":1,"edit":{"masks":[{"mask":{"type":"LINEAR"},"clarity":0.25}]}}""",
+        ))
+        val original = legacy.masks.single()
+        assertEquals(0f, original.texture, 0f)
+        assertEquals(0f, original.dehaze, 0f)
+
+        val first = original.copy(texture = 0.65f, dehaze = -0.30f)
+        val second = LocalAdjustment(texture = -0.55f, dehaze = 0.85f)
+        val edit = legacy.copy(masks = listOf(first, second))
+        assertEquals(edit, EditState.fromJson(edit.toJson()))
+
+        val packed = ShaderParams.maskUniforms(edit.masks)
+        assertEquals(0.65f, packed.effects[0], 0f)
+        assertEquals(-0.30f, packed.effects[1], 0f)
+        assertEquals(-0.55f, packed.effects[2], 0f)
+        assertEquals(0.85f, packed.effects[3], 0f)
+        assertEquals(0.25f, packed.locB[3], 0f)
+    }
+
+    @Test
     fun brushPaintsAlongTheStrokeAndErases() {
         val raster = BrushRaster(2000, 1000)
         assertEquals(1024, raster.width)
