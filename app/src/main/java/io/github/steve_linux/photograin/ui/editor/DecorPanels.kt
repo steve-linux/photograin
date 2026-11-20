@@ -79,8 +79,11 @@ private val SWATCHES = listOf(
 
 @Composable
 fun EffectsModeSelector(mode: Int, onSelect: (Int) -> Unit) {
-    val labels = listOf(R.string.mode_effects, R.string.mode_frame, R.string.mode_text, R.string.mode_shapes)
-    WorkspaceModeTabs(labels, mode, onSelect)
+    // Keep the existing frame/text/shape IDs used by editor actions.
+    val modes = listOf(0, 4, 5, 1, 2, 3)
+    val labels = listOf(R.string.mode_effects, R.string.param_vignette, R.string.param_grain,
+        R.string.mode_frame, R.string.mode_text, R.string.mode_shapes)
+    WorkspaceModeTabs(labels, modes.indexOf(mode).coerceAtLeast(0), scrollable = true) { onSelect(modes[it]) }
 }
 
 @OptIn(ExperimentalLayoutApi::class)

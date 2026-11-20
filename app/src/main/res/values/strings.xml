@@ -480,4 +480,10 @@
     <string name="version_compare">Compare</string>
     <string name="version_keep_editing">Keep editing %s</string>
     <string name="version_editing">%s · open</string>
+    <string name="panel_balance">Balance</string>
+    <string name="panel_sharpening">Sharpening</string>
+    <string name="panel_noise">Noise</string>
+    <string name="panel_selection">Selection</string>
+    <string name="panel_mix">Mix</string>
+    <string name="panel_color_noise">Color noise</string>
 </resources>

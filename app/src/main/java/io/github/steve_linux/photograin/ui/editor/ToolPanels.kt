@@ -85,28 +85,34 @@ fun AdjustmentPanel(
     onChange: (ParamSpec, Float) -> Unit,
     onChangeFinished: () -> Unit,
     onReset: (ParamSpec) -> Unit,
+    parameterIds: Set<String>? = null,
 ) {
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .heightIn(max = 280.dp)
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-    ) {
-        for (spec in Params.forGroup(group)) {
-            if (spec.id.startsWith("vignette") && spec.id != "vignette" && adjustments.vignette == 0f) continue
-            if (spec.id == "vignetteHighlights" && adjustments.vignette > 0f) continue
-            key(spec.id) {
-                ParamSlider(
-                    label = stringResource(paramLabel(spec.id)),
-                    help = helpFor(paramLabel(spec.id)),
-                    value = spec.get(adjustments),
-                    range = spec.min..spec.max,
-                    display = formatValue(spec, spec.get(adjustments)),
-                    onChange = { onChange(spec, it) },
-                    onChangeFinished = onChangeFinished,
-                    onReset = { onReset(spec) },
-                )
+    key(group, parameterIds) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .heightIn(max = 280.dp)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 4.dp),
+        ) {
+            val specs = if (parameterIds == null) Params.forGroup(group) else Params.all.filter { it.id in parameterIds }
+            for (spec in specs) {
+                if (spec.id in setOf("sharpnessRadius", "sharpnessMasking") && adjustments.sharpness == 0f) continue
+                if (spec.id == "grainSize" && adjustments.grain == 0f) continue
+                if (spec.id.startsWith("vignette") && spec.id != "vignette" && adjustments.vignette == 0f) continue
+                if (spec.id == "vignetteHighlights" && adjustments.vignette > 0f) continue
+                key(spec.id) {
+                    ParamSlider(
+                        label = stringResource(paramLabel(spec.id)),
+                        help = helpFor(paramLabel(spec.id)),
+                        value = spec.get(adjustments),
+                        range = spec.min..spec.max,
+                        display = formatValue(spec, spec.get(adjustments)),
+                        onChange = { onChange(spec, it) },
+                        onChangeFinished = onChangeFinished,
+                        onReset = { onReset(spec) },
+                    )
+                }
             }
         }
     }
