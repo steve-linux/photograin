@@ -79,7 +79,11 @@ class SubjectMask(val width: Int, val height: Int, val data: ByteArray) {
          * The mask for a source whose [BrushRaster] grid is [width] x [height], from the
          * model's upright output [raw] ([n] squared bytes) for orientation [base].
          */
-        fun fromModel(raw: ByteArray, base: BaseOrientation, width: Int, height: Int, n: Int = MODEL_SIZE): SubjectMask {
+        fun fromModel(
+            raw: ByteArray, base: BaseOrientation, width: Int, height: Int, n: Int = MODEL_SIZE,
+            background: Float = BACKGROUND, foreground: Float = SUBJECT,
+        ): SubjectMask {
+            require(background >= 0f && foreground <= 1f && foreground > background)
             require(raw.size == n * n) { "Expected ${n * n} model values, got ${raw.size}" }
             val upright = uprightToStored(base, n)
             val stored = FloatArray(n * n)
@@ -87,14 +91,14 @@ class SubjectMask(val width: Int, val height: Int, val data: ByteArray) {
             val out = ByteArray(width * height)
             for (y in 0 until height) for (x in 0 until width) {
                 val v = bilinear(stored, n, n, (x + 0.5f) * n / width - 0.5f, (y + 0.5f) * n / height - 0.5f)
-                out[y * width + x] = (curve(v) * 255f).roundToInt().toByte()
+                out[y * width + x] = (curve(v, background, foreground) * 255f).roundToInt().toByte()
             }
             return SubjectMask(width, height, out)
         }
 
         /** Model value 0..1 to mask strength 0..1, see [BACKGROUND] and [SUBJECT]. */
-        fun curve(v: Float): Float {
-            val t = ((v - BACKGROUND) / (SUBJECT - BACKGROUND)).coerceIn(0f, 1f)
+        fun curve(v: Float, background: Float = BACKGROUND, foreground: Float = SUBJECT): Float {
+            val t = ((v - background) / (foreground - background)).coerceIn(0f, 1f)
             return t * t * (3f - 2f * t)
         }
 
@@ -136,10 +140,17 @@ class SubjectMask(val width: Int, val height: Int, val data: ByteArray) {
 }
 
 /**
- * What the subject masks of an edit cover before their strokes: the main subject for those
- * without [Mask.points], and the object selected by each set of points.
+ * Automatic selections before brush refinements: the main subject, tapped objects, and sky.
  */
-class Subjects(val main: SubjectMask? = null, val objects: Map<List<Float>, SubjectMask> = emptyMap()) {
+data class Subjects(
+    val main: SubjectMask? = null,
+    val objects: Map<List<Float>, SubjectMask> = emptyMap(),
+    val sky: SubjectMask? = null,
+) {
     /** The base of the subject mask [mask], or null until it is known. */
-    fun of(mask: Mask): SubjectMask? = if (mask.points.isEmpty()) main else objects[mask.points]
+    fun of(mask: Mask): SubjectMask? = when (mask.type) {
+        MaskType.SKY -> sky
+        MaskType.SUBJECT -> if (mask.points.isEmpty()) main else objects[mask.points]
+        else -> null
+    }
 }

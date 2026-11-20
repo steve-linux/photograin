@@ -98,12 +98,14 @@ object SubjectSegmenter {
      */
     fun forEdit(context: Context, source: RegionSource, base: BaseOrientation, edit: EditState): Subjects? {
         val points = edit.masks.filter { it.mask.type == MaskType.SUBJECT }.map { it.mask.points }
-        if (points.isEmpty()) return null
+        val needsSky = edit.masks.any { it.mask.type == MaskType.SKY }
+        if (points.isEmpty() && !needsSky) return null
         var sample = 1
         while (max(source.width, source.height) / (sample * 2) >= BrushRaster.LONG_EDGE * 2) sample *= 2
         val bitmap = source.decode(Rect(0, 0, source.width, source.height), sample)
         return try {
             Subjects(
+                sky = if (needsSky) SkySelector.select(context, bitmap, base) else null,
                 main = if (points.any { it.isEmpty() }) segment(context, bitmap, base) else null,
                 objects = points.filter { it.isNotEmpty() }.distinct().associateWith { ObjectSelector.select(context, bitmap, base, it) },
             )

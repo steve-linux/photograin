@@ -100,7 +100,7 @@ object ShaderParams {
                 MaskType.LINEAR -> 0f
                 MaskType.RADIAL -> 1f
                 // A subject mask is a brush mask seeded with the model's result.
-                MaskType.BRUSH, MaskType.SUBJECT -> 2f
+                MaskType.BRUSH, MaskType.SUBJECT, MaskType.SKY -> 2f
                 MaskType.FULL -> 3f
             }
             // A brush mask is drawn into the layer of the brush texture matching its index.

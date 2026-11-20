@@ -83,6 +83,7 @@ private val LIBRARIES = listOf(
     "glslang" to "BSD-3-Clause / BSD-2-Clause / MIT / Apache-2.0",
     "Real-ESRGAN (realesr-general-x4v3)" to "BSD-3-Clause",
     "U²-Net (u2netp)" to "Apache-2.0",
+    "Sky segmentation U²-Net-p (xiongzhu666)" to "MIT",
     "MI-GAN (Picsart AI Research)" to "MIT",
     "MobileSAM (Segment Anything)" to "Apache-2.0",
     "IS-Net (DIS), model pack" to "Apache-2.0",

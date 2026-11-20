@@ -24,6 +24,7 @@ import io.github.steve_linux.photograin.data.Retoucher
 import io.github.steve_linux.photograin.data.SaveLocation
 import io.github.steve_linux.photograin.data.SettingsStore
 import io.github.steve_linux.photograin.data.ObjectSelector
+import io.github.steve_linux.photograin.data.SkySelector
 import io.github.steve_linux.photograin.data.SubjectSegmenter
 import io.github.steve_linux.photograin.model.AdjustmentGroup
 import io.github.steve_linux.photograin.model.Adjustments
@@ -89,7 +90,7 @@ import kotlin.math.roundToInt
 
 enum class Message {
     EXPORTED, EXPORTED_TO_PICTURES, EXPORTED_TO_DOWNLOADS, EXPORT_FAILED, LOAD_FAILED, ADJUSTMENTS_COPIED, ADJUSTMENTS_PASTED, OUT_OF_MEMORY,
-    LUT_IMPORTED, LUT_INVALID, LUT_MISSING, PRESET_SAVED, HORIZON_NOT_FOUND, SUBJECT_FAILED,
+    LUT_IMPORTED, LUT_INVALID, LUT_MISSING, PRESET_SAVED, HORIZON_NOT_FOUND, SUBJECT_FAILED, SKY_NOT_FOUND, SKY_FAILED,
     REMOVE_FAILED, AUTO_LIGHT_UNAVAILABLE, HSL_COLOR_NOT_FOUND, AUTO_WB_UNAVAILABLE,
 }
 
@@ -133,6 +134,7 @@ data class EditorUiState(
     val subjects: Subjects = Subjects(),
     /** The segmentation model is looking for the subject. */
     val findingSubject: Boolean = false,
+    val findingSky: Boolean = false,
     /** The selection model is looking for an object tapped. */
     val selectingObject: Boolean = false,
     /** In the Retouch tab: false for masks, true for healing and clone. */
@@ -203,6 +205,7 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
 
     /** The previews the main subject and the objects of [EditorUiState.subjects] were found in. */
     private var subjectFor: Bitmap? = null
+    private var skyFor: Bitmap? = null
     private var objectsFor: Bitmap? = null
 
     /** Recipe writes run one at a time, in order. */
@@ -219,6 +222,7 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         }
         watchRetouch()
         watchSubject()
+        watchSky()
         watchObjects()
         // Load the LUT whenever the edit points at a different one (open, undo, paste, preset).
         viewModelScope.launch {
@@ -953,6 +957,40 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** Sky is detected once per preview and shared unchanged with the export. */
+    private fun watchSky() {
+        viewModelScope.launch {
+            _state.map { s -> s.image?.preview?.takeIf { s.edit.masks.any { it.mask.type == MaskType.SKY } } }
+                .distinctUntilChanged()
+                .collectLatest { preview ->
+                    val image = _state.value.image ?: return@collectLatest
+                    if (preview == null || (skyFor === preview && _state.value.subjects.sky != null)) {
+                        _state.update { it.copy(findingSky = false) }
+                        return@collectLatest
+                    }
+                    _state.update { it.copy(findingSky = true) }
+                    val sky = withContext(Dispatchers.Default) {
+                        runCatching { SkySelector.select(getApplication(), preview, image.base) }
+                            .onFailure { Log.e(TAG, "Cannot select the sky", it) }
+                            .getOrNull()
+                    }
+                    if (_state.value.image?.preview !== preview) return@collectLatest
+                    skyFor = preview
+                    _state.update {
+                        it.copy(
+                            subjects = it.subjects.copy(sky = sky),
+                            findingSky = false,
+                            message = when {
+                                sky == null -> Message.SKY_FAILED
+                                sky.data.none { value -> value.toInt() != 0 } -> Message.SKY_NOT_FOUND
+                                else -> it.message
+                            },
+                        )
+                    }
+                }
+        }
+    }
+
     /**
      * Finds the subject in the preview whenever the edit has a subject mask and the subject
      * of this photo is not known yet. It is found once per photo and kept while it is open.
@@ -977,7 +1015,7 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
                     subjectFor = preview
                     _state.update {
                         it.copy(
-                            subjects = Subjects(subject, it.subjects.objects),
+                            subjects = it.subjects.copy(main = subject),
                             findingSubject = false,
                             message = if (subject == null) Message.SUBJECT_FAILED else it.message,
                         )
@@ -996,7 +1034,8 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         val main = masks.none { it.points.isEmpty() } || (subjects.main != null && subjectFor === preview)
         val objects = masks.all { it.points.isEmpty() || it.points in subjects.objects } &&
             (masks.all { it.points.isEmpty() } || objectsFor === preview)
-        return subjects.takeIf { main && objects }
+        val sky = edit.masks.none { it.mask.type == MaskType.SKY } || (subjects.sky != null && skyFor === preview)
+        return subjects.takeIf { main && objects && sky }
     }
 
     /**
@@ -1015,12 +1054,12 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
                 .collectLatest { wanted ->
                     val image = _state.value.image ?: return@collectLatest
                     val (preview, points) = wanted ?: run {
-                        _state.update { it.copy(subjects = Subjects(it.subjects.main), selectingObject = false) }
+                        _state.update { it.copy(subjects = it.subjects.copy(objects = emptyMap()), selectingObject = false) }
                         return@collectLatest
                     }
                     if (objectsFor !== preview) {
                         objectsFor = preview
-                        _state.update { it.copy(subjects = Subjects(it.subjects.main)) }
+                        _state.update { it.copy(subjects = it.subjects.copy(objects = emptyMap())) }
                     }
                     for (p in points) {
                         if (p in _state.value.subjects.objects) continue
@@ -1035,11 +1074,11 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
                             _state.update { it.copy(selectingObject = false, message = Message.SUBJECT_FAILED) }
                             return@collectLatest
                         }
-                        _state.update { it.copy(subjects = Subjects(it.subjects.main, it.subjects.objects + (p to selected))) }
+                        _state.update { it.copy(subjects = it.subjects.copy(objects = it.subjects.objects + (p to selected))) }
                     }
                     _state.update { s ->
                         val kept = s.subjects.objects.filterKeys { it in points }
-                        s.copy(subjects = Subjects(s.subjects.main, kept), selectingObject = false)
+                        s.copy(subjects = s.subjects.copy(objects = kept), selectingObject = false)
                     }
                 }
         }

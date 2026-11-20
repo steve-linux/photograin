@@ -413,6 +413,7 @@ private fun PhotoWorkspace(viewModel: EditorViewModel, onClose: () -> Unit, onGu
                             picking = state.picker == Picker.MASK_COLOR,
                             onPicking = { viewModel.setPicker(if (it) Picker.MASK_COLOR else Picker.NONE) },
                             findingSubject = state.findingSubject,
+                            findingSky = state.findingSky,
                             selectingObject = state.selectingObject,
                             onClearObject = viewModel::clearObject,
                             onRemoveBackground = viewModel::removeBackground,
@@ -606,6 +607,8 @@ private fun messageText(m: Message): Int = when (m) {
     Message.HSL_COLOR_NOT_FOUND -> R.string.msg_hsl_color_not_found
     Message.HORIZON_NOT_FOUND -> R.string.msg_horizon_not_found
     Message.SUBJECT_FAILED -> R.string.msg_subject_failed
+    Message.SKY_NOT_FOUND -> R.string.msg_sky_not_found
+    Message.SKY_FAILED -> R.string.msg_sky_failed
     Message.REMOVE_FAILED -> R.string.msg_remove_failed
 }
 
