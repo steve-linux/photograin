@@ -146,7 +146,7 @@ data class EditorUiState(
     val removeDraft: BrushStroke? = null,
     /** The inpainting model is filling a removal spot. */
     val removing: Boolean = false,
-    /** In the Effects tab: 0 effects, 1 frame, 2 text, 3 shapes. */
+    /** In the Effects tab: 0 effects, 1 frame, 2 text, 3 shapes, 4 vignette, 5 grain. */
     val effectsMode: Int = 0,
     /** The text being edited, by index in [EditState.texts]. */
     val selectedText: Int? = null,

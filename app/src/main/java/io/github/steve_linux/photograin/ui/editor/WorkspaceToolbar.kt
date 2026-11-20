@@ -3,6 +3,7 @@ package io.github.steve_linux.photograin.ui.editor
 
 import androidx.annotation.StringRes
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,6 +13,10 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.text.BasicText
@@ -19,21 +24,27 @@ import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.AutoFixHigh
-import androidx.compose.material.icons.outlined.Healing
 import androidx.compose.material.icons.outlined.Crop
 import androidx.compose.material.icons.outlined.Details
+import androidx.compose.material.icons.outlined.Filter
+import androidx.compose.material.icons.outlined.Healing
 import androidx.compose.material.icons.outlined.LensBlur
 import androidx.compose.material.icons.outlined.Palette
-import androidx.compose.material.icons.outlined.Filter
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.WbSunny
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
@@ -127,15 +138,23 @@ private fun WorkspaceItem(
 internal fun WorkspaceModeTabs(
     labels: List<Int>,
     selected: Int,
+    scrollable: Boolean = false,
     onSelect: (Int) -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
     Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp)) {
-        Row(Modifier.fillMaxWidth().selectableGroup()) {
+        Row(Modifier.fillMaxWidth().then(if (scrollable) Modifier.horizontalScroll(rememberScrollState()) else Modifier).selectableGroup()) {
             labels.forEachIndexed { index, label ->
                 val active = index == selected
+                val bringIntoView = remember { BringIntoViewRequester() }
+                var placed by remember { mutableStateOf(false) }
+                LaunchedEffect(active, scrollable, placed) {
+                    if (active && scrollable && placed) bringIntoView.bringIntoView()
+                }
                 Box(
-                    modifier = Modifier.weight(1f).heightIn(min = 44.dp)
+                    modifier = (if (scrollable) Modifier.width(112.dp) else Modifier.weight(1f)).heightIn(min = 44.dp)
+                        .bringIntoViewRequester(bringIntoView)
+                        .onGloballyPositioned { placed = true }
                         .selectable(selected = active, role = Role.Tab, onClick = { onSelect(index) })
                         .padding(horizontal = 4.dp),
                     contentAlignment = Alignment.Center,

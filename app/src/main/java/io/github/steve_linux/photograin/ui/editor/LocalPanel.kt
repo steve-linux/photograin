@@ -3,6 +3,7 @@ package io.github.steve_linux.photograin.ui.editor
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,7 +16,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -25,8 +25,8 @@ import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.AutoFixOff
 import androidx.compose.material.icons.outlined.Brush
 import androidx.compose.material.icons.outlined.Colorize
-import androidx.compose.material.icons.outlined.Gesture
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Gesture
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.FilterChip
@@ -39,6 +39,11 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -86,163 +91,190 @@ fun LocalPanel(
     onRemoveBackground: () -> Unit,
     onBackground: (Background, Int?) -> Unit,
 ) {
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .heightIn(max = 300.dp)
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-    ) {
-        FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            masks.forEachIndexed { i, local ->
-                FilterChip(
-                    selected = i == selected,
-                    onClick = { onSelect(if (i == selected) null else i) },
-                    label = { Text(stringResource(maskName(local.mask.type), i + 1)) },
-                )
-            }
-            val canAdd = masks.size < LocalAdjustment.MAX
-            for (type in MaskType.entries) {
-                AssistChip(
-                    enabled = canAdd,
-                    onClick = { onAdd(type) },
-                    label = { Text(stringResource(addLabel(type))) },
-                    leadingIcon = { Icon(Icons.Outlined.Add, contentDescription = null, Modifier.size(18.dp)) },
-                )
-            }
-            // The quickest way to a cutout: the subject, with the background made transparent.
-            AssistChip(
-                enabled = canAdd,
-                onClick = onRemoveBackground,
-                label = { Text(stringResource(R.string.local_remove_background)) },
-                leadingIcon = { Icon(Icons.Outlined.AutoAwesome, contentDescription = null, Modifier.size(18.dp)) },
-            )
-        }
-        val index = selected?.takeIf { it in masks.indices }
-        if (index == null) {
-            Text(
-                stringResource(if (masks.isEmpty()) R.string.local_hint_empty else R.string.local_hint_select),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(vertical = 8.dp),
-            )
-            return@Column
-        }
-        val local = masks[index]
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Switch(checked = local.mask.invert, onCheckedChange = onInvert)
-            Spacer(Modifier.width(8.dp))
-            Text(stringResource(R.string.local_invert), style = MaterialTheme.typography.labelLarge)
-            Spacer(Modifier.weight(1f))
-            // Highlighted while the mask is shown, like the split view button.
-            IconToggleButton(checked = showMask, onCheckedChange = onShowMask) {
-                Icon(Icons.Outlined.Visibility, contentDescription = stringResource(R.string.local_show_mask))
-            }
-            IconButton(onClick = { onDelete(index) }) {
-                Icon(Icons.Outlined.Delete, contentDescription = stringResource(R.string.local_delete))
+    var section by rememberSaveable(selected) { mutableStateOf(0) }
+    val activeSection = if (selected == null) 0 else section
+    Column(Modifier.fillMaxWidth().heightIn(max = 300.dp)) {
+        if (selected != null) {
+            WorkspaceModeTabs(
+                listOf(R.string.panel_selection, R.string.tool_light, R.string.tool_color, R.string.tool_effects),
+                activeSection,
+            ) {
+                if (it != 0) onPicking(false)
+                section = it
             }
         }
-        val tapped = local.mask.points.isNotEmpty()
-        if (local.mask.type == MaskType.SUBJECT && (if (tapped) selectingObject else findingSubject)) {
-            Text(
-                stringResource(if (tapped) R.string.local_selecting_object else R.string.local_finding_subject),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 4.dp),
-            )
-            LinearProgressIndicator(Modifier.fillMaxWidth().padding(bottom = 8.dp))
-        }
-        if (LocalAdjustment.usesRaster(local.mask.type)) {
-            if (tapped) {
-                TextButton(onClick = onClearObject) { Text(stringResource(R.string.local_clear_object)) }
-            } else if (local.mask.strokes.isEmpty()) {
-                Text(
-                    stringResource(if (local.mask.type == MaskType.SUBJECT) R.string.local_hint_subject else R.string.local_hint_brush),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(bottom = 4.dp),
-                )
+        key(activeSection) {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+            ) {
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    masks.forEachIndexed { i, local ->
+                        FilterChip(
+                            selected = i == selected,
+                            onClick = { onSelect(if (i == selected) null else i) },
+                            label = { Text(stringResource(maskName(local.mask.type), i + 1)) },
+                        )
+                    }
+                }
+                if (activeSection == 0) {
+                    FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        val canAdd = masks.size < LocalAdjustment.MAX
+                        for (type in MaskType.entries) {
+                            AssistChip(
+                                enabled = canAdd,
+                                onClick = { onAdd(type) },
+                                label = { Text(stringResource(addLabel(type))) },
+                                leadingIcon = { Icon(Icons.Outlined.Add, contentDescription = null, Modifier.size(18.dp)) },
+                            )
+                        }
+                        // The quickest way to a cutout: the subject, with the background made transparent.
+                        AssistChip(
+                            enabled = canAdd,
+                            onClick = onRemoveBackground,
+                            label = { Text(stringResource(R.string.local_remove_background)) },
+                            leadingIcon = { Icon(Icons.Outlined.AutoAwesome, contentDescription = null, Modifier.size(18.dp)) },
+                        )
+                    }
+                }
+                val index = selected?.takeIf { it in masks.indices }
+                if (index == null) {
+                    Text(
+                        stringResource(if (masks.isEmpty()) R.string.local_hint_empty else R.string.local_hint_select),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(vertical = 8.dp),
+                    )
+                    return@Column
+                }
+                val local = masks[index]
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Switch(checked = local.mask.invert, onCheckedChange = onInvert)
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.local_invert), style = MaterialTheme.typography.labelLarge)
+                    Spacer(Modifier.weight(1f))
+                    // Highlighted while the mask is shown, like the split view button.
+                    IconToggleButton(checked = showMask, onCheckedChange = onShowMask) {
+                        Icon(Icons.Outlined.Visibility, contentDescription = stringResource(R.string.local_show_mask))
+                    }
+                    IconButton(onClick = { onDelete(index) }) {
+                        Icon(Icons.Outlined.Delete, contentDescription = stringResource(R.string.local_delete))
+                    }
+                }
+                if (activeSection == 0) {
+                    val tapped = local.mask.points.isNotEmpty()
+                    if (local.mask.type == MaskType.SUBJECT && (if (tapped) selectingObject else findingSubject)) {
+                        Text(
+                            stringResource(if (tapped) R.string.local_selecting_object else R.string.local_finding_subject),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(bottom = 4.dp),
+                        )
+                        LinearProgressIndicator(Modifier.fillMaxWidth().padding(bottom = 8.dp))
+                    }
+                    if (LocalAdjustment.usesRaster(local.mask.type)) {
+                        if (tapped) {
+                            TextButton(onClick = onClearObject) { Text(stringResource(R.string.local_clear_object)) }
+                        } else if (local.mask.strokes.isEmpty()) {
+                            Text(
+                                stringResource(if (local.mask.type == MaskType.SUBJECT) R.string.local_hint_subject else R.string.local_hint_brush),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(bottom = 4.dp),
+                            )
+                        }
+                        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            FilterChip(
+                                selected = !brush.erase,
+                                onClick = { onBrush(brush.copy(erase = false)) },
+                                label = { Text(stringResource(R.string.brush_paint)) },
+                                leadingIcon = { Icon(Icons.Outlined.Brush, contentDescription = null, Modifier.size(18.dp)) },
+                            )
+                            FilterChip(
+                                selected = brush.erase,
+                                onClick = { onBrush(brush.copy(erase = true)) },
+                                label = { Text(stringResource(R.string.brush_erase)) },
+                                leadingIcon = { Icon(Icons.Outlined.AutoFixOff, contentDescription = null, Modifier.size(18.dp)) },
+                            )
+                            FilterChip(
+                                selected = brush.lasso,
+                                onClick = { onBrush(brush.copy(lasso = !brush.lasso)) },
+                                label = { Text(stringResource(R.string.brush_lasso)) },
+                                leadingIcon = { Icon(Icons.Outlined.Gesture, contentDescription = null, Modifier.size(18.dp)) },
+                            )
+                        }
+                        if (brush.lasso) {
+                            // The lasso fills what it surrounds: size and hardness do not apply.
+                            Text(
+                                stringResource(R.string.brush_lasso_hint),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(vertical = 4.dp),
+                            )
+                        } else {
+                            ParamSlider(
+                                label = stringResource(R.string.brush_size),
+                                help = helpFor(R.string.brush_size),
+                                value = brush.size,
+                                range = 0f..1f,
+                                display = "${Math.round(brush.size * 100)}",
+                                onChange = { onBrush(brush.copy(size = it)) },
+                                onChangeFinished = {},
+                                onReset = { onBrush(brush.copy(size = BrushSettings().size)) },
+                            )
+                            ParamSlider(
+                                label = stringResource(R.string.brush_hardness),
+                                help = helpFor(R.string.brush_hardness),
+                                value = brush.hardness,
+                                range = 0f..1f,
+                                display = "${Math.round(brush.hardness * 100)}",
+                                onChange = { onBrush(brush.copy(hardness = it)) },
+                                onChangeFinished = {},
+                                onReset = { onBrush(brush.copy(hardness = BrushSettings().hardness)) },
+                            )
+                        }
+                    }
+                    if (local.mask.type == MaskType.RADIAL) {
+                        ParamSlider(
+                            label = stringResource(R.string.local_feather),
+                            help = helpFor(R.string.local_feather),
+                            value = local.mask.feather,
+                            range = 0f..1f,
+                            display = "${Math.round(local.mask.feather * 100)}",
+                            onChange = { onShape(local.mask.copy(feather = it)) },
+                            onChangeFinished = onChangeFinished,
+                            onReset = {
+                                onShape(local.mask.copy(feather = Mask().feather))
+                                onChangeFinished()
+                            },
+                        )
+                    }
+                    BackgroundSection(local, onBackground)
+                    RangeSection(local.mask, onShape, onChangeFinished, picking, onPicking)
+                }
+                val ids = when (activeSection) {
+                    1 -> setOf("exposure", "contrast", "highlights", "shadows")
+                    2 -> setOf("temperature", "tint", "saturation")
+                    3 -> setOf("texture", "clarity", "dehaze")
+                    else -> emptySet()
+                }
+                for (spec in LocalParams.all.filter { it.id in ids }) {
+                    val value = spec.get(local)
+                    ParamSlider(
+                        label = stringResource(paramLabel(spec.id)),
+                        help = helpFor(paramLabel(spec.id)),
+                        value = value,
+                        range = spec.min..spec.max,
+                        display = formatLocal(spec, value),
+                        onChange = { onParam(spec, it) },
+                        onChangeFinished = onChangeFinished,
+                        onReset = { onResetParam(spec) },
+                    )
+                }
             }
-            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(
-                    selected = !brush.erase,
-                    onClick = { onBrush(brush.copy(erase = false)) },
-                    label = { Text(stringResource(R.string.brush_paint)) },
-                    leadingIcon = { Icon(Icons.Outlined.Brush, contentDescription = null, Modifier.size(18.dp)) },
-                )
-                FilterChip(
-                    selected = brush.erase,
-                    onClick = { onBrush(brush.copy(erase = true)) },
-                    label = { Text(stringResource(R.string.brush_erase)) },
-                    leadingIcon = { Icon(Icons.Outlined.AutoFixOff, contentDescription = null, Modifier.size(18.dp)) },
-                )
-                FilterChip(
-                    selected = brush.lasso,
-                    onClick = { onBrush(brush.copy(lasso = !brush.lasso)) },
-                    label = { Text(stringResource(R.string.brush_lasso)) },
-                    leadingIcon = { Icon(Icons.Outlined.Gesture, contentDescription = null, Modifier.size(18.dp)) },
-                )
-            }
-            if (brush.lasso) {
-                // The lasso fills what it surrounds: size and hardness do not apply.
-                Text(
-                    stringResource(R.string.brush_lasso_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(vertical = 4.dp),
-                )
-            } else {
-                ParamSlider(
-                    label = stringResource(R.string.brush_size),
-                    help = helpFor(R.string.brush_size),
-                    value = brush.size,
-                    range = 0f..1f,
-                    display = "${Math.round(brush.size * 100)}",
-                    onChange = { onBrush(brush.copy(size = it)) },
-                    onChangeFinished = {},
-                    onReset = { onBrush(brush.copy(size = BrushSettings().size)) },
-                )
-                ParamSlider(
-                    label = stringResource(R.string.brush_hardness),
-                    help = helpFor(R.string.brush_hardness),
-                    value = brush.hardness,
-                    range = 0f..1f,
-                    display = "${Math.round(brush.hardness * 100)}",
-                    onChange = { onBrush(brush.copy(hardness = it)) },
-                    onChangeFinished = {},
-                    onReset = { onBrush(brush.copy(hardness = BrushSettings().hardness)) },
-                )
-            }
-        }
-        if (local.mask.type == MaskType.RADIAL) {
-            ParamSlider(
-                label = stringResource(R.string.local_feather),
-                help = helpFor(R.string.local_feather),
-                value = local.mask.feather,
-                range = 0f..1f,
-                display = "${Math.round(local.mask.feather * 100)}",
-                onChange = { onShape(local.mask.copy(feather = it)) },
-                onChangeFinished = onChangeFinished,
-                onReset = {
-                    onShape(local.mask.copy(feather = Mask().feather))
-                    onChangeFinished()
-                },
-            )
-        }
-        BackgroundSection(local, onBackground)
-        RangeSection(local.mask, onShape, onChangeFinished, picking, onPicking)
-        for (spec in LocalParams.all) {
-            val value = spec.get(local)
-            ParamSlider(
-                label = stringResource(paramLabel(spec.id)),
-                help = helpFor(paramLabel(spec.id)),
-                value = value,
-                range = spec.min..spec.max,
-                display = formatLocal(spec, value),
-                onChange = { onParam(spec, it) },
-                onChangeFinished = onChangeFinished,
-                onReset = { onResetParam(spec) },
-            )
         }
     }
 }

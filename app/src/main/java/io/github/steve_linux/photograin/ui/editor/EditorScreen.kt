@@ -65,6 +65,7 @@ import io.github.steve_linux.photograin.data.ExportOptions
 import io.github.steve_linux.photograin.data.ObjectRemover
 import io.github.steve_linux.photograin.data.SettingsStore
 import io.github.steve_linux.photograin.model.HslControl
+import io.github.steve_linux.photograin.model.Params
 import io.github.steve_linux.photograin.model.ToolGroup
 import io.github.steve_linux.photograin.render.RgbHistogram
 import io.github.steve_linux.photograin.ui.guide.guideTopicFor
@@ -105,6 +106,7 @@ private fun PhotoWorkspace(viewModel: EditorViewModel, onClose: () -> Unit, onGu
     }
     var lightCurves by rememberSaveable { mutableStateOf(false) }
     var colorMode by rememberSaveable { mutableStateOf(0) }
+    var detailMode by rememberSaveable { mutableStateOf(0) }
     var hslControl by rememberSaveable { mutableStateOf(HslControl.SATURATION) }
     var histogramOpen by rememberSaveable { mutableStateOf(false) }
     var showClipping by rememberSaveable { mutableStateOf(false) }
@@ -366,6 +368,11 @@ private fun PhotoWorkspace(viewModel: EditorViewModel, onClose: () -> Unit, onGu
                         )
                         else -> AdjustmentPanel(
                             group = ToolGroup.EFFECTS,
+                            parameterIds = when (state.effectsMode) {
+                                4 -> Params.all.filter { it.id.startsWith("vignette") }.map { it.id }.toSet()
+                                5 -> setOf("grain", "grainSize")
+                                else -> setOf("texture", "clarity", "dehaze")
+                            },
                             adjustments = state.edit.adjustments,
                             onChange = viewModel::setParam,
                             onChangeFinished = viewModel::commit,
@@ -462,11 +469,14 @@ private fun PhotoWorkspace(viewModel: EditorViewModel, onClose: () -> Unit, onGu
                             onSelect = { lightCurves = it },
                         )
                     } else if (state.tool == ToolGroup.COLOR) {
-                        val modes = listOf(R.string.mode_basic, R.string.mode_hsl, R.string.mode_grading, R.string.mode_monochrome)
+                        val modes = listOf(R.string.panel_balance, R.string.panel_mix, R.string.mode_grading, R.string.mode_monochrome)
                         WorkspaceModeTabs(modes, colorMode) { index ->
                             if (colorMode != index) viewModel.setPicker(Picker.NONE)
                             colorMode = index
                         }
+                    }
+                    if (state.tool == ToolGroup.DETAIL) {
+                        WorkspaceModeTabs(listOf(R.string.panel_sharpening, R.string.panel_noise, R.string.panel_color_noise), detailMode) { detailMode = it }
                     }
                     when {
                         state.tool == ToolGroup.LIGHT && lightCurves -> CurvesPanel(
@@ -506,6 +516,11 @@ private fun PhotoWorkspace(viewModel: EditorViewModel, onClose: () -> Unit, onGu
                             }
                             AdjustmentPanel(
                                 group = state.tool,
+                                parameterIds = if (state.tool == ToolGroup.DETAIL) {
+                                    if (detailMode == 0) setOf("sharpness", "sharpnessRadius", "sharpnessMasking")
+                                    else if (detailMode == 1) setOf("noiseReduction")
+                                    else setOf("colorNoiseReduction")
+                                } else null,
                                 adjustments = state.edit.adjustments,
                                 onChange = viewModel::setParam,
                                 onChangeFinished = viewModel::commit,
