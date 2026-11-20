@@ -4,6 +4,7 @@ package io.github.steve_linux.photograin.render
 import android.opengl.GLES30
 import io.github.steve_linux.photograin.math.Homography
 import io.github.steve_linux.photograin.model.Adjustments
+import io.github.steve_linux.photograin.model.CompoundRaster
 import io.github.steve_linux.photograin.model.BrushRaster
 import io.github.steve_linux.photograin.model.ColorProfile
 import io.github.steve_linux.photograin.model.CubeLut
@@ -53,7 +54,7 @@ internal class Pipeline {
     private var uploadedLut: CubeLut? = null
     private var brushTexture = 0
     private var brushTextureSize: PxSize? = null
-    private val brushRasters = arrayOfNulls<BrushRaster>(LocalAdjustment.MAX)
+    private val brushRasters = arrayOfNulls<CompoundRaster>(LocalAdjustment.MAX)
     private var brushUpload: ByteBuffer? = null
 
     init {
@@ -364,7 +365,7 @@ internal class Pipeline {
      * Without such masks it is a 1x1 texture, so the sampler stays valid.
      */
     private fun brushTexture(masks: List<LocalAdjustment>, sourceWidth: Int, sourceHeight: Int, subjects: Subjects?): Int {
-        val hasBrush = masks.take(LocalAdjustment.MAX).any { LocalAdjustment.usesRaster(it.mask.type) }
+        val hasBrush = masks.take(LocalAdjustment.MAX).any { it.mask.usesRaster }
         val size = if (hasBrush) {
             BrushRaster.size(sourceWidth, sourceHeight)
         } else {
@@ -391,12 +392,11 @@ internal class Pipeline {
         GLES30.glBindTexture(GLES30.GL_TEXTURE_2D_ARRAY, brushTexture)
         GLES30.glPixelStorei(GLES30.GL_UNPACK_ALIGNMENT, 1)
         masks.take(LocalAdjustment.MAX).forEachIndexed { i, local ->
-            if (!LocalAdjustment.usesRaster(local.mask.type)) return@forEachIndexed
+            if (!local.mask.usesRaster) return@forEachIndexed
             // A new raster is uploaded even when empty: the layer may hold another photo's paint.
             val created = brushRasters[i] == null
-            val raster = brushRasters[i] ?: BrushRaster(sourceWidth, sourceHeight).also { brushRasters[i] = it }
-            val base = subjects?.of(local.mask)?.resizedTo(raster.width, raster.height)?.data
-            if (raster.sync(local.mask.strokes, base) || created) {
+            val raster = brushRasters[i] ?: CompoundRaster(sourceWidth, sourceHeight).also { brushRasters[i] = it }
+            if (raster.sync(local.mask, subjects) || created) {
                 val buffer = brushUpload?.takeIf { it.capacity() == raster.data.size }
                     ?: ByteBuffer.allocateDirect(raster.data.size).also { brushUpload = it }
                 buffer.clear()

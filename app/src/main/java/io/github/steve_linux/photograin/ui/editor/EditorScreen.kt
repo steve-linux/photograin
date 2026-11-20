@@ -397,6 +397,10 @@ private fun PhotoWorkspace(viewModel: EditorViewModel, onClose: () -> Unit, onGu
                     } else {
                         LocalPanel(
                             masks = state.edit.masks,
+                            selectedPart = state.activeMaskPart,
+                            onSelectPart = viewModel::selectMaskPart,
+                            onAddPart = viewModel::addMaskPart,
+                            onDeletePart = viewModel::deleteMaskPart,
                             selected = state.activeMask,
                             showMask = state.showMask,
                             onAdd = viewModel::addMask,

@@ -97,8 +97,8 @@ object SubjectSegmenter {
      * at about the size of a mask's grid, so it works on photos of any size.
      */
     fun forEdit(context: Context, source: RegionSource, base: BaseOrientation, edit: EditState): Subjects? {
-        val points = edit.masks.filter { it.mask.type == MaskType.SUBJECT }.map { it.mask.points }
-        val needsSky = edit.masks.any { it.mask.type == MaskType.SKY }
+        val points = edit.masks.flatMap { it.mask.selections() }.filter { it.type == MaskType.SUBJECT }.map { it.points }
+        val needsSky = edit.masks.any { it.mask.selections().any { m -> m.type == MaskType.SKY } }
         if (points.isEmpty() && !needsSky) return null
         var sample = 1
         while (max(source.width, source.height) / (sample * 2) >= BrushRaster.LONG_EDGE * 2) sample *= 2

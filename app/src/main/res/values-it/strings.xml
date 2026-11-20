@@ -478,4 +478,10 @@
     <string name="local_hint_sky">Cielo riconosciuto con IA, senza connessione. Controlla la sovrapposizione rossa e rifinisci con Dipingi o Cancella.</string>
     <string name="msg_sky_not_found">Nessun cielo riconosciuto con chiarezza. Dipingi la selezione a mano o prova un’altra foto.</string>
     <string name="msg_sky_failed">Impossibile selezionare il cielo. Puoi dipingere la maschera a mano.</string>
+    <string name="mask_base">Selezione iniziale</string>
+    <string name="mask_add_selection">Aggiungi selezione</string>
+    <string name="mask_subtract_selection">Sottrai selezione</string>
+    <string name="mask_delete_selection">Elimina selezione</string>
+    <string name="mask_components_hint">Seleziona una componente per modificarla. Inversione, intervallo colore/luminosità e regolazioni si applicano alla maschera completa.</string>
+    <string name="mask_new">Nuova maschera</string>
 </resources>

@@ -49,6 +49,8 @@ import io.github.steve_linux.photograin.model.History
 import io.github.steve_linux.photograin.model.LocalAdjustment
 import io.github.steve_linux.photograin.model.LocalParamSpec
 import io.github.steve_linux.photograin.model.Mask
+import io.github.steve_linux.photograin.model.MaskPart
+import io.github.steve_linux.photograin.model.MaskOperation
 import io.github.steve_linux.photograin.model.Background
 import io.github.steve_linux.photograin.model.Subjects
 import io.github.steve_linux.photograin.model.WhiteBalance
@@ -121,6 +123,7 @@ data class EditorUiState(
     val userPresets: List<Preset> = emptyList(),
     /** The local adjustment being edited, by index in [EditState.masks]. */
     val selectedMask: Int? = null,
+    val selectedMaskPart: Int = 0,
     /** Tint the selected mask red, to see where it applies. */
     val showMask: Boolean = false,
     /** A mask handle is being dragged: the mask is shown while it moves. */
@@ -171,6 +174,12 @@ data class EditorUiState(
 
     /** [selectedSpot] if it still exists. */
     val activeSpot: Int? get() = selectedSpot?.takeIf { it in edit.retouch.indices }
+
+    val activeMaskPart: Int get() = selectedMaskPart.takeIf { it in 0..(activeMask?.let { i -> edit.masks[i].mask.parts.size } ?: 0) } ?: 0
+    /** Editing handles see one component; rendering always sees the complete edit. */
+    val editingMasks: List<LocalAdjustment> get() = edit.masks.mapIndexed { i, local ->
+        local.copy(mask = local.mask.selection(if (i == activeMask) activeMaskPart else 0))
+    }
 
     /** [selectedMask] if it still exists (undo can remove it). */
     val activeMask: Int? get() = selectedMask?.takeIf { it in edit.masks.indices }
@@ -602,11 +611,33 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         if (_state.value.edit.masks.size >= LocalAdjustment.MAX) return
         val local = LocalAdjustment.create(type, m.normalizedOutputToSource(), image.preview.width, image.preview.height)
         updateLive { it.copy(masks = it.masks + local) }
-        _state.update { it.copy(selectedMask = it.edit.masks.lastIndex) }
+        _state.update { it.copy(selectedMaskPart = 0, selectedMask = it.edit.masks.lastIndex) }
         commit()
     }
 
-    fun selectMask(index: Int?) = _state.update { it.copy(selectedMask = index, picker = Picker.NONE) }
+    fun selectMask(index: Int?) = _state.update { it.copy(selectedMaskPart = 0, selectedMask = index, picker = Picker.NONE) }
+
+    fun selectMaskPart(index: Int) = _state.update { it.copy(selectedMaskPart = index, picker = Picker.NONE, lassoDraft = null) }
+
+    fun addMaskPart(type: MaskType, operation: MaskOperation) {
+        val s = _state.value
+        val index = s.activeMask ?: return
+        val image = s.image ?: return
+        val m = mapper() ?: return
+        if (s.edit.masks[index].mask.parts.size >= Mask.MAX_PARTS) return
+        val shape = LocalAdjustment.create(type, m.normalizedOutputToSource(), image.preview.width, image.preview.height).mask.copy(range = MaskRange())
+        updateMask { it.copy(mask = it.mask.copy(parts = it.mask.parts + MaskPart(shape, operation))) }
+        _state.update { it.copy(selectedMaskPart = it.edit.masks[index].mask.parts.size, picker = Picker.NONE, showMask = true) }
+        commit()
+    }
+
+    fun deleteMaskPart() {
+        val part = _state.value.activeMaskPart
+        if (part == 0) return
+        updateMask { it.copy(mask = it.mask.copy(parts = it.mask.parts.filterIndexed { i, _ -> i != part - 1 })) }
+        selectMaskPart(0)
+        commit()
+    }
 
     fun deleteMask(index: Int) {
         if (index !in _state.value.edit.masks.indices) return
@@ -624,7 +655,7 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** Live update of the selected mask's shape, from its handles or the feather slider. */
-    fun setMaskShape(mask: Mask) = updateMask { it.copy(mask = mask) }
+    fun setMaskShape(mask: Mask) = updateSelection { it.copy(mask = mask) }
 
     fun setMaskInvert(invert: Boolean) {
         updateMask { it.copy(mask = it.mask.copy(invert = invert)) }
@@ -655,7 +686,7 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         if (s.image == null || s.edit.masks.size >= LocalAdjustment.MAX) return
         val local = LocalAdjustment(mask = Mask(MaskType.SUBJECT), background = Background.TRANSPARENT)
         updateLive { e -> e.copy(masks = e.masks.map { it.copy(background = Background.KEEP) } + local) }
-        _state.update { it.copy(selectedMask = it.edit.masks.lastIndex, tool = ToolGroup.LOCAL, retouchMode = false) }
+        _state.update { it.copy(selectedMaskPart = 0, selectedMask = it.edit.masks.lastIndex, tool = ToolGroup.LOCAL, retouchMode = false) }
         commit()
     }
 
@@ -666,19 +697,19 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         val b = _state.value.brush
         val stroke = BrushStroke(listOf(x, y), radius, b.hardness, b.erase)
         _state.update { it.copy(maskDragging = true) }
-        updateMask { it.copy(mask = it.mask.copy(strokes = it.mask.strokes + stroke)) }
+        updateSelection { it.copy(mask = it.mask.copy(strokes = it.mask.strokes + stroke)) }
     }
 
     /** Extends the stroke being painted, skipping points too close to the last one. */
-    fun extendStroke(x: Float, y: Float) = updateMask { local ->
+    fun extendStroke(x: Float, y: Float) = updateSelection { local ->
         val strokes = local.mask.strokes
-        val last = strokes.lastOrNull() ?: return@updateMask local
+        val last = strokes.lastOrNull() ?: return@updateSelection local
         val n = last.points.size
         val dx = x - last.points[n - 2]
         val dy = y - last.points[n - 1]
         // A fifth of the radius between points; the radius is in long-edge units, close enough here.
         val step = last.radius * 0.2f
-        if (dx * dx + dy * dy < step * step) return@updateMask local
+        if (dx * dx + dy * dy < step * step) return@updateSelection local
         val grown = last.copy(points = last.points + listOf(x, y))
         local.copy(mask = local.mask.copy(strokes = strokes.dropLast(1) + grown))
     }
@@ -691,16 +722,16 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
      */
     fun tapObject(x: Float, y: Float) {
         if (!ObjectSelector.available) return
-        val points = _state.value.activeMask?.let { _state.value.edit.masks[it].mask.points } ?: return
+        val points = _state.value.activeMask?.let { _state.value.editingMasks[it].mask.points } ?: return
         // Leaving something out only means something once there is an object.
         val include = _state.value.brush.erase.not() || points.isEmpty()
-        updateMask { it.copy(mask = it.mask.copy(points = it.mask.points + listOf(x, y, if (include) 1f else 0f))) }
+        updateSelection { it.copy(mask = it.mask.copy(points = it.mask.points + listOf(x, y, if (include) 1f else 0f))) }
         commit()
     }
 
     /** Goes back from the object tapped to the photo's main subject. */
     fun clearObject() {
-        updateMask { it.copy(mask = it.mask.copy(points = emptyList())) }
+        updateSelection { it.copy(mask = it.mask.copy(points = emptyList())) }
         commit()
     }
 
@@ -721,7 +752,7 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         _state.update { it.copy(lassoDraft = null) }
         if (points.size < 6) return
         val stroke = BrushStroke(points, radius = 0f, erase = _state.value.brush.erase, fill = true)
-        updateMask { it.copy(mask = it.mask.copy(strokes = it.mask.strokes + stroke)) }
+        updateSelection { it.copy(mask = it.mask.copy(strokes = it.mask.strokes + stroke)) }
         commit()
     }
 
@@ -730,6 +761,11 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
     fun setMaskDragging(dragging: Boolean) {
         _state.update { it.copy(maskDragging = dragging) }
         if (!dragging) commit()
+    }
+
+    private fun updateSelection(transform: (LocalAdjustment) -> LocalAdjustment) {
+        val part = _state.value.activeMaskPart
+        updateMask { local -> local.copy(mask = local.mask.withSelection(part, transform(local.copy(mask = local.mask.selection(part))).mask)) }
     }
 
     private fun updateMask(transform: (LocalAdjustment) -> LocalAdjustment) {
@@ -960,7 +996,7 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
     /** Sky is detected once per preview and shared unchanged with the export. */
     private fun watchSky() {
         viewModelScope.launch {
-            _state.map { s -> s.image?.preview?.takeIf { s.edit.masks.any { it.mask.type == MaskType.SKY } } }
+            _state.map { s -> s.image?.preview?.takeIf { s.edit.masks.any { it.mask.selections().any { m -> m.type == MaskType.SKY } } } }
                 .distinctUntilChanged()
                 .collectLatest { preview ->
                     val image = _state.value.image ?: return@collectLatest
@@ -997,7 +1033,7 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
      */
     private fun watchSubject() {
         viewModelScope.launch {
-            _state.map { s -> s.image?.preview?.takeIf { s.edit.masks.any { it.mask.type == MaskType.SUBJECT && it.mask.points.isEmpty() } } }
+            _state.map { s -> s.image?.preview?.takeIf { s.edit.masks.any { it.mask.selections().any { m -> m.type == MaskType.SUBJECT && m.points.isEmpty() } } } }
                 .distinctUntilChanged()
                 .collectLatest { preview ->
                     val image = _state.value.image ?: return@collectLatest
@@ -1030,11 +1066,11 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
      */
     private fun previewSubjects(edit: EditState, preview: Bitmap): Subjects? {
         val subjects = _state.value.subjects
-        val masks = edit.masks.filter { it.mask.type == MaskType.SUBJECT }.map { it.mask }
+        val masks = edit.masks.flatMap { it.mask.selections() }.filter { it.type == MaskType.SUBJECT }
         val main = masks.none { it.points.isEmpty() } || (subjects.main != null && subjectFor === preview)
         val objects = masks.all { it.points.isEmpty() || it.points in subjects.objects } &&
             (masks.all { it.points.isEmpty() } || objectsFor === preview)
-        val sky = edit.masks.none { it.mask.type == MaskType.SKY } || (subjects.sky != null && skyFor === preview)
+        val sky = edit.masks.none { it.mask.selections().any { m -> m.type == MaskType.SKY } } || (subjects.sky != null && skyFor === preview)
         return subjects.takeIf { main && objects && sky }
     }
 
@@ -1046,8 +1082,8 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
     private fun watchObjects() {
         viewModelScope.launch {
             _state.map { s ->
-                val points = s.edit.masks.filter { it.mask.type == MaskType.SUBJECT && it.mask.points.isNotEmpty() }
-                    .map { it.mask.points }.distinct()
+                val points = s.edit.masks.flatMap { it.mask.selections() }.filter { it.type == MaskType.SUBJECT && it.points.isNotEmpty() }
+                    .map { it.points }.distinct()
                 s.image?.preview?.takeIf { points.isNotEmpty() }?.let { it to points }
             }
                 .distinctUntilChanged()
