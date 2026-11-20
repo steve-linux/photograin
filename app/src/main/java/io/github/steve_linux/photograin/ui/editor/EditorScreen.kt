@@ -406,6 +406,7 @@ private fun PhotoWorkspace(viewModel: EditorViewModel, onClose: () -> Unit, onGu
                             onAdd = viewModel::addMask,
                             onSelect = viewModel::selectMask,
                             onDelete = viewModel::deleteMask,
+                            onDuplicate = viewModel::duplicateMask,
                             onParam = viewModel::setMaskParam,
                             onResetParam = viewModel::resetMaskParam,
                             onShape = viewModel::setMaskShape,

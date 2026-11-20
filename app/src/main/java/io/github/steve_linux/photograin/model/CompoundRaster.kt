@@ -42,7 +42,11 @@ class CompoundRaster(private val sourceWidth: Int, private val sourceHeight: Int
                     for (i in data.indices) {
                         val a = data[i].toInt() and 255
                         val b = layer.data[i].toInt() and 255
-                        data[i] = (if (operation == MaskOperation.ADD) max(a, b) else min(a, 255 - b)).toByte()
+                        data[i] = when (operation) {
+                            MaskOperation.ADD -> max(a, b)
+                            MaskOperation.SUBTRACT -> min(a, 255 - b)
+                            MaskOperation.INTERSECT -> min(a, b)
+                        }.toByte()
                     }
                 }
             }

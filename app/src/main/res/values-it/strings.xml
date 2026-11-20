@@ -484,4 +484,6 @@
     <string name="mask_delete_selection">Elimina selezione</string>
     <string name="mask_components_hint">Seleziona una componente per modificarla. Inversione, intervallo colore/luminosità e regolazioni si applicano alla maschera completa.</string>
     <string name="mask_new">Nuova maschera</string>
+    <string name="mask_intersect_selection">Interseca selezione</string>
+    <string name="mask_duplicate">Duplica maschera</string>
 </resources>
