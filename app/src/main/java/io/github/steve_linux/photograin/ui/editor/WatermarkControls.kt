@@ -87,13 +87,19 @@ internal fun WatermarkControls(watermark: ExportWatermark?, onChange: (ExportWat
         Slider(value = settings.opacity, onValueChange = { onChange(settings.copy(opacity = it)) })
         if (settings.active) {
             val preview = remember(settings) {
-                Bitmap.createBitmap(320, 190, Bitmap.Config.ARGB_8888).apply {
-                    val canvas = Canvas(this)
-                    canvas.drawColor(android.graphics.Color.DKGRAY)
-                    settings.draw(canvas, width, height)
+                val bitmap = Bitmap.createBitmap(320, 190, Bitmap.Config.ARGB_8888)
+                val canvas = Canvas(bitmap)
+                canvas.drawColor(android.graphics.Color.DKGRAY)
+                try {
+                    settings.draw(canvas, bitmap.width, bitmap.height)
+                    bitmap
+                } catch (_: IllegalArgumentException) {
+                    bitmap.recycle()
+                    null
                 }
             }
-            Image(preview.asImageBitmap(), stringResource(R.string.export_watermark), Modifier.fillMaxWidth().height(130.dp))
+            if (preview == null) Text(stringResource(R.string.watermark_invalid))
+            else Image(preview.asImageBitmap(), stringResource(R.string.export_watermark), Modifier.fillMaxWidth().height(130.dp))
             TextButton(onClick = { onChange(null) }) { Text(stringResource(R.string.watermark_remove)) }
         }
     }
