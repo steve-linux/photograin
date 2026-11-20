@@ -8,6 +8,7 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContract
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -16,7 +17,6 @@ import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -111,6 +111,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import io.github.steve_linux.photograin.OPEN_TYPES
 import io.github.steve_linux.photograin.R
 import io.github.steve_linux.photograin.data.PhotoRatingStore
 import io.github.steve_linux.photograin.model.PhotoFlag
@@ -160,6 +161,10 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit, onGuide: (topi
     // The dialog reopens with the last choices for this photo session, else the settings' defaults.
     var lastExport by remember(state.image?.uri) { mutableStateOf<ExportOptions?>(null) }
     var menuOpen by remember { mutableStateOf(false) }
+    var referenceUri by rememberSaveable { mutableStateOf<Uri?>(null) }
+    val referencePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) referenceUri = uri
+    }
     var showOcr by rememberSaveable { mutableStateOf(false) }
     var showAdjustmentFinder by rememberSaveable { mutableStateOf(false) }
     var showSelectivePaste by rememberSaveable { mutableStateOf(false) }
@@ -216,6 +221,7 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit, onGuide: (topi
     }
 
     BackHandler(onBack = onClose)
+    BackHandler(enabled = referenceUri != null) { referenceUri = null }
     BackHandler(enabled = fullPhoto) { fullPhoto = false }
 
     var showGpx by rememberSaveable { mutableStateOf(false) }
@@ -437,6 +443,12 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit, onGuide: (topi
                                 onClick = { menuOpen = false; showProofOptions = true },
                             )
                             DropdownMenuItem(
+                                text = { Text(stringResource(R.string.editor_reference_choose)) },
+                                leadingIcon = { Icon(Icons.Outlined.Compare, null) },
+                                enabled = state.image != null,
+                                onClick = { menuOpen = false; referencePicker.launch(OPEN_TYPES) },
+                            )
+                            DropdownMenuItem(
                                 text = { Text(stringResource(R.string.print_proof)) },
                                 enabled = state.image != null,
                                 onClick = { menuOpen = false; showPrintProof = true },
@@ -549,7 +561,11 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit, onGuide: (topi
             if (state.image != null && !fullPhoto && quickActionsOpen) {
                 QuickActionsBar(onAction = ::quickAction)
             }
-            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+            EditorReferenceLayout(
+                reference = referenceUri,
+                onClose = { referenceUri = null },
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+            ) {
                 if (state.image == null) {
                     CircularProgressIndicator()
                 } else {

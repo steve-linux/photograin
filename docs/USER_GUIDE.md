@@ -304,3 +304,11 @@ In **Combina → Panorama verticale**, disponi fino a sei scatti dall’alto in 
 Apri la foto della carta colore, poi scegli **⋮ → Calibrazione con carta colore**. Tocca il centro di ogni tacca e inserisci il valore sRGB esadecimale di riferimento indicato per la carta. Aggiungi almeno tre colori diversi, idealmente più tacche ben distribuite fotografate sotto la stessa luce. **Salva e applica LUT** crea una correzione riutilizzabile in **Stili**. Campiona la foto sorgente e applica la LUT a scatti con luce e sviluppo di base comparabili. Per un RAW il campionamento usa l’anteprima incorporata, quando disponibile.
 
 In **⋮ → Prova di stampa (ICC)**, apri un profilo .icc o .icm per la coppia stampante e carta. La simulazione usa un’anteprima sRGB, intento colorimetrico relativo e compensazione del punto di nero. Puoi mostrare il prima/dopo e marcare in magenta i colori fuori gamma. La prova accetta profili ICC di uscita RGB, CMYK e scala di grigi fino a 16 MiB.
+
+## Ordinare una raffica per nitidezza
+
+Da **Galleria → Confronta raffiche**, apri un gruppo. Ingrandisci e sposta le immagini finché il mirino a sinistra si trova sul dettaglio da controllare, per esempio il volto del soggetto. **Ordina per nitidezza al mirino** misura una zona alla stessa posizione relativa in ogni scatto leggibile. La foto col punteggio più alto compare a sinistra. Usa **Scatto successivo** per confrontarla con le altre, con zoom e spostamento condivisi. **Seleziona** assegna la bandierina allo scatto scelto. Puoi ripetere l’analisi su un altro dettaglio o ripristinare l’ordine di scatto. Il punteggio può favorire uno sfondo ricco di dettagli se il soggetto si sposta tra le foto.
+
+## Affiancare una foto di riferimento
+
+Nell’editor apri **⋮ → Scegli foto di riferimento** e seleziona una foto. Il riferimento compare accanto alla foto che stai modificando e resta visibile quando passi a un altro scatto dalla pellicola. Se la foto di riferimento ha una ricetta principale salvata, l’app ne mostra l’anteprima modificata. Usa lo stesso comando per cambiare riferimento oppure la **X** per chiuderlo. Puoi continuare a usare i cursori e gli strumenti dell’editor mentre confronti le due immagini.

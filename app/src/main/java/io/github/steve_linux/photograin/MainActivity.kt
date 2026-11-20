@@ -142,4 +142,4 @@ class MainActivity : ComponentActivity() {
 }
 
 /** Everything the system picker should offer: all images, plus RAW and JPEG XL types it may not count as images. */
-private val OPEN_TYPES = arrayOf("image/*", "image/jxl") + RawImage.MIME_TYPES
+internal val OPEN_TYPES = arrayOf("image/*", "image/jxl") + RawImage.MIME_TYPES

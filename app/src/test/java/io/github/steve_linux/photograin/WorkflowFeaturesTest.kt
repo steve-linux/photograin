@@ -65,4 +65,11 @@ class WorkflowFeaturesTest {
         assertTrue(BurstReview.sharpness(edge, 9) > BurstReview.sharpness(blurred, 9))
         assertEquals(0f, BurstReview.sharpness(FloatArray(81) { 25f }, 9), 0f)
     }
+
+    @Test
+    fun ranksReadableBurstShotsAndKeepsCaptureOrderOnTies() {
+        val shots = listOf("missing", "first", "best", "invalid", "last")
+        val scores = mapOf("first" to 10f, "best" to 50f, "invalid" to Float.NaN, "last" to 10f)
+        assertEquals(listOf("best", "first", "last"), BurstReview.ranked(shots, scores))
+    }
 }

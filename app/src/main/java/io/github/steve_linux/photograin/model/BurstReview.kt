@@ -24,6 +24,11 @@ internal object BurstReview {
         if (current.size >= 2) add(current.toList())
     }
 
+    /** Higher detail first, with capture order preserved for equal scores. */
+    fun <T> ranked(photos: List<T>, scores: Map<T, Float>): List<T> =
+        photos.mapNotNull { photo -> scores[photo]?.takeIf(Float::isFinite)?.let { photo to it } }
+            .sortedByDescending { it.second }.map { it.first }
+
     /** Mean squared luminance Laplacian. All samples must come from an equally sized region. */
     fun sharpness(luma: FloatArray, width: Int): Float {
         if (width < 3 || luma.size % width != 0 || luma.size / width < 3) return 0f

@@ -943,4 +943,15 @@
     <string name="guide_color_tools_body">In Batch, sample a gray card in the same area of every shot or use one reference photo for the batch. In the editor menu, Color chart calibration pairs photographed patches with known sRGB values and saves a reusable LUT. Print proof uses the ICC profile for your printer and paper and can mark colors outside the printer gamut.</string>
     <string name="batch_wb_sample_size">Sample area size</string>
     <string name="batch_wb_reference_hint">Tap a neutral patch in the reference photo. The same correction will be applied to all photos.</string>
+    <string name="burst_rank_action">Rank by sharpness at the crosshair</string>
+    <string name="burst_rank_count">Ranked %1$d of %2$d shots at the same position.</string>
+    <string name="burst_rank_reset">Restore capture order</string>
+    <string name="burst_rank_unavailable">At least two readable shots are needed to rank the burst.</string>
+    <string name="burst_rank_position">%1$d. %2$s</string>
+    <string name="editor_reference_choose">Choose reference photo</string>
+    <string name="editor_reference">Reference photo</string>
+    <string name="editor_reference_close">Close reference photo</string>
+    <string name="editor_reference_error">Reference preview unavailable</string>
+    <string name="guide_review_reference_title">Burst ranking and reference photo</string>
+    <string name="guide_review_reference_body">In Review bursts, zoom and move the crosshair over the subject, then tap Rank by sharpness at the crosshair. Compare the first-ranked shot with the other candidates before picking. In the editor menu, Choose reference photo opens another image alongside the live edit.</string>
 </resources>

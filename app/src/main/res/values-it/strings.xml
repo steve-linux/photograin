@@ -930,4 +930,15 @@
     <string name="guide_color_tools_body">In serie, campiona il cartoncino grigio nella stessa zona di ogni scatto o scegli una foto di riferimento. Nel menu dell’editor, Calibrazione con carta colore associa le tacche a valori sRGB noti e salva una LUT riutilizzabile. Prova di stampa usa il profilo ICC di stampante e carta e può indicare i colori fuori gamma.</string>
     <string name="batch_wb_sample_size">Dimensione dell’area campione</string>
     <string name="batch_wb_reference_hint">Tocca una zona neutra nella foto di riferimento. La stessa correzione sarà applicata a tutte le foto.</string>
+    <string name="burst_rank_action">Ordina per nitidezza al mirino</string>
+    <string name="burst_rank_count">Classificati %1$d scatti su %2$d alla stessa posizione.</string>
+    <string name="burst_rank_reset">Ripristina ordine di scatto</string>
+    <string name="burst_rank_unavailable">Servono almeno due scatti leggibili per ordinare la raffica.</string>
+    <string name="burst_rank_position">%1$d. %2$s</string>
+    <string name="editor_reference_choose">Scegli foto di riferimento</string>
+    <string name="editor_reference">Foto di riferimento</string>
+    <string name="editor_reference_close">Chiudi foto di riferimento</string>
+    <string name="editor_reference_error">Anteprima di riferimento non disponibile</string>
+    <string name="guide_review_reference_title">Classifica raffiche e foto di riferimento</string>
+    <string name="guide_review_reference_body">In Confronta raffiche, ingrandisci e porta il mirino sul soggetto, poi tocca Ordina per nitidezza al mirino. Confronta il primo scatto con gli altri prima di scegliere. Nel menu dell’editor, Scegli foto di riferimento affianca un’altra immagine mentre regoli la foto.</string>
 </resources>
