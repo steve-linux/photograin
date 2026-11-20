@@ -176,6 +176,8 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit, onGuide: (topi
     var showLensProfile by rememberSaveable { mutableStateOf(false) }
     var proofEnabled by rememberSaveable { mutableStateOf(false) }
     var gamutWarning by rememberSaveable { mutableStateOf(false) }
+    var showPrintProof by rememberSaveable(state.image?.uri) { mutableStateOf(false) }
+    var showChartCalibration by rememberSaveable(state.image?.uri) { mutableStateOf(false) }
     var showProofOptions by rememberSaveable { mutableStateOf(false) }
     var proofProfile by rememberSaveable { mutableStateOf<io.github.steve_linux.photograin.model.ColorProfile?>(null) }
     var lightScope by rememberSaveable { mutableStateOf<LightScope?>(null) }
@@ -433,6 +435,16 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit, onGuide: (topi
                                 text = { Text(stringResource(R.string.color_proof)) },
                                 enabled = state.image != null,
                                 onClick = { menuOpen = false; showProofOptions = true },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.print_proof)) },
+                                enabled = state.image != null,
+                                onClick = { menuOpen = false; showPrintProof = true },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.chart_calibration)) },
+                                enabled = state.image != null,
+                                onClick = { menuOpen = false; showChartCalibration = true },
                             )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.adjustment_finder)) },
@@ -918,6 +930,17 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit, onGuide: (topi
                     projectExport.launch("application/zip" to "photograin-project.zip")
                 }) { Text(stringResource(R.string.project_export)) }
             },
+        )
+    }
+    state.image?.uri?.let { uri ->
+        if (showPrintProof) PrintProofDialog(uri, state.edit) { showPrintProof = false }
+        if (showChartCalibration) ChartCalibrationDialog(
+            uri,
+            onSave = { name, matrix ->
+                showChartCalibration = false
+                viewModel.saveChartCalibration(name, matrix)
+            },
+            onDismiss = { showChartCalibration = false },
         )
     }
     if (showProofOptions) {

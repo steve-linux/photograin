@@ -115,6 +115,7 @@ fun HomeScreen(
     onOpen: (photo: CollectionPhoto<Uri>, collection: List<CollectionPhoto<Uri>>) -> Unit,
     onQuickAction: (QuickAction) -> Unit,
     onBatch: () -> Unit,
+    onBatchSelection: (List<Uri>) -> Unit,
     onBatchQueue: (() -> Unit)? = null,
     showTip: Boolean,
     onDismissTip: () -> Unit,
@@ -134,6 +135,10 @@ fun HomeScreen(
     if (composing) CombinePhotosDialog(onDismiss = { composing = false })
     var contactSelection by remember { mutableStateOf<List<Uri>>(emptyList()) }
     if (contactSelection.isNotEmpty()) CombinePhotosDialog(contactSelection) { contactSelection = emptyList() }
+    var multi by rememberSaveable { mutableStateOf(false) }
+    var selectedKeys by rememberSaveable { mutableStateOf(emptyList<String>()) }
+    var editSelection by rememberSaveable { mutableStateOf(false) }
+    var pdfSelection by remember { mutableStateOf<List<CollectionPhoto<Uri>>>(emptyList()) }
     var comparing by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
     val keywordStore = remember(context) { PhotoKeywordStore.get(context) }
@@ -413,6 +418,38 @@ fun HomeScreen(
     val galleryPhotos = remember(sections) {
         sections.flatMap { section -> section.photos.map { CollectionPhoto(it.uri, it.version.id) } }
     }
+    fun selectionKey(photo: CollectionPhoto<Uri>) = "${photo.source}#${photo.version}"
+    val selected = remember(galleryPhotos, selectedKeys) {
+        val keys = selectedKeys.toSet()
+        galleryPhotos.filter { selectionKey(it) in keys }
+    }
+    val selectedUris = selected.map { it.source }.distinct()
+    if (pdfSelection.isNotEmpty()) ContactPdfDialog(
+        pdfSelection,
+        marks.mapKeys { Uri.parse(it.key) },
+        onDismiss = { pdfSelection = emptyList() },
+    )
+    if (editSelection && selectedUris.isNotEmpty()) GalleryBatchDialog(
+        count = selectedUris.size,
+        albums = albumNames,
+        onStars = { stars -> selectedUris.forEach { ratingStore.rate(it, stars) } },
+        onFlag = { flag -> selectedUris.forEach { ratingStore.flag(it, flag) } },
+        onKeywords = { words ->
+            val merged = selectedUris.associateWith { uri ->
+                (photoKeywords[uri.toString()].orEmpty() + words).distinctBy(PhotoKeywords::key).toSet()
+            }
+            (merged.values.all { it.size <= PhotoKeywords.MAX_COUNT }).also { valid ->
+                if (valid) merged.forEach { (uri, terms) -> keywordStore.set(uri, terms) }
+            }
+        },
+        onAlbum = { name ->
+            val key = "album:$name"
+            val updated = albumPreferences.getStringSet(key, emptySet()).orEmpty() + selectedUris.map(Uri::toString)
+            albumPreferences.edit().putStringSet(key, updated).apply()
+            albumRevision++
+        },
+        onDismiss = { editSelection = false },
+    )
     if (showBursts) {
         val groups = remember(galleryPhotos, currentIndex) {
             val data = currentIndex?.data.orEmpty()
@@ -464,7 +501,10 @@ fun HomeScreen(
     }
     fun openFromGallery(entry: HomeEntry) {
         val selected = CollectionPhoto(entry.uri, entry.version.id)
-        onOpen(selected, PhotoCollection.snapshot(galleryPhotos, selected))
+        if (multi) {
+            val key = selectionKey(selected)
+            selectedKeys = if (key in selectedKeys) selectedKeys - key else selectedKeys + key
+        } else onOpen(selected, PhotoCollection.snapshot(galleryPhotos, selected))
     }
     val locale = LocalConfiguration.current.locales[0]
     val dateGroupFormat = remember(locale, displayedGrouping) {
@@ -627,6 +667,25 @@ fun HomeScreen(
                         smartStars = liveRule.minimumStars
                         savingSmart = true
                     }) { Text(stringResource(R.string.smart_save)) }
+                    TextButton(onClick = {
+                        multi = !multi
+                        selectedKeys = emptyList()
+                    }) { Text(stringResource(if (multi) R.string.gallery_end_selection else R.string.gallery_start_selection)) }
+                    if (multi) {
+                        Text(stringResource(R.string.gallery_selected, selected.size))
+                        TextButton(onClick = { selectedKeys = galleryPhotos.map(::selectionKey) }) {
+                            Text(stringResource(R.string.gallery_select_visible))
+                        }
+                        TextButton(enabled = selected.isNotEmpty(), onClick = { editSelection = true }) {
+                            Text(stringResource(R.string.gallery_edit_selection))
+                        }
+                        TextButton(enabled = selected.isNotEmpty(), onClick = { onBatchSelection(selectedUris) }) {
+                            Text(stringResource(R.string.home_batch))
+                        }
+                    }
+                    if (galleryPhotos.isNotEmpty()) TextButton(enabled = !multi || selected.isNotEmpty(), onClick = {
+                        pdfSelection = if (multi) selected else galleryPhotos
+                    }) { Text(stringResource(R.string.contact_pdf)) }
                     if (filtered.isNotEmpty()) {
                         TextButton(onClick = { contactSelection = sections.flatMap { section -> section.photos.map { it.uri } }.distinct().take(12) }) {
                             Text(stringResource(R.string.combine_contact))
@@ -656,6 +715,9 @@ fun HomeScreen(
                         items(section.photos, key = { "compare ${it.key}" }, span = { GridItemSpan(maxLineSpan) }) { entry ->
                             Column {
                                 CompareRow(entry, onClick = { openFromGallery(entry) })
+                                if (multi) androidx.compose.material3.Checkbox(
+                                    checked = entry.key in selectedKeys, onCheckedChange = { openFromGallery(entry) },
+                                )
                                 if (sort == GallerySort.FILE_NAME) GalleryFileName(currentIndex?.data?.get(entry.uri)?.fileName)
                                 GalleryRatingButton(marks[entry.uri.toString()] ?: PhotoRating()) {
                                     ratingTarget = entry.uri.toString()
@@ -676,6 +738,9 @@ fun HomeScreen(
                                 } else {
                                     RecentThumbnail(entry.uri, onClick = { openFromGallery(entry) })
                                 }
+                                if (multi) androidx.compose.material3.Checkbox(
+                                    checked = entry.key in selectedKeys, onCheckedChange = { openFromGallery(entry) },
+                                )
                                 if (sort == GallerySort.FILE_NAME) GalleryFileName(currentIndex?.data?.get(entry.uri)?.fileName)
                                 TextButton(onClick = {
                                     albumTargetUri = entry.uri.toString()

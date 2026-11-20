@@ -278,3 +278,29 @@ La regolazione interessa tutti i pixel della banda. Per limitarla a una parte de
 | `1`–`5` | Assegna stelle |
 | `0` | Rimuovi le stelle |
 | `P` / `X` / `U` | Segna come selezionata, segna come scartata o togli la bandierina |
+
+## Selezione multipla e provini
+
+In galleria, tocca **Seleziona foto** e spunta gli scatti. **Seleziona tutte le visibili** segue l’album e i filtri correnti. **Modifica dati della selezione** permette di impostare stelle e bandierine, aggiungere parole chiave e inserire le foto in un album. Le versioni di uno scatto condividono questi dati. **In serie** invia una sola volta ogni scatto selezionato e opera sulla sua ricetta principale.
+
+Tocca **PDF provini** per creare un documento A4 con fino a 12 foto per pagina, nomi dei file e stelle. Con una selezione attiva verranno usate le foto spuntate. Altrimenti il PDF seguirà la vista corrente. **Usa versioni modificate** include le modifiche delle versioni visibili. Disattiva l’opzione per stampare gli originali. Le celle delle immagini illeggibili mostrano un avviso.
+
+## Filigrane riutilizzabili
+
+In **Esporta → Filigrana**, inserisci un testo oppure scegli un logo PNG, JPEG o WebP. Scegli angolo, margine, dimensione e opacità. Salva la configurazione in **Profili di esportazione** per riutilizzarla anche in serie. Il profilo include una copia del logo, ridimensionata a un massimo di 256 pixel sul lato lungo. La filigrana compare nel file esportato.
+
+## Bilanciamento in serie con cartoncino grigio
+
+Apri **In serie → Bilanciamento con cartoncino grigio**. Tocca una zona neutra opaca, priva di riflessi, e usa **Foto precedente** o **Foto successiva** per controllare i campioni. Photograin misura la stessa area relativa in ogni foto e mostra temperatura, tinta e confronto prima/dopo. Scatta la serie tenendo il cartoncino nella stessa posizione. L’app applica i valori stimati alle ricette principali delle foto con un campione valido.
+
+## Riduzione del rumore multiscatto e panorami
+
+In **Combina → Riduzione rumore multiscatto**, seleziona da due a sette scatti consecutivi con esposizione e inquadratura simili. Photograin allinea gli scatti al primo, combina i pixel in luce lineare e riduce il contributo dei dettagli in movimento. Per scene con pochi dettagli o movimenti ampi l’allineamento può fallire. Controlla l’anteprima prima dell’esportazione PNG.
+
+In **Combina → Panorama verticale**, disponi fino a sei scatti dall’alto in basso. Per **Panorama a più file**, scegli due o tre colonne e disponi fino a dodici foto da sinistra a destra, iniziando dalla fila superiore. Usa almeno due file complete e lascia una sovrapposizione del 20–65% in entrambe le direzioni. Usa **Sposta su** e **Sposta giù** per correggere l’ordine prima di esportare il PNG.
+
+## Calibrazione con carta colore e prova ICC
+
+Apri la foto della carta colore, poi scegli **⋮ → Calibrazione con carta colore**. Tocca il centro di ogni tacca e inserisci il valore sRGB esadecimale di riferimento indicato per la carta. Aggiungi almeno tre colori diversi, idealmente più tacche ben distribuite fotografate sotto la stessa luce. **Salva e applica LUT** crea una correzione riutilizzabile in **Stili**. Campiona la foto sorgente e applica la LUT a scatti con luce e sviluppo di base comparabili. Per un RAW il campionamento usa l’anteprima incorporata, quando disponibile.
+
+In **⋮ → Prova di stampa (ICC)**, apri un profilo .icc o .icm per la coppia stampante e carta. La simulazione usa un’anteprima sRGB, intento colorimetrico relativo e compensazione del punto di nero. Puoi mostrare il prima/dopo e marcare in magenta i colori fuori gamma. La prova accetta profili ICC di uscita RGB, CMYK e scala di grigi fino a 16 MiB.

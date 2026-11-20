@@ -13,7 +13,7 @@ import kotlin.math.exp
 import kotlin.math.roundToInt
 
 /** Exposure fusion for aligned shots. The output is an SDR bitmap with blended detail. */
-internal fun fuseExposures(context: Context, uris: List<Uri>, longEdge: Int, focusStack: Boolean = false, medianStack: Boolean = false, lightenStack: Boolean = false): Bitmap {
+internal fun fuseExposures(context: Context, uris: List<Uri>, longEdge: Int, focusStack: Boolean = false, medianStack: Boolean = false, lightenStack: Boolean = false, noiseStack: Boolean = false): Bitmap {
     val inputs = mutableListOf<Bitmap>()
     var width = 0
     var height = 0
@@ -49,14 +49,17 @@ internal fun fuseExposures(context: Context, uris: List<Uri>, longEdge: Int, foc
         val shifts = inputs.mapIndexed { index, image ->
             if (index == 0 || focusStack || medianStack || lightenStack) FrameShift(0, 0, 0.0)
             else matchFrames(reference, sampleW, alignmentPixels(image, sampleW, sampleH), sampleW, sampleH,
-                -6..6, -6..6, listOf(0.0)) ?: FrameShift(0, 0, 0.0)
+                -6..6, -6..6, listOf(0.0)) ?: if (noiseStack) null else FrameShift(0, 0, 0.0)
         }.map { shift ->
+            shift ?: return@map FrameShift(Int.MAX_VALUE, Int.MAX_VALUE, 0.0)
             FrameShift((shift.x * width.toFloat() / sampleW).roundToInt(),
                 (shift.y * height.toFloat() / sampleH).roundToInt(), 0.0)
         }
+        if (noiseStack && shifts.count { it.x != Int.MAX_VALUE } < 2) throw PanoramaAlignmentException()
         val exposureOffsets = inputs.mapIndexed { index, image ->
             val sample = alignmentPixels(image, sampleW, sampleH)
             val shift = shifts[index]
+            if (shift.x == Int.MAX_VALUE) return@mapIndexed 0
             val sx = (shift.x * sampleW.toFloat() / width).roundToInt()
             val sy = (shift.y * sampleH.toFloat() / height).roundToInt()
             val differences = mutableListOf<Int>()
@@ -136,7 +139,12 @@ internal fun fuseExposures(context: Context, uris: List<Uri>, longEdge: Int, foc
                         val green = (p ushr 8) and 255
                         val blue = p and 255
                         val luminance = (54 * red + 183 * green + 19 * blue) shr 8
-                        val contribution = if (focusStack) {
+                        val contribution = if (noiseStack) {
+                            val difference = maxOf(kotlin.math.abs(red - ((referencePixel ushr 16) and 255)),
+                                kotlin.math.abs(green - ((referencePixel ushr 8) and 255)),
+                                kotlin.math.abs(blue - (referencePixel and 255)))
+                            (1f - difference / 48f).coerceAtLeast(0f)
+                        } else if (focusStack) {
                             val horizontal = imageLuma(row[(sx - 2).coerceAtLeast(0)]) +
                                 imageLuma(row[(sx + 2).coerceAtMost(width - 1)])
                             val vertical = imageLuma(upper[i][sx]) + imageLuma(lower[i][sx])
@@ -148,15 +156,18 @@ internal fun fuseExposures(context: Context, uris: List<Uri>, longEdge: Int, foc
                             EXPOSURE_WEIGHTS[luminance] * ghost
                         }
                         val weight = contribution * ((p ushr 24) / 255f)
-                        r += red * weight
-                        g += green * weight
-                        b += blue * weight
+                        r += (if (noiseStack) LINEAR[red] else red.toFloat()) * weight
+                        g += (if (noiseStack) LINEAR[green] else green.toFloat()) * weight
+                        b += (if (noiseStack) LINEAR[blue] else blue.toFloat()) * weight
                         sum += weight
                     }
-                    pixels[x] = if (sum <= 0f) 0 else (
-                        (255 shl 24) or ((r / sum).roundToInt().coerceIn(0, 255) shl 16) or
+                    pixels[x] = when {
+                        sum <= 0f -> 0
+                        noiseStack -> (255 shl 24) or (ENCODED[(r / sum * 4095).roundToInt().coerceIn(0, 4095)] shl 16) or
+                            (ENCODED[(g / sum * 4095).roundToInt().coerceIn(0, 4095)] shl 8) or ENCODED[(b / sum * 4095).roundToInt().coerceIn(0, 4095)]
+                        else -> (255 shl 24) or ((r / sum).roundToInt().coerceIn(0, 255) shl 16) or
                             ((g / sum).roundToInt().coerceIn(0, 255) shl 8) or (b / sum).roundToInt().coerceIn(0, 255)
-                    )
+                    }
                 }
                 output.setPixels(pixels, 0, width, 0, y, width, 1)
             }
@@ -174,3 +185,6 @@ private val EXPOSURE_WEIGHTS = FloatArray(256) {
     val distance = (it / 255.0 - 0.5) / 0.20
     exp(-0.5 * distance * distance).toFloat()
 }
+
+private val LINEAR = FloatArray(256) { io.github.steve_linux.photograin.model.ColorProfile.SRGB.decode(it / 255.0).toFloat() }
+private val ENCODED = IntArray(4096) { (255 * io.github.steve_linux.photograin.model.ColorProfile.SRGB.encode(it / 4095.0)).roundToInt() }

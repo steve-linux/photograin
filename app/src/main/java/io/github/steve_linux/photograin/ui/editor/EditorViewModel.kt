@@ -867,6 +867,27 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    fun saveChartCalibration(name: String, matrix: DoubleArray) {
+        val source = _state.value
+        viewModelScope.launch {
+            try {
+                val (entry, luts) = withContext(Dispatchers.IO) {
+                    val cube = io.github.steve_linux.photograin.model.ChartCalibration.cube(name, matrix)
+                    library.importLutBytes(cube, name) to library.luts()
+                }
+                _state.update { it.copy(luts = luts, message = Message.LUT_IMPORTED) }
+                if (_state.value.image?.uri == source.image?.uri && _state.value.version == source.version) {
+                    selectLut(entry)
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "Cannot save chart calibration", e)
+                _state.update { it.copy(message = Message.LUT_INVALID) }
+            }
+        }
+    }
+
     /** Applies [entry] at full strength, or removes the LUT when null. */
     fun selectLut(entry: LutEntry?) {
         updateLive { e ->

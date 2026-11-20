@@ -48,7 +48,7 @@ object WhiteBalance {
         return neutralizeLinear(red / weightSum, green / weightSum, blue / weightSum)
     }
 
-    private fun neutralizeLinear(lr: Double, lg: Double, lb: Double): Pair<Float, Float>? {
+    internal fun neutralizeLinear(lr: Double, lg: Double, lb: Double): Pair<Float, Float>? {
         if (lr + lg + lb < 0.01 || lr + lb < 1e-4) return null
         // Red and blue gains are 1 ± 0.35 t: equal red and blue.
         val t = ((lb - lr) / (0.35 * (lr + lb))).coerceIn(-1.0, 1.0)

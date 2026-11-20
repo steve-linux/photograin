@@ -45,6 +45,7 @@ data class BatchItem(val uri: Uri, val status: ItemStatus = ItemStatus.PENDING, 
 @Serializable
 sealed interface BatchSource {
     fun applyTo(uri: String, current: Adjustments): Adjustments
+    fun includes(uri: String): Boolean = true
 
     /** The adjustments copied in the editor, pasted as they are. */
     @Serializable
@@ -59,8 +60,19 @@ sealed interface BatchSource {
 
     @Serializable
     data class MatchedExposure(val corrections: Map<String, Float>) : BatchSource {
+        override fun includes(uri: String) = uri in corrections
         override fun applyTo(uri: String, current: Adjustments) =
             current.copy(exposure = (current.exposure + corrections.getValue(uri)).coerceIn(-4f, 4f))
+    }
+
+    @Serializable
+    data class MatchedWhiteBalance(val corrections: Map<String, Pair<Float, Float>>) : BatchSource {
+        override fun includes(uri: String) = uri in corrections
+
+        override fun applyTo(uri: String, current: Adjustments): Adjustments {
+            val (temperature, tint) = corrections.getValue(uri)
+            return current.copy(temperature = temperature, tint = tint)
+        }
     }
 
 }
@@ -169,7 +181,7 @@ class BatchViewModel(app: Application) : AndroidViewModel(app) {
         val current = settings.value
         val masks = if (state.copyMasks) prefs.copiedAutomaticMasks else emptyList()
         val uris = state.items.map { it.uri }
-            .filter { source !is BatchSource.MatchedExposure || it.toString() in source.corrections }
+            .filter { source.includes(it.toString()) }
         if (uris.isEmpty()) return
         launchQueue(persistent = options.isNotEmpty()) {
             val app = getApplication<Application>()

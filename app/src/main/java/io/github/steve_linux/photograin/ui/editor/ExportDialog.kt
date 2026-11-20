@@ -161,6 +161,7 @@ fun ExportDialog(
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 TextButton(onClick = { showProfiles = true }) { Text(stringResource(R.string.export_profiles)) }
+                WatermarkControls(options.watermark) { options = options.copy(watermark = it) }
                 if (options.format == ExportFormat.JPEG && android.os.Build.VERSION.SDK_INT >= 34) {
                     FilterChip(selected = options.ultraHdr, onClick = { options = options.copy(ultraHdr = !options.ultraHdr) },
                         label = { Text(stringResource(R.string.export_ultra_hdr)) })

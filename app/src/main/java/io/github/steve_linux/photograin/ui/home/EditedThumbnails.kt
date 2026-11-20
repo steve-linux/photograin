@@ -15,6 +15,7 @@ import io.github.steve_linux.photograin.data.SubjectSegmenter
 import io.github.steve_linux.photograin.model.ColorProfile
 import io.github.steve_linux.photograin.model.EditState
 import io.github.steve_linux.photograin.render.Exporter
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -38,31 +39,38 @@ object EditedThumbnails {
     suspend fun load(context: Context, uri: Uri, size: Int, version: Int = 1): Bitmap? = withContext(Dispatchers.IO) {
         val edit = RecipeStore(context).load(uri, version) ?: return@withContext null
         if (edit == EditState()) return@withContext null
-        val key = "$uri\n${edit.toJson().hashCode()}\n$size"
-        cache.get(key)?.let { return@withContext it }
-        gpu.withLock {
-            try {
-                val base = ImageLoader.baseOrientation(context, uri)
-                val lut = edit.adjustments.look.lutId?.let { LookLibrary(context).loadLut(it) }
-                val layers = io.github.steve_linux.photograin.data.ImageLayerStore(context).load(edit.images.map { it.id }.toSet())
+        render(context, uri, size, edit)
+    }
+
+    internal suspend fun render(context: Context, uri: Uri, size: Int, edit: EditState): Bitmap? =
+        withContext(Dispatchers.IO) {
+            val key = "$uri\n${edit.toJson().hashCode()}\n$size"
+            cache.get(key)?.let { return@withContext it }
+            gpu.withLock {
                 try {
-                    RegionSource.open(context, uri, edit.rawHighlight.libRawMode, edit.rawWhiteBalance).use {
-                        val subjects = SubjectSegmenter.forEdit(context, it, base, edit)
-                        Exporter.render(
-                            it, base, edit, lut, size, ColorProfile.SRGB, subjects = subjects, inpaint = ObjectRemover.with(context),
-                            layerBitmaps = layers,
-                        ) {}
-                    }.also { cache.put(key, it) }
-                } finally {
-                    layers.values.forEach(Bitmap::recycle)
+                    val base = ImageLoader.baseOrientation(context, uri)
+                    val lut = edit.adjustments.look.lutId?.let { LookLibrary(context).loadLut(it) }
+                    val layers = io.github.steve_linux.photograin.data.ImageLayerStore(context).load(edit.images.map { it.id }.toSet())
+                    try {
+                        RegionSource.open(context, uri, edit.rawHighlight.libRawMode, edit.rawWhiteBalance).use {
+                            val subjects = SubjectSegmenter.forEdit(context, it, base, edit)
+                            Exporter.render(
+                                it, base, edit, lut, size, ColorProfile.SRGB, subjects = subjects, inpaint = ObjectRemover.with(context),
+                                layerBitmaps = layers,
+                            ) {}
+                        }.also { cache.put(key, it) }
+                    } finally {
+                        layers.values.forEach(Bitmap::recycle)
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.w(TAG, "Cannot render $uri", e)
+                    null
+                } catch (e: OutOfMemoryError) {
+                    Log.w(TAG, "Out of memory on $uri", e)
+                    null
                 }
-            } catch (e: Exception) {
-                Log.w(TAG, "Cannot render $uri", e)
-                null
-            } catch (e: OutOfMemoryError) {
-                Log.w(TAG, "Out of memory on $uri", e)
-                null
             }
         }
-    }
 }

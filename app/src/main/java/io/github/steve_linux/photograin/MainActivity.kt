@@ -101,6 +101,7 @@ class MainActivity : ComponentActivity() {
                                 picker.launch(OPEN_TYPES)
                             },
                             onBatch = { multiPicker.launch(OPEN_TYPES) },
+                            onBatchSelection = batch::start,
                             onBatchQueue = if (batchState.queueAvailable) batch::openQueue else null,
                             showTip = showTip,
                             onDismissTip = {

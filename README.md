@@ -92,7 +92,7 @@ Serve JDK 17 o successivo, l'Android SDK (API 36) e l'NDK 27.0.12077973 con CMak
 
 ```
 git submodule update --init    # dopo il clone, una volta
-git -C app/src/main/cpp/libjxl submodule update --init third_party/highway third_party/brotli third_party/skcms
+git -C app/src/main/cpp/libjxl submodule update --init third_party/highway third_party/brotli third_party/skcms third_party/lcms
 ./gradlew assembleDebug        # APK di debug
 ./gradlew testDebugUnitTest    # test unitari
 ```
@@ -108,7 +108,7 @@ GNU General Public License, versione 3 o (a tua scelta) qualsiasi versione succe
 Tutte le dipendenze (AndroidX, Jetpack Compose, Kotlin, kotlinx) sono Apache-2.0, compatibili con la GPL-3.0.
 LibRaw è distribuita con doppia licenza LGPL-2.1 o CDDL-1.0; Photograin la usa secondo la LGPL-2.1,
 compatibile con la GPL-3.0.
-libjxl (con highway, brotli e skcms), libavif e libaom sono BSD, compatibili con la GPL-3.0.
+libjxl (con highway, brotli e skcms), libavif e libaom sono BSD. Little CMS, usato per la prova ICC, è MIT. Queste licenze sono compatibili con la GPL-3.0.
 ncnn (BSD-3-Clause) con glslang (licenze BSD/MIT/Apache-2.0), il modello Real-ESRGAN (BSD-3-Clause)
 il modello U²-Net (Apache-2.0), il modello MI-GAN (MIT) e il modello MobileSAM (Apache-2.0) sono
 compatibili con la GPL-3.0, come il pacchetto facoltativo IS-Net (Apache-2.0).

@@ -67,7 +67,7 @@ Builds:
       - git submodule update --init app/src/main/cpp/LibRaw app/src/main/cpp/libjxl
         app/src/main/cpp/libavif app/src/main/cpp/aom app/src/main/cpp/ncnn
       - git -C app/src/main/cpp/libjxl submodule update --init --depth 1 third_party/highway
-        third_party/brotli third_party/skcms
+        third_party/brotli third_party/skcms third_party/lcms
       - git -C app/src/main/cpp/ncnn submodule update --init --depth 1 glslang
     gradle:
       - yes
@@ -84,6 +84,9 @@ Builds:
       - app/src/main/cpp/libjxl/third_party/brotli/java
       - app/src/main/cpp/libjxl/third_party/brotli/js
       - app/src/main/cpp/libjxl/third_party/brotli/tests/testdata
+      - app/src/main/cpp/libjxl/third_party/lcms/testbed
+      - app/src/main/cpp/libjxl/third_party/lcms/plugins
+      - app/src/main/cpp/libjxl/third_party/lcms/utils
     ndk: 27.0.12077973
 
 AutoUpdateMode: Version

@@ -30,7 +30,7 @@ jobs:
           submodules: true
       - name: libjxl and ncnn dependencies
         run: |
-          git -C app/src/main/cpp/libjxl submodule update --init --depth 1 third_party/highway third_party/brotli third_party/skcms
+          git -C app/src/main/cpp/libjxl submodule update --init --depth 1 third_party/highway third_party/brotli third_party/skcms third_party/lcms
           git -C app/src/main/cpp/ncnn submodule update --init --depth 1 glslang
       - uses: actions/setup-java@v4
         with:

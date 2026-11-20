@@ -15,6 +15,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
@@ -49,6 +50,9 @@ private enum class CompositionMode(val title: Int, val filename: String) {
     CONTACT(R.string.combine_contact, "contact-sheet"),
     STRIP(R.string.combine_strip, "horizontal-strip"),
     PANORAMA(R.string.combine_panorama, "panorama"),
+    VERTICAL(R.string.combine_vertical, "vertical-panorama"),
+    MOSAIC(R.string.combine_mosaic, "mosaic-panorama"),
+    NOISE(R.string.combine_noise, "noise-stack"),
     EXPOSURE(R.string.combine_exposure, "double-exposure"),
     HDR(R.string.combine_hdr, "exposure-fusion"),
     FOCUS(R.string.combine_focus, "focus-stack"),
@@ -62,6 +66,7 @@ internal fun CombinePhotosDialog(selection: List<Uri> = emptyList(), onDismiss: 
     val scope = rememberCoroutineScope()
     var photos by remember { mutableStateOf(selection) }
     var mode by remember { mutableStateOf(if (selection.isEmpty()) CompositionMode.COLLAGE else CompositionMode.CONTACT) }
+    var mosaicColumns by remember { mutableStateOf(2) }
     var opacity by remember { mutableFloatStateOf(0.5f) }
     var screen by remember { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
@@ -74,21 +79,36 @@ internal fun CombinePhotosDialog(selection: List<Uri> = emptyList(), onDismiss: 
     }
     val inputs = photos.take(when (mode) {
         CompositionMode.EXPOSURE -> 2
-        CompositionMode.PANORAMA -> 6
+        CompositionMode.PANORAMA, CompositionMode.VERTICAL -> 6
+        CompositionMode.MOSAIC -> 12
+        CompositionMode.NOISE -> 7
         CompositionMode.HDR, CompositionMode.FOCUS -> 5
         CompositionMode.MEDIAN, CompositionMode.LIGHTEN -> 7
         else -> 12
     })
-    val preview by produceState<Bitmap?>(null, inputs, mode, opacity, screen) {
+    val reorder = when (mode) {
+        CompositionMode.PANORAMA, CompositionMode.VERTICAL, CompositionMode.MOSAIC -> true
+        else -> false
+    }
+    val names by produceState(emptyMap<Uri, String>(), inputs, reorder) {
+        if (reorder) value = withContext(Dispatchers.IO) {
+            inputs.associateWith { ImageLoader.queryName(context, it) ?: it.lastPathSegment.orEmpty() }
+        }
+    }
+    fun movePhoto(from: Int, to: Int) {
+        photos = photos.toMutableList().apply { add(to, removeAt(from)) }
+    }
+    val preview by produceState<Bitmap?>(null, inputs, mode, opacity, screen, mosaicColumns) {
         value = null
         result = null
         if (inputs.size < (if (mode == CompositionMode.CONTACT) 1 else 2)) return@produceState
+        if (mode == CompositionMode.MOSAIC && (inputs.size < 2 * mosaicColumns || inputs.size % mosaicColumns != 0)) return@produceState
         value = try {
-            withContext(Dispatchers.IO) { composePhotos(context, inputs, mode, opacity, screen, 240) }
+            withContext(Dispatchers.IO) { composePhotos(context, inputs, mode, opacity, screen, 240, mosaicColumns) }
         } catch (e: CancellationException) {
             throw e
         } catch (_: PanoramaAlignmentException) {
-            result = R.string.combine_panorama_failed
+            result = if (mode == CompositionMode.NOISE) R.string.combine_noise_failed else R.string.combine_panorama_failed
             null
         } catch (_: Exception) {
             null
@@ -103,7 +123,7 @@ internal fun CombinePhotosDialog(selection: List<Uri> = emptyList(), onDismiss: 
             scope.launch {
                 result = try {
                     withContext(Dispatchers.IO) {
-                        val bitmap = composePhotos(context, inputs, mode, opacity, screen, 1200)
+                        val bitmap = composePhotos(context, inputs, mode, opacity, screen, if (mode == CompositionMode.MOSAIC) 850 else 1200, mosaicColumns)
                         try {
                             val stream = context.contentResolver.openOutputStream(uri, "wt")
                                 ?: error("Cannot open destination")
@@ -116,7 +136,7 @@ internal fun CombinePhotosDialog(selection: List<Uri> = emptyList(), onDismiss: 
                 } catch (e: CancellationException) {
                     throw e
                 } catch (_: PanoramaAlignmentException) {
-                    R.string.combine_panorama_failed
+                    if (mode == CompositionMode.NOISE) R.string.combine_noise_failed else R.string.combine_panorama_failed
                 } catch (_: Exception) {
                     R.string.msg_export_failed
                 } catch (_: OutOfMemoryError) {
@@ -147,7 +167,32 @@ internal fun CombinePhotosDialog(selection: List<Uri> = emptyList(), onDismiss: 
                 if (mode == CompositionMode.FOCUS) Text(stringResource(R.string.combine_focus_hint))
                 if (mode == CompositionMode.HDR) Text(stringResource(R.string.combine_hdr_hint))
                 if (mode == CompositionMode.PANORAMA) Text(stringResource(R.string.combine_panorama_hint))
+                if (mode == CompositionMode.VERTICAL) Text(stringResource(R.string.combine_vertical_hint))
+                if (mode == CompositionMode.NOISE) Text(stringResource(R.string.combine_noise_hint))
+                if (mode == CompositionMode.MOSAIC) {
+                    Text(stringResource(R.string.combine_mosaic_hint))
+                    for (columns in 2..3) FilterChip(
+                        selected = mosaicColumns == columns, enabled = !saving, onClick = { mosaicColumns = columns },
+                        label = { Text(stringResource(R.string.combine_mosaic_columns, columns)) },
+                    )
+                }
                 if (inputs.size >= 2) Text(stringResource(R.string.combine_count, inputs.size))
+                if (reorder) for ((index, uri) in inputs.withIndex()) {
+                    Row {
+                        Text(
+                            text = "${index + 1}. ${names[uri] ?: uri.lastPathSegment.orEmpty()}",
+                            modifier = Modifier.weight(1f),
+                            maxLines = 2,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        )
+                        TextButton(enabled = index > 0 && !saving, onClick = { movePhoto(index, index - 1) }) {
+                            Text(stringResource(R.string.combine_order_up))
+                        }
+                        TextButton(enabled = index < inputs.lastIndex && !saving, onClick = { movePhoto(index, index + 1) }) {
+                            Text(stringResource(R.string.combine_order_down))
+                        }
+                    }
+                }
                 if (mode == CompositionMode.EXPOSURE) {
                     Text(stringResource(R.string.combine_opacity))
                     Slider(value = opacity, onValueChange = { opacity = it }, enabled = !saving)
@@ -181,8 +226,12 @@ private fun composePhotos(
     opacity: Float,
     screen: Boolean,
     cell: Int,
+    mosaicColumns: Int,
 ): Bitmap {
     if (mode == CompositionMode.PANORAMA) return stitchPanorama(context, uris, cell)
+    if (mode == CompositionMode.VERTICAL) return stitchPanorama(context, uris, cell, vertical = true)
+    if (mode == CompositionMode.MOSAIC) return stitchPanorama(context, uris, cell, columns = mosaicColumns)
+    if (mode == CompositionMode.NOISE) return fuseExposures(context, uris, if (cell > 240) 2400 else 480, noiseStack = true)
     if (mode == CompositionMode.LIGHTEN) return fuseExposures(context, uris, if (cell > 240) 2000 else 480, lightenStack = true)
     if (mode == CompositionMode.MEDIAN) return fuseExposures(context, uris, if (cell > 240) 2000 else 480, medianStack = true)
     if (mode == CompositionMode.HDR || mode == CompositionMode.FOCUS) {
@@ -191,7 +240,7 @@ private fun composePhotos(
     val columns = when (mode) {
         CompositionMode.COLLAGE, CompositionMode.CONTACT -> if (uris.size <= 4) 2 else 3
         CompositionMode.STRIP -> uris.size
-        CompositionMode.EXPOSURE, CompositionMode.PANORAMA, CompositionMode.HDR, CompositionMode.FOCUS, CompositionMode.MEDIAN, CompositionMode.LIGHTEN -> 1
+        CompositionMode.EXPOSURE, CompositionMode.PANORAMA, CompositionMode.VERTICAL, CompositionMode.MOSAIC, CompositionMode.NOISE, CompositionMode.HDR, CompositionMode.FOCUS, CompositionMode.MEDIAN, CompositionMode.LIGHTEN -> 1
     }
     val grid = mode == CompositionMode.COLLAGE || mode == CompositionMode.CONTACT
     val rows = if (grid) (uris.size + columns - 1) / columns else 1

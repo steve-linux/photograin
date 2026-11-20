@@ -67,6 +67,7 @@ import io.github.steve_linux.photograin.ui.home.RecentThumbnail
 fun BatchScreen(viewModel: BatchViewModel, onClose: () -> Unit) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val settings by SettingsStore.get(LocalContext.current).state.collectAsStateWithLifecycle()
+    var showWhiteBalance by rememberSaveable { mutableStateOf(false) }
     var showMatch by rememberSaveable { mutableStateOf(false) }
     var showQueueDetails by rememberSaveable { mutableStateOf(false) }
     var showExport by rememberSaveable { mutableStateOf(false) }
@@ -149,6 +150,9 @@ fun BatchScreen(viewModel: BatchViewModel, onClose: () -> Unit) {
                     androidx.compose.material3.TextButton(onClick = { showMatch = true }, enabled = state.items.size >= 2 && !state.running) {
                         Text(stringResource(R.string.match_exposure))
                     }
+                    androidx.compose.material3.TextButton(
+                        onClick = { showWhiteBalance = true }, enabled = state.items.isNotEmpty() && !state.running,
+                    ) { Text(stringResource(R.string.batch_wb)) }
                     Text(
                         stringResource(R.string.batch_apply_what),
                         style = MaterialTheme.typography.labelLarge,
@@ -235,6 +239,16 @@ fun BatchScreen(viewModel: BatchViewModel, onClose: () -> Unit) {
         }
     }
 
+    if (showWhiteBalance && state.items.isNotEmpty()) WhiteBalanceBatchDialog(
+        photos = state.items.map { it.uri },
+        onApply = {
+            showWhiteBalance = false
+            viewModel.selectSource(BatchSource.MatchedWhiteBalance(it))
+            viewModel.setCopyMasks(false)
+            viewModel.run(null)
+        },
+        onDismiss = { showWhiteBalance = false },
+    )
     if (showMatch) ExposureMatchDialog(
         photos = state.items.map { it.uri },
         onApply = {

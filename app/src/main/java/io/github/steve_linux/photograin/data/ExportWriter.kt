@@ -68,6 +68,7 @@ data class ExportOptions(
     val batchStart: Int = 1,
     val hdrHighlightStops: Float = HighlightGain.DEFAULT_STOPS,
     val hdrHighlightThreshold: Float = HighlightGain.DEFAULT_THRESHOLD,
+    val watermark: ExportWatermark? = null,
 ) {
     /** Only formats with a tunable Android encoder support a byte limit. */
     val effectiveMaxBytes: Long?
@@ -123,6 +124,7 @@ class ExportSizeLimitException : IOException("The encoded image cannot fit the r
 /** Encodes a rendered bitmap, carries over useful metadata and writes it to a user-chosen document. */
 object ExportWriter {
     fun write(context: Context, bitmap: Bitmap, original: Uri, destination: Uri, options: ExportOptions) {
+        options.watermark?.takeIf { it.active }?.draw(android.graphics.Canvas(bitmap), bitmap.width, bitmap.height)
         if (options.format == ExportFormat.TIFF) {
             writeTiff(context, bitmap, original, destination, options)
             return
