@@ -16,6 +16,13 @@ import kotlin.math.sin
 enum class MaskType { LINEAR, RADIAL, BRUSH, FULL, SUBJECT, SKY }
 
 @Serializable
+enum class MaskOperation { ADD, SUBTRACT }
+
+/** A selection combined in order with the base; its range is the parent mask's range. */
+@Serializable
+data class MaskPart(val mask: Mask, val operation: MaskOperation = MaskOperation.ADD)
+
+@Serializable
 enum class RangeType { NONE, LUMINANCE, COLOR }
 
 /**
@@ -146,7 +153,26 @@ data class Mask(
     val range: MaskRange = MaskRange(),
     /** Subject only: taps on the object to select, as x, y, include (1, or 0 to leave out) triples. */
     val points: List<Float> = emptyList(),
+    val parts: List<MaskPart> = emptyList(),
 ) {
+    val usesRaster: Boolean get() = parts.isNotEmpty() || LocalAdjustment.usesRaster(type)
+
+    /** Base plus flat components, for AI discovery and editing. */
+    fun selections(): List<Mask> = listOf(copy(parts = emptyList())) + parts.map { it.mask }
+
+    /** Index zero is the original selection. Inversion and ranges apply to the whole result. */
+    fun selection(index: Int): Mask = if (index > 0 && index <= parts.size)
+        parts[index - 1].mask.copy(range = range, invert = invert) else copy(parts = emptyList())
+
+    fun withSelection(index: Int, value: Mask): Mask {
+        if (index <= 0 || index > parts.size) return value.copy(parts = parts)
+        return copy(range = value.range, invert = value.invert, parts = parts.mapIndexed { i, part ->
+            if (i == index - 1) part.copy(mask = value.copy(parts = emptyList(), range = MaskRange(), invert = false)) else part
+        })
+    }
+
+    companion object { const val MAX_PARTS = 15 }
+
     /**
      * Strength 0..1 at source-normalized ([x], [y]) for a source of width / long edge [aspectX]
      * and height / long edge [aspectY]. Mirrors maskWeight() in the color shader. Brush and

@@ -96,7 +96,7 @@ object ShaderParams {
             } else {
                 geo[k] = m.x0; geo[k + 1] = m.y0; geo[k + 2] = m.radiusX; geo[k + 3] = m.radiusY
             }
-            opt[k] = when (m.type) {
+            opt[k] = if (m.parts.isNotEmpty()) 2f else when (m.type) {
                 MaskType.LINEAR -> 0f
                 MaskType.RADIAL -> 1f
                 // A subject mask is a brush mask seeded with the model's result.
@@ -104,7 +104,7 @@ object ShaderParams {
                 MaskType.FULL -> 3f
             }
             // A brush mask is drawn into the layer of the brush texture matching its index.
-            opt[k + 1] = if (LocalAdjustment.usesRaster(m.type)) i.toFloat() else m.angle
+            opt[k + 1] = if (m.usesRaster) i.toFloat() else m.angle
             opt[k + 2] = m.feather
             opt[k + 3] = if (m.invert) 1f else 0f
             val r = m.range

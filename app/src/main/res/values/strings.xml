@@ -492,4 +492,10 @@
     <string name="local_hint_sky">AI sky selection, fully offline. Check the red overlay and refine with Paint or Erase.</string>
     <string name="msg_sky_not_found">No clear sky found. Paint the selection manually or try another photo.</string>
     <string name="msg_sky_failed">Could not select the sky. You can paint the mask manually.</string>
+    <string name="mask_base">Base selection</string>
+    <string name="mask_add_selection">Add selection</string>
+    <string name="mask_subtract_selection">Subtract selection</string>
+    <string name="mask_delete_selection">Delete selection</string>
+    <string name="mask_components_hint">Select a component to edit it. Invert, color/luminance range and adjustments apply to the complete mask.</string>
+    <string name="mask_new">New mask</string>
 </resources>

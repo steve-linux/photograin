@@ -56,6 +56,7 @@ import io.github.steve_linux.photograin.model.LocalAdjustment
 import io.github.steve_linux.photograin.model.LocalParamSpec
 import io.github.steve_linux.photograin.model.LocalParams
 import io.github.steve_linux.photograin.model.Mask
+import io.github.steve_linux.photograin.model.MaskOperation
 import io.github.steve_linux.photograin.model.MaskRange
 import io.github.steve_linux.photograin.model.MaskType
 import io.github.steve_linux.photograin.model.RangeType
@@ -71,6 +72,10 @@ import java.util.Locale
 fun LocalPanel(
     masks: List<LocalAdjustment>,
     selected: Int?,
+    selectedPart: Int,
+    onSelectPart: (Int) -> Unit,
+    onAddPart: (MaskType, MaskOperation) -> Unit,
+    onDeletePart: () -> Unit,
     showMask: Boolean,
     onAdd: (MaskType) -> Unit,
     onSelect: (Int?) -> Unit,
@@ -92,6 +97,7 @@ fun LocalPanel(
     onRemoveBackground: () -> Unit,
     onBackground: (Background, Int?) -> Unit,
 ) {
+    var showNewMask by rememberSaveable(selected) { mutableStateOf(false) }
     var section by rememberSaveable(selected) { mutableStateOf(0) }
     val activeSection = if (selected == null) 0 else section
     Column(Modifier.fillMaxWidth().heightIn(max = 300.dp)) {
@@ -121,7 +127,10 @@ fun LocalPanel(
                         )
                     }
                 }
-                if (activeSection == 0) {
+                if (activeSection == 0 && selected != null) {
+                    TextButton(onClick = { showNewMask = !showNewMask }) { Text(stringResource(R.string.mask_new)) }
+                }
+                if (activeSection == 0 && (selected == null || showNewMask)) {
                     FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         val canAdd = masks.size < LocalAdjustment.MAX
                         for (type in MaskType.entries) {
@@ -151,7 +160,11 @@ fun LocalPanel(
                     )
                     return@Column
                 }
-                val local = masks[index]
+                val whole = masks[index]
+                val local = whole.copy(mask = whole.mask.selection(selectedPart))
+                if (activeSection == 0) {
+                    ComponentControls(whole.mask, selectedPart, onSelectPart, onAddPart, onDeletePart)
+                }
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Switch(checked = local.mask.invert, onCheckedChange = onInvert)
                     Spacer(Modifier.width(8.dp))
@@ -458,4 +471,46 @@ private fun addLabel(type: MaskType): Int = when (type) {
     MaskType.FULL -> R.string.local_add_full
     MaskType.SUBJECT -> R.string.local_add_subject
     MaskType.SKY -> R.string.local_add_sky
+}
+
+/** Keep the component picker collapsed until Add/Subtract is requested. */
+@Composable
+private fun ComponentControls(
+    mask: Mask,
+    selected: Int,
+    onSelect: (Int) -> Unit,
+    onAdd: (MaskType, MaskOperation) -> Unit,
+    onDelete: () -> Unit,
+) {
+    var operation by rememberSaveable { mutableStateOf<MaskOperation?>(null) }
+    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FilterChip(selected == 0, { onSelect(0) }, label = { Text(stringResource(R.string.mask_base)) })
+        mask.parts.forEachIndexed { i, part ->
+            FilterChip(selected == i + 1, { onSelect(i + 1) }, label = {
+                Text((if (part.operation == MaskOperation.ADD) "+ " else "− ") + stringResource(maskName(part.mask.type), i + 1))
+            })
+        }
+    }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        for (op in MaskOperation.entries) {
+            TextButton(enabled = mask.parts.size < Mask.MAX_PARTS, onClick = { operation = if (operation == op) null else op }) {
+                Text(stringResource(if (op == MaskOperation.ADD) R.string.mask_add_selection else R.string.mask_subtract_selection))
+            }
+        }
+        if (selected > 0) IconButton(onClick = onDelete) {
+            Icon(Icons.Outlined.Delete, stringResource(R.string.mask_delete_selection))
+        }
+    }
+    operation?.let { op ->
+        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            for (type in MaskType.entries.filter { it != MaskType.FULL }) {
+                AssistChip(onClick = { onAdd(type, op); operation = null }, label = { Text(stringResource(maskName(type), mask.parts.size + 1)) })
+            }
+        }
+    }
+    if (mask.parts.isNotEmpty()) Text(
+        stringResource(R.string.mask_components_hint),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
 }

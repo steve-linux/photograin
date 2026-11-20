@@ -203,7 +203,7 @@ internal fun PhotoView(
                 null
             }
             val currentSpace by rememberUpdatedState(space)
-            val currentMasks by rememberUpdatedState(state.edit.masks)
+            val currentMasks by rememberUpdatedState(state.editingMasks)
             val currentSelected by rememberUpdatedState(state.activeMask)
             // A finger on a mask handle: holding still must not reveal the original.
             var handleHeld by remember { mutableStateOf(false) }
@@ -225,7 +225,7 @@ internal fun PhotoView(
             if (space != null && retouchMode) RetouchOverlay(state.edit.retouch, state.activeSpot, space, state.removeDraft)
             if (space != null && maskMode) {
                 MaskOverlay(
-                    state.edit.masks, state.activeMask, space, state.maskDragging,
+                    state.editingMasks, state.activeMask, space, state.maskDragging,
                     brushCursor, brushRadiusPx(state.brush.size, density), state.lassoDraft,
                 )
             }
