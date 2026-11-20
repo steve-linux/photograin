@@ -95,8 +95,8 @@ internal fun sampleColor(bitmap: Bitmap, x: Float, y: Float, fraction: Float, gr
     return DoubleArray(3) { sums[it] / used }
 }
 
-internal fun grayCardBalance(bitmap: Bitmap, x: Float, y: Float): Pair<Float, Float>? =
-    sampleColor(bitmap, x, y, 0.16f, grayCard = true)?.let {
+internal fun grayCardBalance(bitmap: Bitmap, x: Float, y: Float, fraction: Float): Pair<Float, Float>? =
+    sampleColor(bitmap, x, y, fraction, grayCard = true)?.let {
         io.github.steve_linux.photograin.model.WhiteBalance.neutralizeLinear(it[0], it[1], it[2])
     }
 

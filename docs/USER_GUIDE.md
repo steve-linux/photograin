@@ -291,7 +291,7 @@ In **Esporta → Filigrana**, inserisci un testo oppure scegli un logo PNG, JPEG
 
 ## Bilanciamento in serie con cartoncino grigio
 
-Apri **In serie → Bilanciamento con cartoncino grigio**. Tocca una zona neutra opaca, priva di riflessi, e usa **Foto precedente** o **Foto successiva** per controllare i campioni. Photograin misura la stessa area relativa in ogni foto e mostra temperatura, tinta e confronto prima/dopo. Scatta la serie tenendo il cartoncino nella stessa posizione. L’app applica i valori stimati alle ricette principali delle foto con un campione valido.
+Apri **In serie → Bilanciamento con cartoncino grigio**. Tocca una zona neutra opaca, priva di riflessi, e stringi il riquadro se include lo sfondo. Usa **Foto precedente** o **Foto successiva** per controllare i campioni. Photograin misura la stessa area relativa in ogni foto e mostra temperatura, tinta e confronto prima/dopo. Scatta la serie tenendo il cartoncino nella stessa posizione. Se il cartoncino compare in un solo scatto, seleziona **Usa questa foto come riferimento** per usare lo stesso bilanciamento su tutta la serie. Usa questa modalità per foto scattate sotto la stessa luce. L’app salva i valori nelle ricette principali.
 
 ## Riduzione del rumore multiscatto e panorami
 

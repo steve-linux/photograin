@@ -933,4 +933,14 @@
     <string name="combine_order_up">Move up</string>
     <string name="combine_order_down">Move down</string>
     <string name="combine_noise_failed">Could not align at least two shots. Try shots with the same framing and clear details.</string>
+    <string name="batch_wb_use_reference">Use this photo as reference</string>
+    <string name="guide_collection_tools_title">Gallery selection and contact sheets</string>
+    <string name="guide_collection_tools_body">Tap Select photos in the gallery. Edit selected photos to rate, flag, add keywords or put them in an album. PDF contact sheet makes an A4 document from the selection or current view, with originals or edited versions.</string>
+    <string name="guide_export_watermark_body">Open Watermark in Export. Enter text or choose a logo and set its corner, margin, size and opacity. Save the settings in Export profiles to use the same watermark again or in a batch.</string>
+    <string name="guide_merging_title">Multi-shot denoise and panoramas</string>
+    <string name="guide_merging_body">In Combine, use Multi-shot denoise for consecutive shots of the same scene. For Vertical panorama, order overlapping shots from top to bottom. For Multi-row panorama, choose the columns and order each complete row from left to right, starting at the top.</string>
+    <string name="guide_color_tools_title">Gray card, color chart and print proof</string>
+    <string name="guide_color_tools_body">In Batch, sample a gray card in the same area of every shot or use one reference photo for the batch. In the editor menu, Color chart calibration pairs photographed patches with known sRGB values and saves a reusable LUT. Print proof uses the ICC profile for your printer and paper and can mark colors outside the printer gamut.</string>
+    <string name="batch_wb_sample_size">Sample area size</string>
+    <string name="batch_wb_reference_hint">Tap a neutral patch in the reference photo. The same correction will be applied to all photos.</string>
 </resources>

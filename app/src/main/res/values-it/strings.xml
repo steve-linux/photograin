@@ -920,4 +920,14 @@
     <string name="combine_order_up">Sposta su</string>
     <string name="combine_order_down">Sposta giù</string>
     <string name="combine_noise_failed">Impossibile allineare almeno due scatti. Usa la stessa inquadratura e dettagli ben visibili.</string>
+    <string name="batch_wb_use_reference">Usa questa foto come riferimento</string>
+    <string name="guide_collection_tools_title">Selezione in galleria e provini</string>
+    <string name="guide_collection_tools_body">Tocca Seleziona foto in galleria. Puoi assegnare stelle e bandierine, aggiungere parole chiave e inserire le foto in un album. PDF provini crea un documento A4 dalla selezione o dalla vista corrente, con originali o versioni modificate.</string>
+    <string name="guide_export_watermark_body">Apri Filigrana in Esporta. Inserisci un testo oppure scegli un logo, poi imposta angolo, margine, dimensione e opacità. Salva la configurazione in Profili di esportazione per riusarla anche in serie.</string>
+    <string name="guide_merging_title">Riduzione del rumore e panorami</string>
+    <string name="guide_merging_body">In Combina, usa Riduzione rumore multiscatto per scatti consecutivi della stessa scena. Per un panorama verticale ordina gli scatti sovrapposti dall’alto in basso. Per un panorama a più file scegli il numero di colonne e ordina ogni fila da sinistra a destra, iniziando da quella superiore.</string>
+    <string name="guide_color_tools_title">Cartoncino grigio, carta colore e prova di stampa</string>
+    <string name="guide_color_tools_body">In serie, campiona il cartoncino grigio nella stessa zona di ogni scatto o scegli una foto di riferimento. Nel menu dell’editor, Calibrazione con carta colore associa le tacche a valori sRGB noti e salva una LUT riutilizzabile. Prova di stampa usa il profilo ICC di stampante e carta e può indicare i colori fuori gamma.</string>
+    <string name="batch_wb_sample_size">Dimensione dell’area campione</string>
+    <string name="batch_wb_reference_hint">Tocca una zona neutra nella foto di riferimento. La stessa correzione sarà applicata a tutte le foto.</string>
 </resources>
