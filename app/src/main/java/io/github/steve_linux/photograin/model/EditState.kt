@@ -22,6 +22,13 @@ data class EditState(
     val shapes: List<ShapeItem> = emptyList(),
     val correctLens: Boolean = false,
 ) {
+    /** Duplicate independently editable immutable data; keep the original as the only cutout. */
+    fun duplicateMask(index: Int): EditState {
+        val original = masks.getOrNull(index) ?: return this
+        if (masks.size >= LocalAdjustment.MAX) return this
+        return copy(masks = masks + original.copy(background = Background.KEEP))
+    }
+
     fun toJson(): String = json.encodeToString(Recipe(version = Recipe.CURRENT_VERSION, edit = this))
 
     companion object {

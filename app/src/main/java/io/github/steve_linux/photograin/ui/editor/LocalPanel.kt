@@ -25,6 +25,7 @@ import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.AutoFixOff
 import androidx.compose.material.icons.outlined.Brush
 import androidx.compose.material.icons.outlined.Colorize
+import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Gesture
 import androidx.compose.material.icons.outlined.Visibility
@@ -80,6 +81,7 @@ fun LocalPanel(
     onAdd: (MaskType) -> Unit,
     onSelect: (Int?) -> Unit,
     onDelete: (Int) -> Unit,
+    onDuplicate: (Int) -> Unit,
     onParam: (LocalParamSpec, Float) -> Unit,
     onResetParam: (LocalParamSpec) -> Unit,
     onShape: (Mask) -> Unit,
@@ -173,6 +175,9 @@ fun LocalPanel(
                     // Highlighted while the mask is shown, like the split view button.
                     IconToggleButton(checked = showMask, onCheckedChange = onShowMask) {
                         Icon(Icons.Outlined.Visibility, contentDescription = stringResource(R.string.local_show_mask))
+                    }
+                    IconButton(enabled = masks.size < LocalAdjustment.MAX, onClick = { onDuplicate(index) }) {
+                        Icon(Icons.Outlined.ContentCopy, contentDescription = stringResource(R.string.mask_duplicate))
                     }
                     IconButton(onClick = { onDelete(index) }) {
                         Icon(Icons.Outlined.Delete, contentDescription = stringResource(R.string.local_delete))
@@ -473,7 +478,7 @@ private fun addLabel(type: MaskType): Int = when (type) {
     MaskType.SKY -> R.string.local_add_sky
 }
 
-/** Keep the component picker collapsed until Add/Subtract is requested. */
+/** Keep the component picker collapsed until a combination operation is requested. */
 @Composable
 private fun ComponentControls(
     mask: Mask,
@@ -487,14 +492,25 @@ private fun ComponentControls(
         FilterChip(selected == 0, { onSelect(0) }, label = { Text(stringResource(R.string.mask_base)) })
         mask.parts.forEachIndexed { i, part ->
             FilterChip(selected == i + 1, { onSelect(i + 1) }, label = {
-                Text((if (part.operation == MaskOperation.ADD) "+ " else "− ") + stringResource(maskName(part.mask.type), i + 1))
+                val symbol = when (part.operation) {
+                    MaskOperation.ADD -> "+ "
+                    MaskOperation.SUBTRACT -> "− "
+                    MaskOperation.INTERSECT -> "∩ "
+                }
+                Text(symbol + stringResource(maskName(part.mask.type), i + 1))
             })
         }
     }
     Row(verticalAlignment = Alignment.CenterVertically) {
-        for (op in MaskOperation.entries) {
-            TextButton(enabled = mask.parts.size < Mask.MAX_PARTS, onClick = { operation = if (operation == op) null else op }) {
-                Text(stringResource(if (op == MaskOperation.ADD) R.string.mask_add_selection else R.string.mask_subtract_selection))
+        Row(Modifier.weight(1f).horizontalScroll(rememberScrollState())) {
+            for (op in MaskOperation.entries) {
+                TextButton(enabled = mask.parts.size < Mask.MAX_PARTS, onClick = { operation = if (operation == op) null else op }) {
+                    Text(stringResource(when (op) {
+                        MaskOperation.ADD -> R.string.mask_add_selection
+                        MaskOperation.SUBTRACT -> R.string.mask_subtract_selection
+                        MaskOperation.INTERSECT -> R.string.mask_intersect_selection
+                    }))
+                }
             }
         }
         if (selected > 0) IconButton(onClick = onDelete) {

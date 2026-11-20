@@ -16,7 +16,7 @@ import kotlin.math.sin
 enum class MaskType { LINEAR, RADIAL, BRUSH, FULL, SUBJECT, SKY }
 
 @Serializable
-enum class MaskOperation { ADD, SUBTRACT }
+enum class MaskOperation { ADD, SUBTRACT, INTERSECT }
 
 /** A selection combined in order with the base; its range is the parent mask's range. */
 @Serializable

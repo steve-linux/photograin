@@ -639,6 +639,15 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         commit()
     }
 
+    fun duplicateMask(index: Int) {
+        val s = _state.value
+        val duplicated = s.edit.duplicateMask(index)
+        if (duplicated === s.edit) return
+        updateLive { it.duplicateMask(index) }
+        _state.update { it.copy(selectedMask = it.edit.masks.lastIndex, selectedMaskPart = 0, picker = Picker.NONE, lassoDraft = null) }
+        commit()
+    }
+
     fun deleteMask(index: Int) {
         if (index !in _state.value.edit.masks.indices) return
         updateLive { e -> e.copy(masks = e.masks.filterIndexed { i, _ -> i != index }) }

@@ -498,4 +498,6 @@
     <string name="mask_delete_selection">Delete selection</string>
     <string name="mask_components_hint">Select a component to edit it. Invert, color/luminance range and adjustments apply to the complete mask.</string>
     <string name="mask_new">New mask</string>
+    <string name="mask_intersect_selection">Intersect selection</string>
+    <string name="mask_duplicate">Duplicate mask</string>
 </resources>
