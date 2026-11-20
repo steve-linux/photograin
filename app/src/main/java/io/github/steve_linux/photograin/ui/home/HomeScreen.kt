@@ -115,6 +115,7 @@ fun HomeScreen(
     onOpen: (photo: CollectionPhoto<Uri>, collection: List<CollectionPhoto<Uri>>) -> Unit,
     onQuickAction: (QuickAction) -> Unit,
     onBatch: () -> Unit,
+    onBatchQueue: (() -> Unit)? = null,
     showTip: Boolean,
     onDismissTip: () -> Unit,
     onSettings: () -> Unit,
@@ -449,6 +450,18 @@ fun HomeScreen(
             onDismiss = { burst = emptyList() },
         )
     }
+    var scanSimilar by remember { mutableStateOf<List<Uri>?>(null) }
+    var reviewSimilar by remember { mutableStateOf<List<Uri>?>(null) }
+    scanSimilar?.let { selection ->
+        SimilarPhotosDialog(selection, visible = reviewSimilar == null,
+            onCompare = { reviewSimilar = it }, onDismiss = { scanSimilar = null })
+    }
+    reviewSimilar?.let { selection ->
+        CompareShotsDialog(selection, onPick = {
+            ratingStore.flag(it, PhotoFlag.PICKED)
+            reviewSimilar = null
+        }, onDismiss = { reviewSimilar = null }, isSimilar = true)
+    }
     fun openFromGallery(entry: HomeEntry) {
         val selected = CollectionPhoto(entry.uri, entry.version.id)
         onOpen(selected, PhotoCollection.snapshot(galleryPhotos, selected))
@@ -521,6 +534,7 @@ fun HomeScreen(
                 )
                 Spacer(Modifier.height(24.dp))
                 QuickActionsCard(onQuickAction)
+                if (onBatchQueue != null) TextButton(onClick = onBatchQueue) { Text(stringResource(R.string.batch_queue)) }
                 Spacer(Modifier.height(12.dp))
                 GuideEntry(onGuide)
                 if (showTip) {
@@ -537,6 +551,9 @@ fun HomeScreen(
                 modifier = Modifier.fillMaxSize().padding(padding),
             ) {
                 item(span = { GridItemSpan(maxLineSpan) }) { QuickActionsCard(onQuickAction) }
+                if (onBatchQueue != null) item(span = { GridItemSpan(maxLineSpan) }) {
+                    TextButton(onClick = onBatchQueue) { Text(stringResource(R.string.batch_queue)) }
+                }
                 item(span = { GridItemSpan(maxLineSpan) }) { GuideEntry(onGuide) }
                 if (showTip) {
                     item(span = { GridItemSpan(maxLineSpan) }) { PresetTip(onDismissTip) }
@@ -596,6 +613,11 @@ fun HomeScreen(
                     TextButton(onClick = { showBursts = true }) {
                         Text(stringResource(R.string.burst_title))
                     }
+                    val originals = galleryPhotos.map { it.source }.distinct()
+                    if (originals.size >= 2) TextButton(onClick = { scanSimilar = originals }) {
+                        Text(stringResource(R.string.similar_title))
+                    }
+
                     val filters = listOf(R.string.photo_filter_all, R.string.photo_pick, R.string.photo_filter_three, R.string.photo_reject)
                     TextButton(onClick = { ratingFilter = (ratingFilter + 1) % filters.size }) {
                         Text(stringResource(R.string.photo_filter, stringResource(filters[ratingFilter])))

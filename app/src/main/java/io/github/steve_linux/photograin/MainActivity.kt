@@ -67,7 +67,7 @@ class MainActivity : ComponentActivity() {
                     GuideScreen(onClose = { showGuide = false }, focus = guideFocus)
                 } else if (showSettings) {
                     SettingsScreen(
-                        onClose = { showSettings = false },
+                        onClose = { showSettings = false; recents = prefs.recents() },
                         onShowTips = {
                             prefs.presetTipDismissed = false
                             showTip = true
@@ -101,6 +101,7 @@ class MainActivity : ComponentActivity() {
                                 picker.launch(OPEN_TYPES)
                             },
                             onBatch = { multiPicker.launch(OPEN_TYPES) },
+                            onBatchQueue = if (batchState.queueAvailable) batch::openQueue else null,
                             showTip = showTip,
                             onDismissTip = {
                                 prefs.presetTipDismissed = true

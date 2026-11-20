@@ -153,6 +153,13 @@ Applica i filtri di ricerca, RAW, modifiche, parole chiave e valutazione, poi to
 
 Tocca **Confronta raffiche** per raggruppare gli originali visibili con data di scatto EXIF e intervalli fino a due secondi tra uno scatto e il successivo, per la stessa fotocamera quando indicata. Le due anteprime condividono zoom e spostamento. Porta il mirino sul soggetto e confronta l’indicatore **Dettaglio**, una stima che può essere influenzata da rumore e trama. **Seleziona** assegna la bandierina allo scatto scelto.
 
+## Coda, copie simili e backup della raccolta
+
+- Esporta in **Serie** con uno o più profili. **Coda di esportazione** in Galleria riapre l’ultima serie anche dopo aver chiuso l’app. In **Esiti di esportazione** vedi il risultato per foto e profilo. **Riprendi esportazioni incomplete** riprova i profili in attesa o non riusciti e conserva i risultati completati. **Serie precedenti** apre le altre code. Se la cartella originale non è più accessibile, scegli **Riprendi in un’altra cartella**.
+- In **Galleria → Trova duplicati e foto simili**, Photograin analizza gli originali della vista filtrata. **File identici** raggruppa i file con lo stesso contenuto. **Immagini simili** suggerisce copie confrontando proporzioni, contrasto locale e luminosità dell’anteprima orientata. Apri un gruppo per confrontarlo e, se vuoi, assegna una bandierina. Gli originali sono conservati.
+- In **Impostazioni → Backup della raccolta**, esporta un archivio con album manuali e intelligenti, versioni delle foto catalogate, valutazioni, parole chiave, preset e profili. Le immagini originali sono escluse dallo ZIP. Durante il ripristino scegli gli originali spostati. Photograin li ricollega quando coincidono con l’impronta del file salvata nel backup. Il ripristino aggiunge versioni e unisce le parole chiave, conservando i dati locali già presenti. Per le ricette più vecchie, riapri prima le foto che non figurano più tra i recenti o in un album.
+- In **Serie → Uniforma esposizione**, scegli la foto di riferimento e tocca la zona da misurare. Photograin usa le stesse coordinate relative su ogni originale e stima fino a due stop di correzione per foto. Tocca un risultato per vedere il prima e dopo dell’esposizione. Il calcolo funziona meglio con inquadrature simili. Le zone troppo scure o bruciate possono essere escluse. Il riferimento conserva la sua esposizione.
+
 ## Organizzare e trasferire il lavoro
 
 - In **⋮ → Trova regolazioni** cerca i cursori globali per nome o pannello. Tocca la stella per aggiungere una regolazione ai preferiti. **Solo modificate** mostra i valori diversi da quelli predefiniti. I filtri si possono combinare.

@@ -141,6 +141,16 @@ class LookLibrary(private val context: Context) {
     }
 
     @Synchronized
+    internal fun restorePresets(presets: List<Preset>) {
+        val current = userPresets()
+        val existing = current.map { it.copy(id = "", builtIn = null) }.toMutableSet()
+        val additions = presets.filter { existing.add(it.copy(id = "", builtIn = null)) }
+        if (additions.isNotEmpty()) {
+            writeList(presetFile, Preset.serializer(), current + additions.map { it.copy(id = UUID.randomUUID().toString(), builtIn = null) })
+        }
+    }
+
+    @Synchronized
     fun deletePreset(id: String) = writeList(presetFile, Preset.serializer(), userPresets().filter { it.id != id })
 
     private fun <T> readList(file: File, serializer: KSerializer<T>): List<T> =

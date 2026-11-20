@@ -127,6 +127,9 @@ fun SettingsScreen(onClose: () -> Unit, onShowTips: () -> Unit) {
         Column(
             Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(bottom = 24.dp),
         ) {
+            Section(R.string.collection_backup)
+            CollectionBackupControls()
+            HorizontalDivider()
             Section(R.string.settings_save)
             val picturesAvailable = Build.VERSION.SDK_INT >= 29
             Choice(

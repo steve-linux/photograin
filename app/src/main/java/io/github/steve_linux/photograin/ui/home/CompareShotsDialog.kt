@@ -29,6 +29,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.steve_linux.photograin.R
 import io.github.steve_linux.photograin.data.ImageLoader
@@ -39,7 +40,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 @Composable
-internal fun CompareShotsDialog(photos: List<Uri>, onPick: ((Uri) -> Unit)? = null, onDismiss: () -> Unit) {
+internal fun CompareShotsDialog(photos: List<Uri>, onPick: ((Uri) -> Unit)? = null, isSimilar: Boolean = false, onDismiss: () -> Unit) {
     val context = LocalContext.current
     var zoom by remember { mutableFloatStateOf(1f) }
     var pan by remember { mutableStateOf(Offset.Zero) }
@@ -47,7 +48,7 @@ internal fun CompareShotsDialog(photos: List<Uri>, onPick: ((Uri) -> Unit)? = nu
     val compared = if (onPick == null) photos else listOf(photos[0], photos[candidate])
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(if (onPick == null) R.string.compare_shots else R.string.burst_title)) },
+        title = { Text(stringResource(if (isSimilar) R.string.similar_title else if (onPick == null) R.string.compare_shots else R.string.burst_title)) },
         text = {
             Column {
                 if (onPick != null) {
@@ -86,6 +87,12 @@ internal fun CompareShotsDialog(photos: List<Uri>, onPick: ((Uri) -> Unit)? = nu
                             }
                         }
                         Column(Modifier.weight(1f).fillMaxHeight()) {
+                            if (isSimilar) {
+                                val name by produceState("", uri) {
+                                    value = withContext(Dispatchers.IO) { ImageLoader.queryName(context, uri).orEmpty() }
+                                }
+                                Text(name, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            }
                             BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().clipToBounds()) {
                                 val image = bitmap
                                 if (image != null) {

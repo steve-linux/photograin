@@ -15,13 +15,25 @@ class Preferences(private val context: Context) {
     fun recents(): List<Uri> =
         prefs.getString(KEY_RECENTS, null)?.split('\n')?.filter { it.isNotBlank() }?.map(Uri::parse).orEmpty()
 
+    internal fun knownPhotos(): Set<Uri> =
+        prefs.getStringSet("known_photos", emptySet()).orEmpty().map(Uri::parse).toSet() + recents()
+
+    @Synchronized
+    internal fun rememberRestoredPhotos(uris: List<Uri>) {
+        val known = prefs.getStringSet("known_photos", emptySet()).orEmpty() + uris.map(Uri::toString)
+        val recent = (uris + recents()).distinct().take(MAX_RECENTS)
+        prefs.edit().putStringSet("known_photos", known).putString(KEY_RECENTS, recent.joinToString("\n")).apply()
+    }
+
     /** Moves [uri] to the top of the recents and keeps read access to it across restarts when possible. */
+    @Synchronized
     fun addRecent(uri: Uri) {
         runCatching {
             context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         val list = (listOf(uri) + recents().filter { it != uri }).take(MAX_RECENTS)
-        prefs.edit().putString(KEY_RECENTS, list.joinToString("\n")).apply()
+        val known = prefs.getStringSet("known_photos", emptySet()).orEmpty() + list.map(Uri::toString)
+        prefs.edit().putString(KEY_RECENTS, list.joinToString("\n")).putStringSet("known_photos", known).apply()
     }
 
     fun removeRecent(uri: Uri) {

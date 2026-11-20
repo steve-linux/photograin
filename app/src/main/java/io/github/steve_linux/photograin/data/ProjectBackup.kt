@@ -83,43 +83,7 @@ internal class ProjectBackup(private val context: Context, private val library: 
             require(manifest.format == 1 && manifest.versions.size in 1..128)
             val edits = manifest.versions.map { requireNotNull(EditState.fromJson(it.recipe)) }
             val assets = assetNames(edits)
-            for (name in assets) {
-                val file = File(staging, name)
-                require(file.isFile)
-                if (name.endsWith(".cube")) {
-                    val id = java.security.MessageDigest.getInstance("SHA-256").digest(file.readBytes())
-                        .joinToString("") { "%02x".format(it) }
-                    require(name == "luts/$id.cube")
-                    io.github.steve_linux.photograin.model.CubeLut.parse(file.readText())
-                } else {
-                    val bounds = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                    android.graphics.BitmapFactory.decodeFile(file.path, bounds)
-                    require(bounds.outMimeType == "image/png" && bounds.outWidth in 1..1600 && bounds.outHeight in 1..1600)
-                }
-            }
-            for (name in assets) {
-                if (name.endsWith(".cube")) {
-                    val file = File(staging, name)
-                    require(file.length() <= 16L * 1024 * 1024)
-                    val id = file.nameWithoutExtension
-                    val title = edits.firstOrNull { it.adjustments.look.lutId == id }?.adjustments?.look?.name
-                    library.importLutBytes(file.readBytes(), title)
-                    continue
-                }
-                val target = File(context.filesDir, name)
-                target.parentFile?.mkdirs()
-                if (target.exists()) {
-                    require(target.readBytes().contentEquals(File(staging, name).readBytes()))
-                } else {
-                    val temporary = File.createTempFile("project-", ".tmp", target.parentFile)
-                    try {
-                        File(staging, name).copyTo(temporary, overwrite = true)
-                        check(temporary.renameTo(target))
-                    } finally {
-                        temporary.delete()
-                    }
-                }
-            }
+            restoreAssets(staging, assets, edits)
             val created = mutableListOf<Int>()
             try {
                 for ((index, edit) in edits.withIndex()) {
@@ -137,7 +101,48 @@ internal class ProjectBackup(private val context: Context, private val library: 
         }
     }
 
-    private fun assetNames(edits: List<EditState>): Set<String> = buildSet {
+    internal fun restoreAssets(staging: File, assets: Set<String>, edits: List<EditState>) {
+        require(assets.all(assetPattern::matches))
+        for (name in assets) {
+            val file = File(staging, name)
+            require(file.isFile)
+            if (name.endsWith(".cube")) {
+                val id = java.security.MessageDigest.getInstance("SHA-256").digest(file.readBytes())
+                    .joinToString("") { "%02x".format(it) }
+                require(name == "luts/$id.cube")
+                io.github.steve_linux.photograin.model.CubeLut.parse(file.readText())
+            } else {
+                val bounds = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                android.graphics.BitmapFactory.decodeFile(file.path, bounds)
+                require(bounds.outMimeType == "image/png" && bounds.outWidth in 1..1600 && bounds.outHeight in 1..1600)
+            }
+        }
+        for (name in assets) {
+            if (name.endsWith(".cube")) {
+                val file = File(staging, name)
+                require(file.length() <= 16L * 1024 * 1024)
+                val id = file.nameWithoutExtension
+                val title = edits.firstOrNull { it.adjustments.look.lutId == id }?.adjustments?.look?.name
+                library.importLutBytes(file.readBytes(), title)
+                continue
+            }
+            val target = File(context.filesDir, name)
+            target.parentFile?.mkdirs()
+            if (target.exists()) {
+                require(target.readBytes().contentEquals(File(staging, name).readBytes()))
+            } else {
+                val temporary = File.createTempFile("project-", ".tmp", target.parentFile)
+                try {
+                    File(staging, name).copyTo(temporary, overwrite = true)
+                    check(temporary.renameTo(target))
+                } finally {
+                    temporary.delete()
+                }
+            }
+        }
+    }
+
+    internal fun assetNames(edits: List<EditState>): Set<String> = buildSet {
         for (edit in edits) {
             require(edit.images.size <= 8)
             for (layer in edit.images) add("image-layers/${layer.id}.png")
@@ -146,7 +151,7 @@ internal class ProjectBackup(private val context: Context, private val library: 
         require(all(assetPattern::matches))
     }
 
-    private fun consume(input: InputStream, output: java.io.OutputStream?, limit: Long): Long {
+    internal fun consume(input: InputStream, output: java.io.OutputStream?, limit: Long): Long {
         val buffer = ByteArray(8192)
         var total = 0L
         while (true) {
@@ -158,7 +163,7 @@ internal class ProjectBackup(private val context: Context, private val library: 
         }
     }
 
-    private companion object {
+    internal companion object {
         val assetPattern = Regex("(image-layers/[0-9a-f-]{36}\\.png|luts/[0-9a-f]{64}\\.cube)")
         val originalPattern = Regex("original\\.[a-zA-Z0-9]{1,8}")
     }
