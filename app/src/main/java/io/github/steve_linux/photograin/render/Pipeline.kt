@@ -395,7 +395,7 @@ internal class Pipeline {
             // A new raster is uploaded even when empty: the layer may hold another photo's paint.
             val created = brushRasters[i] == null
             val raster = brushRasters[i] ?: BrushRaster(sourceWidth, sourceHeight).also { brushRasters[i] = it }
-            val base = if (local.mask.type == MaskType.SUBJECT) subjects?.of(local.mask)?.resizedTo(raster.width, raster.height)?.data else null
+            val base = subjects?.of(local.mask)?.resizedTo(raster.width, raster.height)?.data
             if (raster.sync(local.mask.strokes, base) || created) {
                 val buffer = brushUpload?.takeIf { it.capacity() == raster.data.size }
                     ?: ByteBuffer.allocateDirect(raster.data.size).also { brushUpload = it }

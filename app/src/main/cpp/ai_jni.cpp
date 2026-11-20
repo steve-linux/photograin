@@ -193,6 +193,28 @@ Java_io_github_steve_1linux_photograin_data_SubjectSegmenter_nativeRun(
     return out;
 }
 
+/** Sky U^2-Net-p uses a fixed 384 square and absolute, calibrated sigmoid probabilities. */
+JNIEXPORT jlong JNICALL
+Java_io_github_steve_1linux_photograin_data_SkySelector_nativeLoad(
+        JNIEnv* env, jobject, jobject assetManager, jstring param, jstring model) {
+    std::vector<unsigned char> paramData, modelData;
+    if (!readModel(env, assetManager, param, model, &paramData, &modelData)) return 0;
+    auto* segmenter = new Segmenter(384, nullptr, nullptr, false);
+    std::string error;
+    if (!segmenter->load(std::string(paramData.begin(), paramData.end()), std::move(modelData), &error)) {
+        delete segmenter;
+        throwIo(env, error);
+        return 0;
+    }
+    return reinterpret_cast<jlong>(segmenter);
+}
+
+JNIEXPORT jbyteArray JNICALL
+Java_io_github_steve_1linux_photograin_data_SkySelector_nativeRun(
+        JNIEnv* env, jobject instance, jlong handle, jobject input) {
+    return Java_io_github_steve_1linux_photograin_data_SubjectSegmenter_nativeRun(env, instance, handle, input);
+}
+
 /** Loads the inpainting model from the app's assets; returns a handle, or 0 after throwing. */
 JNIEXPORT jlong JNICALL
 Java_io_github_steve_1linux_photograin_data_ObjectRemover_nativeLoad(

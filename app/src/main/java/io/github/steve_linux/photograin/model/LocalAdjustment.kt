@@ -13,7 +13,7 @@ import kotlin.math.min
 import kotlin.math.sin
 
 @Serializable
-enum class MaskType { LINEAR, RADIAL, BRUSH, FULL, SUBJECT }
+enum class MaskType { LINEAR, RADIAL, BRUSH, FULL, SUBJECT, SKY }
 
 @Serializable
 enum class RangeType { NONE, LUMINANCE, COLOR }
@@ -127,6 +127,7 @@ data class BrushStroke(
  * Subject: the main subject, found by the segmentation model (see [SubjectMask]), or with
  * [points] the object they tap (see [ObjectSelection]); [strokes] add to it or take from it,
  * as on a brush mask.
+ * Sky: a model-based automatic sky selection, also refinable with strokes.
  */
 @Serializable
 data class Mask(
@@ -172,7 +173,7 @@ data class Mask(
                 val v = (-sn * dx + cs * dy) / max(radiusY, 1e-5f)
                 1f - smoothstep(1f - max(feather, 0.001f), 1f, hypot(u, v))
             }
-            MaskType.BRUSH, MaskType.SUBJECT -> 0f
+            MaskType.BRUSH, MaskType.SUBJECT, MaskType.SKY -> 0f
             MaskType.FULL -> 1f
         }
         return if (invert) 1f - w else w
@@ -214,7 +215,7 @@ data class LocalAdjustment(
             masks.take(MAX).indexOfFirst { it.background != Background.KEEP }
 
         /** Whether the mask of [type] is drawn into a raster rather than computed from its shape. */
-        fun usesRaster(type: MaskType) = type == MaskType.BRUSH || type == MaskType.SUBJECT
+        fun usesRaster(type: MaskType) = type == MaskType.BRUSH || type == MaskType.SUBJECT || type == MaskType.SKY
 
         /** Most masks per photo; the shader has room for this many. */
         const val MAX = 8
@@ -239,6 +240,7 @@ data class LocalAdjustment(
             val viewW = hypot(wx, wy)
             val viewH = hypot((ey.x - o.x) * ax, (ey.y - o.y) * ay)
             if (type == MaskType.BRUSH) return LocalAdjustment(mask = Mask(MaskType.BRUSH), exposure = 0.5f)
+            if (type == MaskType.SKY) return LocalAdjustment(mask = Mask(MaskType.SKY), exposure = -0.3f)
             if (type == MaskType.SUBJECT) return LocalAdjustment(mask = Mask(MaskType.SUBJECT), exposure = 0.3f)
             // The whole photo only makes sense narrowed to a range: start with the highlights.
             if (type == MaskType.FULL) {

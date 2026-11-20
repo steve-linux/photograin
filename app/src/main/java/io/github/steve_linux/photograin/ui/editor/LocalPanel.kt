@@ -86,6 +86,7 @@ fun LocalPanel(
     picking: Boolean,
     onPicking: (Boolean) -> Unit,
     findingSubject: Boolean,
+    findingSky: Boolean,
     selectingObject: Boolean,
     onClearObject: () -> Unit,
     onRemoveBackground: () -> Unit,
@@ -165,6 +166,18 @@ fun LocalPanel(
                     }
                 }
                 if (activeSection == 0) {
+                    if (local.mask.type == MaskType.SKY && findingSky) {
+                        Text(stringResource(R.string.local_finding_sky), style = MaterialTheme.typography.bodySmall)
+                        LinearProgressIndicator(Modifier.fillMaxWidth().padding(bottom = 8.dp))
+                    }
+                    if (local.mask.type == MaskType.SKY) {
+                        Text(
+                            stringResource(R.string.local_hint_sky),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(bottom = 4.dp),
+                        )
+                    }
                     val tapped = local.mask.points.isNotEmpty()
                     if (local.mask.type == MaskType.SUBJECT && (if (tapped) selectingObject else findingSubject)) {
                         Text(
@@ -435,6 +448,7 @@ private fun maskName(type: MaskType): Int = when (type) {
     MaskType.BRUSH -> R.string.local_brush_n
     MaskType.FULL -> R.string.local_full_n
     MaskType.SUBJECT -> R.string.local_subject_n
+    MaskType.SKY -> R.string.local_sky_n
 }
 
 private fun addLabel(type: MaskType): Int = when (type) {
@@ -443,4 +457,5 @@ private fun addLabel(type: MaskType): Int = when (type) {
     MaskType.BRUSH -> R.string.local_add_brush
     MaskType.FULL -> R.string.local_add_full
     MaskType.SUBJECT -> R.string.local_add_subject
+    MaskType.SKY -> R.string.local_add_sky
 }

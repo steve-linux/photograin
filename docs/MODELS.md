@@ -218,3 +218,31 @@ tenerne una copia intera e, su ARM, conserva le attivazioni in fp16 (calcoli sem
 picco scende a circa 0,5 GB, misurato con ncnn compilato per aarch64 ed eseguito in qemu, con la
 maschera ancora uguale a onnxruntime sul 99,96% dei pixel (differenza media 0,001). Se il
 telefono ha meno di 1 GB libero, l'app usa U²-Net-p per quella volta.
+
+## Cielo IA (beta)
+
+`app/src/main/assets/models/skyseg.ncnn.{param,bin}` è il piccolo modello pubblico per il cielo
+(U²-Net-p) di [xiongzhu666/Sky-Segmentation-and-Post-processing](https://github.com/xiongzhu666/Sky-Segmentation-and-Post-processing),
+revision `1f7811b32b64ddc957269defff84bc87a3f0b74f`. È distinto dai pesi U²-Net-p per il soggetto.
+
+- **Licenza**: MIT, copyright 2021 xiongzhu666. Copia in `tools/sky/LICENSE` e nel pacchetto
+  dell’app, `assets/models/skyseg.LICENSE.txt`; credito anche nelle Impostazioni.
+- **Originali**: `skysegsmall_sim-opt-fp16.param` e `skysegsmall_sim-opt-fp16.bin` nel repository
+  e nella revisione indicati. Lo script [tools/sky/fetch.py](../tools/sky/fetch.py) verifica i
+  checksum originali e cambia soltanto i nomi dei blob `input.1` → `in0`, `1959` → `out0`.
+  Non converte né riaddestra i pesi.
+- **Input**: RGB 384×384, `(pixel / 255 - media) / deviazione`, medie 0,485 / 0,456 / 0,406,
+  deviazioni 0,229 / 0,224 / 0,225, come nel demo ncnn originale.
+- **Output**: probabilità sigmoid del cielo, senza normalizzazione min/max per immagine.
+  I pesi sono fp16; inferenza CPU con attivazioni fp32. Nessun download o permesso INTERNET.
+- **SHA-256 originali**:
+  - param: `7af3523130445db42d94503558c08ce991932f843b92e4e921c99d732768895e`
+  - bin: `ff1e18f71dc0a0cf8a56b634c59f68d296deffd015cbed27a6d5e302f991faf2`
+- **SHA-256 inclusi**:
+  - `skyseg.ncnn.param`: `f08be25ad568990c631c1355e99c1efebd4d9c840fca891825575ede93b5e22b`
+  - `skyseg.ncnn.bin`: `ff1e18f71dc0a0cf8a56b634c59f68d296deffd015cbed27a6d5e302f991faf2`
+
+È il modello piccolo/demo, non quello ad alta precisione non pubblicato dall’autore. Scene
+complesse e immagini senza cielo possono produrre falsi positivi. Limitazioni e verifica in
+[SKY_SELECTION.md](SKY_SELECTION.md). Per F-Droid aggiungere `skyseg.ncnn.bin` a `scanignore`
+come gli altri modelli inclusi.

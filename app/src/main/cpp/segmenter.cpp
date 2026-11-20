@@ -8,7 +8,8 @@
 
 namespace photograin {
 
-Segmenter::Segmenter(int size, const float mean[3], const float deviation[3]) : size_(size) {
+Segmenter::Segmenter(int size, const float mean[3], const float deviation[3], bool normalizeOutput)
+    : size_(size), normalizeOutput_(normalizeOutput) {
     // ImageNet normalization, as U^2-Net-p was trained.
     const float imageNetMean[3] = {0.485f, 0.456f, 0.406f};
     const float imageNetStd[3] = {0.229f, 0.224f, 0.225f};
@@ -29,7 +30,7 @@ void Segmenter::configure() {
     net_->opt.use_fp16_storage = false;
     net_->opt.use_fp16_arithmetic = false;
     net_->opt.use_bf16_storage = false;
-    if (size_ > kSize) {
+    if (size_ >= 1024) {
         // At 1024 pixels the faster convolutions' work buffers take gigabytes (IS-Net peaks at
         // 2.3 GB with them, 1.1 GB without), enough to get the app killed; without them it
         // is even a little faster at this size.
@@ -87,12 +88,22 @@ bool Segmenter::run(const uint8_t* rgba, int w, int h, int stride, uint8_t* out,
     ncnn::Extractor ex = net_->create_extractor();
     ex.input("in0", in);
     ncnn::Mat result;
-    if (ex.extract("out0", result) != 0 || result.w != size_ || result.h != size_) {
+    if (ex.extract("out0", result) != 0 || result.w != size_ || result.h != size_ || result.c != 1) {
         *error = "Inference failed";
         return false;
     }
     const float* p = result.channel(0);
     const int n = size_ * size_;
+    if (!normalizeOutput_) {
+        for (int i = 0; i < n; i++) {
+            if (!std::isfinite(p[i])) {
+                *error = "Invalid segmentation probabilities";
+                return false;
+            }
+            out[i] = static_cast<uint8_t>(std::lround(std::clamp(p[i], 0.f, 1.f) * 255.f));
+        }
+        return true;
+    }
     const auto [lo, hi] = std::minmax_element(p, p + n);
     const float range = std::max(*hi - *lo, 1e-6f);
     for (int i = 0; i < n; i++) {

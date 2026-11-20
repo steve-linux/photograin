@@ -37,6 +37,9 @@ Editor fotografico non distruttivo per Android, libero (GPL-3.0-or-later) e pens
 - **Ingrandimento** 2× o 4× all'esportazione, con interpolazione bicubica oppure con l'IA
   ([Real-ESRGAN](https://github.com/xinntao/Real-ESRGAN) eseguito da ncnn, sulla GPU con Vulkan
   quando c'è): il modello è incluso nell'app, nessuna connessione. Provenienza in [docs/MODELS.md](docs/MODELS.md).
+- **Maschera cielo automatica con IA (beta)**: modello U²-Net-p dedicato al cielo, incluso e offline,
+  con rifinitura tramite pennello/gomma, inversione e intervalli colore/luminosità. Su scene
+  difficili controlla e correggi i bordi. Dettagli in [docs/SKY_SELECTION.md](docs/SKY_SELECTION.md).
 - **Scontorno con l'IA**: la maschera "Soggetto" trova da sola il soggetto principale
   ([U²-Net](https://github.com/xuebinqin/U-2-Net), versione leggera, eseguito da ncnn sul telefono)
   e si rifinisce col pennello; con un tocco sulla foto seleziona invece l'oggetto toccato

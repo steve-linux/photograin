@@ -23,7 +23,8 @@ public:
      * A model that sees the photo squeezed to a [size] square, with each channel c normalized
      * as (v / 255 - mean[c]) / deviation[c]. The default is U^2-Net-p.
      */
-    Segmenter(int size = kSize, const float mean[3] = nullptr, const float deviation[3] = nullptr);
+    Segmenter(int size = kSize, const float mean[3] = nullptr, const float deviation[3] = nullptr,
+              bool normalizeOutput = true);
     ~Segmenter();
 
     /** Loads an ncnn model from memory. It runs on the CPU in fp32: the model is small, and fp16 shifts the mask. */
@@ -39,7 +40,8 @@ public:
 
     /**
      * Finds the main subject of an RGBA image. [out] receives size() x size() values, 0 for
-     * background to 255 for subject, stretched so the strongest pixel is 255.
+     * background to 255 for subject. By default output is stretched to 0..255;
+     * normalizeOutput=false preserves calibrated probabilities (needed for no-sky images).
      */
     bool run(const uint8_t* rgba, int w, int h, int stride, uint8_t* out, std::string* error);
 
@@ -48,6 +50,7 @@ private:
     void configure();
 
     int size_;
+    bool normalizeOutput_;
     float mean_[3];
     float deviation_[3];
     std::unique_ptr<ncnn::Net> net_;
