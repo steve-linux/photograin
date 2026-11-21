@@ -631,6 +631,30 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         commit()
     }
 
+    fun renameMask(name: String) {
+        updateMask { it.copy(name = name.trim().take(60)) }
+        commit()
+    }
+
+    fun enableMask(enabled: Boolean) {
+        updateMask { it.copy(enabled = enabled) }
+        if (!enabled) _state.update { it.copy(showMask = false) }
+        commit()
+    }
+
+    fun moveMaskPart(direction: Int) {
+        if (direction != -1 && direction != 1) return
+        val s = _state.value
+        val index = s.activeMask ?: return
+        val part = s.activeMaskPart - 1
+        val mask = s.edit.masks[index].mask
+        val moved = mask.movePart(part, part + direction)
+        if (moved === mask) return
+        updateMask { it.copy(mask = moved) }
+        selectMaskPart(part + direction + 1)
+        commit()
+    }
+
     fun deleteMaskPart() {
         val part = _state.value.activeMaskPart
         if (part == 0) return
@@ -1075,11 +1099,11 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
      */
     private fun previewSubjects(edit: EditState, preview: Bitmap): Subjects? {
         val subjects = _state.value.subjects
-        val masks = edit.masks.flatMap { it.mask.selections() }.filter { it.type == MaskType.SUBJECT }
+        val masks = edit.masks.filter { it.enabled }.flatMap { it.mask.selections() }.filter { it.type == MaskType.SUBJECT }
         val main = masks.none { it.points.isEmpty() } || (subjects.main != null && subjectFor === preview)
         val objects = masks.all { it.points.isEmpty() || it.points in subjects.objects } &&
             (masks.all { it.points.isEmpty() } || objectsFor === preview)
-        val sky = edit.masks.none { it.mask.selections().any { m -> m.type == MaskType.SKY } } || (subjects.sky != null && skyFor === preview)
+        val sky = edit.masks.filter { it.enabled }.none { it.mask.selections().any { m -> m.type == MaskType.SKY } } || (subjects.sky != null && skyFor === preview)
         return subjects.takeIf { main && objects && sky }
     }
 

@@ -35,3 +35,19 @@ Validation: unit tests cover addition, subtraction/order, inversion/range routin
 independent AI bases and invalidation, brush undo, serialization, component editing and
 preview/export grid agreement. Android lint and APK build run on the computer. No
 physical-device interaction or validation is part of this change.
+
+## Managing masks
+
+- Rename with the pencil button. A blank name restores the automatic label; names are
+  limited to 60 characters and saved in the recipe.
+- Turn off the Mask enabled switch to compare without that mask. All local adjustments
+  and its background cutout are bypassed in preview/export. Values and geometry stay saved,
+  and turning it back on restores them. Turning off also hides the red overlay; the eye
+  can still be used explicitly to inspect its area. Disabled masks are marked Off.
+- Select an added component and use Move before/Move after to reorder it. The selection
+  stays on the moved component. The original base remains first; invalid boundary moves
+  are disabled. Order matters: adding after subtraction may restore an area.
+
+Names, enabled state and ordering use the existing undo/redo and persistence paths. Old
+recipes default to enabled masks with automatic names. Disabled masks retain their slot
+and cached AI selection; they do not trigger repeated inference when toggled.

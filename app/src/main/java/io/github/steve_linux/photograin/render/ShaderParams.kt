@@ -118,6 +118,8 @@ object ShaderParams {
                     range[k + 3] = r.saturation
                 }
             }
+            // Preserve mask indices/overlay geometry, but bypass every local adjustment.
+            if (!l.enabled) continue
             locA[k] = l.exposure; locA[k + 1] = l.contrast; locA[k + 2] = l.highlights; locA[k + 3] = l.shadows
             locB[k] = l.temperature; locB[k + 1] = l.tint; locB[k + 2] = l.saturation; locB[k + 3] = l.clarity
             effects[i * 2] = l.texture

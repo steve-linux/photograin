@@ -500,4 +500,13 @@
     <string name="mask_new">New mask</string>
     <string name="mask_intersect_selection">Intersect selection</string>
     <string name="mask_duplicate">Duplicate mask</string>
+    <string name="mask_off">Off</string>
+    <string name="mask_enabled">Mask enabled</string>
+    <string name="mask_disabled">Mask disabled</string>
+    <string name="mask_rename">Rename mask</string>
+    <string name="mask_name">Name</string>
+    <string name="mask_name_hint">Leave empty to use the automatic name.</string>
+    <string name="mask_order">Selection order</string>
+    <string name="mask_move_before">Move before</string>
+    <string name="mask_move_after">Move after</string>
 </resources>
