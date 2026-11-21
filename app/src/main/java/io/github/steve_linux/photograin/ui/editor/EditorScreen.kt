@@ -346,6 +346,8 @@ private fun PhotoWorkspace(viewModel: EditorViewModel, onClose: () -> Unit, onGu
                         onApplyPreset = viewModel::applyPreset,
                         onSavePreset = viewModel::savePreset,
                         onDeletePreset = viewModel::deletePreset,
+                        onRenamePreset = viewModel::renamePreset,
+                        onDuplicatePreset = viewModel::duplicatePreset,
                         onImportLut = viewModel::importLut,
                         onSelectLut = viewModel::selectLut,
                         onDeleteLut = viewModel::deleteLut,
@@ -625,6 +627,7 @@ private fun messageText(m: Message): Int = when (m) {
     Message.LUT_INVALID -> R.string.msg_lut_invalid
     Message.LUT_MISSING -> R.string.look_lut_missing
     Message.PRESET_SAVED -> R.string.msg_preset_saved
+    Message.PRESET_FAILED -> R.string.msg_preset_failed
     Message.AUTO_WB_UNAVAILABLE -> R.string.msg_auto_wb_unavailable
     Message.AUTO_LIGHT_UNAVAILABLE -> R.string.msg_auto_light_unavailable
     Message.HSL_COLOR_NOT_FOUND -> R.string.msg_hsl_color_not_found

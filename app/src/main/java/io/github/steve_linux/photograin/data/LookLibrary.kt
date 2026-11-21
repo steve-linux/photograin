@@ -13,7 +13,6 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.IOException
 import java.security.MessageDigest
-import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 /** An imported LUT: [id] is the SHA-256 of its file, so importing the same file twice is a no-op. */
@@ -27,7 +26,7 @@ data class LutEntry(val id: String, val name: String)
 class LookLibrary(private val context: Context) {
     private val lutDir = File(context.filesDir, "luts").apply { mkdirs() }
     private val lutIndex = File(lutDir, "index.json")
-    private val presetFile = File(context.filesDir, "presets.json")
+    private val presets = PresetStore(File(context.filesDir, "presets.json"))
 
     fun luts(): List<LutEntry> = readList(lutIndex, LutEntry.serializer())
 
@@ -70,15 +69,11 @@ class LookLibrary(private val context: Context) {
         cache.remove(id)
     }
 
-    fun userPresets(): List<Preset> = readList(presetFile, Preset.serializer())
-
-    fun savePreset(preset: Preset): Preset {
-        val saved = preset.copy(id = UUID.randomUUID().toString(), builtIn = null)
-        writeList(presetFile, Preset.serializer(), userPresets() + saved)
-        return saved
-    }
-
-    fun deletePreset(id: String) = writeList(presetFile, Preset.serializer(), userPresets().filter { it.id != id })
+    fun userPresets(): List<Preset> = presets.load()
+    fun savePreset(preset: Preset): Preset = presets.save(preset)
+    fun renamePreset(id: String, name: String) = presets.rename(id, name)
+    fun duplicatePreset(id: String, name: String) = presets.duplicate(id, name)
+    fun deletePreset(id: String) = presets.delete(id)
 
     private fun <T> readList(file: File, serializer: KSerializer<T>): List<T> =
         runCatching { json.decodeFromString(ListSerializer(serializer), file.readText()) }.getOrDefault(emptyList())
