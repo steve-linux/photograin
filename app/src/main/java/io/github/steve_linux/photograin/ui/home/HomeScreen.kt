@@ -6,6 +6,8 @@ import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,7 +37,11 @@ import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.Card
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -74,6 +80,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import io.github.steve_linux.photograin.R
+import io.github.steve_linux.photograin.model.PhotoLibraryQuery
+import io.github.steve_linux.photograin.model.EditState
 import io.github.steve_linux.photograin.data.ImageLoader
 import io.github.steve_linux.photograin.data.Preferences
 import io.github.steve_linux.photograin.data.RecipeStore
@@ -125,14 +133,21 @@ private fun PhotoLibrary(
     onGuide: () -> Unit,
 ) {
     var comparing by rememberSaveable { mutableStateOf(false) }
+    var query by rememberSaveable { mutableStateOf("") }
+    var sort by rememberSaveable { mutableStateOf(PhotoLibraryQuery.Sort.RECENT) }
+    var status by rememberSaveable { mutableStateOf(PhotoLibraryQuery.Status.ALL) }
     val context = LocalContext.current
     // Each version of a photo gets its own tile, as Darktable shows duplicates.
-    val entries by produceState(recents.map { HomeEntry(it, RecipeVersion(1), 1) }, recents) {
+    val loadedEntries by produceState<List<HomeEntry>?>(null, recents) {
+        value = null
         value = withContext(Dispatchers.IO) {
             val store = RecipeStore(context)
             recents.flatMap { uri ->
                 val versions = store.versions(uri)
-                versions.map { HomeEntry(uri, it, versions.size) }
+                val name = ImageLoader.queryName(context, uri) ?: uri.lastPathSegment.orEmpty()
+                versions.map { version ->
+                    HomeEntry(uri, version, versions.size, name, (store.load(uri, version.id) ?: EditState()) != EditState())
+                }
             }
         }
     }
@@ -141,7 +156,15 @@ private fun PhotoLibrary(
         val preferences = Preferences(context)
         recents.associateWith(preferences::rating)
     }
-    val visible = entries.filter { (ratings[it.uri] ?: 0) >= minimumRating }
+    val entries = loadedEntries.orEmpty()
+    val versionNames = entries.map { it.version.name ?: stringResource(R.string.version_number, it.version.id) }
+    val metadata = remember(entries, ratings, versionNames) {
+        entries.mapIndexed { i, entry -> PhotoLibraryQuery.Entry(entry.key, entry.name, versionNames[i], ratings[entry.uri] ?: 0, entry.edited) }
+    }
+    val visible = remember(entries, metadata, query, minimumRating, status, sort) {
+        val byKey = entries.associateBy { it.key }
+        PhotoLibraryQuery.apply(metadata, query, minimumRating, status, sort).map { byKey.getValue(it.key) }
+    }
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
@@ -226,10 +249,36 @@ private fun PhotoLibrary(
                         RatingFilter(minimumRating, onMinimumRating)
                     }
                 }
-                if (visible.isEmpty() && minimumRating > 0) {
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    Column(Modifier.padding(horizontal = 8.dp)) {
+                        OutlinedTextField(
+                            value = query, onValueChange = { query = it }, singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text(stringResource(R.string.library_search)) },
+                            leadingIcon = { Icon(Icons.Outlined.Search, null) },
+                            trailingIcon = { if (query.isNotEmpty()) IconButton(onClick = { query = "" }) {
+                                Icon(Icons.Outlined.Close, stringResource(R.string.library_clear_search))
+                            } },
+                        )
+                        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            LibraryStatusFilter(status) { status = it }
+                            LibrarySortFilter(sort) { sort = it }
+                            if (query.isNotBlank() || minimumRating > 0 || status != PhotoLibraryQuery.Status.ALL || sort != PhotoLibraryQuery.Sort.RECENT) {
+                                TextButton(onClick = { query = ""; status = PhotoLibraryQuery.Status.ALL; sort = PhotoLibraryQuery.Sort.RECENT; onMinimumRating(0) }) {
+                                    Text(stringResource(R.string.library_reset_filters))
+                                }
+                            }
+                        }
+                        if (loadedEntries != null) Text(stringResource(R.string.library_results, visible.size, entries.size),
+                            style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(bottom = 8.dp))
+                    }
+                }
+                if (loadedEntries == null) {
+                    item(span = { GridItemSpan(maxLineSpan) }) { LinearProgressIndicator(Modifier.fillMaxWidth()) }
+                } else if (visible.isEmpty()) {
                     item(span = { GridItemSpan(maxLineSpan) }) {
                         Text(
-                            stringResource(R.string.home_rating_empty),
+                            stringResource(R.string.library_empty),
                             Modifier.padding(12.dp),
                             style = MaterialTheme.typography.bodyMedium,
                         )
@@ -242,10 +291,14 @@ private fun PhotoLibrary(
                 } else {
                     items(visible, key = { it.key }) { entry ->
                         val stars = ratings[entry.uri] ?: 0
-                        if (entry.count > 1) {
-                            VersionTile(entry, stars) { onOpen(entry.uri, entry.version.id) }
-                        } else {
-                            RecentThumbnail(entry.uri, onClick = { onOpen(entry.uri, 1) }, modifier = Modifier, rating = stars)
+                        Column {
+                            if (entry.count > 1) {
+                                VersionTile(entry, stars) { onOpen(entry.uri, entry.version.id) }
+                            } else {
+                                RecentThumbnail(entry.uri, onClick = { onOpen(entry.uri, 1) }, modifier = Modifier, rating = stars)
+                            }
+                            Text(entry.name, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(4.dp))
                         }
                     }
                 }
@@ -382,7 +435,7 @@ internal fun RecentThumbnail(
 }
 
 /** One version of a recent photo; [count] is how many the photo has. */
-private data class HomeEntry(val uri: Uri, val version: RecipeVersion, val count: Int) {
+private data class HomeEntry(val uri: Uri, val version: RecipeVersion, val count: Int, val name: String, val edited: Boolean) {
     val key get() = "$uri#${version.id}"
 }
 
@@ -488,3 +541,39 @@ private fun CompareRow(entry: HomeEntry, rating: Int, onClick: () -> Unit) {
 }
 
 private const val COMPARE_SIZE = 512
+
+@Composable
+private fun LibrarySortFilter(value: PhotoLibraryQuery.Sort, onSelect: (PhotoLibraryQuery.Sort) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    fun label(sort: PhotoLibraryQuery.Sort) = when (sort) {
+        PhotoLibraryQuery.Sort.RECENT -> R.string.library_sort_recent
+        PhotoLibraryQuery.Sort.NAME -> R.string.library_sort_name
+        PhotoLibraryQuery.Sort.RATING -> R.string.library_sort_rating
+    }
+    Box {
+        FilterChip(value != PhotoLibraryQuery.Sort.RECENT, { open = true }, label = { Text(stringResource(label(value))) })
+        DropdownMenu(open, { open = false }) {
+            PhotoLibraryQuery.Sort.entries.forEach { sort ->
+                DropdownMenuItem(text = { Text(stringResource(label(sort))) }, onClick = { onSelect(sort); open = false })
+            }
+        }
+    }
+}
+
+@Composable
+private fun LibraryStatusFilter(value: PhotoLibraryQuery.Status, onSelect: (PhotoLibraryQuery.Status) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    fun label(status: PhotoLibraryQuery.Status) = when (status) {
+        PhotoLibraryQuery.Status.ALL -> R.string.library_status_all
+        PhotoLibraryQuery.Status.EDITED -> R.string.library_status_edited
+        PhotoLibraryQuery.Status.UNEDITED -> R.string.library_status_unedited
+    }
+    Box {
+        FilterChip(value != PhotoLibraryQuery.Status.ALL, { open = true }, label = { Text(stringResource(label(value))) })
+        DropdownMenu(open, { open = false }) {
+            PhotoLibraryQuery.Status.entries.forEach { status ->
+                DropdownMenuItem(text = { Text(stringResource(label(status))) }, onClick = { onSelect(status); open = false })
+            }
+        }
+    }
+}

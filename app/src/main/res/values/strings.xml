@@ -517,4 +517,15 @@
     <string name="history_redo">Available to redo</string>
     <string name="history_restore">Restore step</string>
     <string name="history_shapes">Shapes</string>
+    <string name="library_search">Search filename or version name</string>
+    <string name="library_clear_search">Clear search</string>
+    <string name="library_reset_filters">Reset filters</string>
+    <string name="library_results">Versions: %1$d of %2$d</string>
+    <string name="library_empty">No recent photos match. Try clearing the search or filters.</string>
+    <string name="library_sort_recent">Recently opened</string>
+    <string name="library_sort_name">Name A–Z</string>
+    <string name="library_sort_rating">Highest rating</string>
+    <string name="library_status_all">All versions</string>
+    <string name="library_status_edited">Edited</string>
+    <string name="library_status_unedited">Unedited</string>
 </resources>

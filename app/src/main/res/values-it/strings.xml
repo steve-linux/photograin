@@ -503,4 +503,15 @@
     <string name="history_redo">Disponibile per ripristino</string>
     <string name="history_restore">Ripristina passaggio</string>
     <string name="history_shapes">Forme</string>
+    <string name="library_search">Cerca file o nome della versione</string>
+    <string name="library_clear_search">Cancella ricerca</string>
+    <string name="library_reset_filters">Azzera filtri</string>
+    <string name="library_results">Versioni: %1$d di %2$d</string>
+    <string name="library_empty">Nessuna foto recente corrisponde. Prova a cancellare la ricerca o i filtri.</string>
+    <string name="library_sort_recent">Aperte di recente</string>
+    <string name="library_sort_name">Nome A–Z</string>
+    <string name="library_sort_rating">Più stelle</string>
+    <string name="library_status_all">Tutte le versioni</string>
+    <string name="library_status_edited">Modificate</string>
+    <string name="library_status_unedited">Non modificate</string>
 </resources>
