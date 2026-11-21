@@ -509,4 +509,12 @@
     <string name="mask_order">Selection order</string>
     <string name="mask_move_before">Move before</string>
     <string name="mask_move_after">Move after</string>
+    <string name="history_title">Edit history</string>
+    <string name="history_hint">Steps from this editing session. Restoring keeps later steps available until you make a new edit. Use Versions to keep alternatives after closing the photo.</string>
+    <string name="history_initial">State at session start</string>
+    <string name="history_step">Step %1$d</string>
+    <string name="history_current">Current state</string>
+    <string name="history_redo">Available to redo</string>
+    <string name="history_restore">Restore step</string>
+    <string name="history_shapes">Shapes</string>
 </resources>

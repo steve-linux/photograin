@@ -9,6 +9,18 @@ class History<T>(initial: T) {
     var current: T = initial
         private set
 
+    /** Chronological snapshot, including steps available through redo. */
+    val states: List<T> get() = undoStack.toList() + current + redoStack.toList().asReversed()
+    val position: Int get() = undoStack.size
+
+    /** Navigate without committing a new edit or losing the forward branch. */
+    fun goTo(index: Int): T {
+        if (index !in 0..(undoStack.size + redoStack.size)) return current
+        while (position > index) undo()
+        while (position < index) redo()
+        return current
+    }
+
     val canUndo get() = undoStack.isNotEmpty()
     val canRedo get() = redoStack.isNotEmpty()
 

@@ -104,6 +104,8 @@ data class EditorUiState(
     val autoAdjusting: Boolean = false,
     val canUndo: Boolean = false,
     val canRedo: Boolean = false,
+    val historyStates: List<EditState> = listOf(EditState()),
+    val historyPosition: Int = 0,
     /** Styles first: the quickest way to a good result, and where presets are saved. */
     val tool: ToolGroup = ToolGroup.LOOK,
     /** Press-and-hold on the photo shows the original. */
@@ -515,6 +517,13 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
     fun undo() = applyHistory(history.undo())
 
     fun redo() = applyHistory(history.redo())
+
+    fun restoreHistory(index: Int) {
+        if (index !in _state.value.historyStates.indices) return
+        applyHistory(history.goTo(index))
+        _state.update { it.copy(selectedMask = null, selectedSpot = null, selectedText = null,
+            selectedShape = null, selectedMaskPart = 0, picker = Picker.NONE, lassoDraft = null, quadDraft = null) }
+    }
 
     fun resetAll() {
         updateLive { EditState() }
@@ -1471,7 +1480,10 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         persist(edit)
     }
 
-    private fun EditorUiState.withHistory() = copy(canUndo = history.canUndo, canRedo = history.canRedo)
+    private fun EditorUiState.withHistory() = copy(
+        canUndo = history.canUndo, canRedo = history.canRedo,
+        historyStates = history.states, historyPosition = history.position,
+    )
 
     private fun persist(edit: EditState) {
         val uri = _state.value.image?.uri ?: return
