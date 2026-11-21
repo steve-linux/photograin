@@ -20,6 +20,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.AutoFixOff
@@ -29,6 +32,8 @@ import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Gesture
 import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -39,6 +44,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -77,6 +88,9 @@ fun LocalPanel(
     onSelectPart: (Int) -> Unit,
     onAddPart: (MaskType, MaskOperation) -> Unit,
     onDeletePart: () -> Unit,
+    onMovePart: (Int) -> Unit,
+    onRename: (String) -> Unit,
+    onEnabled: (Boolean) -> Unit,
     showMask: Boolean,
     onAdd: (MaskType) -> Unit,
     onSelect: (Int?) -> Unit,
@@ -99,6 +113,7 @@ fun LocalPanel(
     onRemoveBackground: () -> Unit,
     onBackground: (Background, Int?) -> Unit,
 ) {
+    var renaming by rememberSaveable(selected) { mutableStateOf(false) }
     var showNewMask by rememberSaveable(selected) { mutableStateOf(false) }
     var section by rememberSaveable(selected) { mutableStateOf(0) }
     val activeSection = if (selected == null) 0 else section
@@ -125,7 +140,8 @@ fun LocalPanel(
                         FilterChip(
                             selected = i == selected,
                             onClick = { onSelect(if (i == selected) null else i) },
-                            label = { Text(stringResource(maskName(local.mask.type), i + 1)) },
+                            label = { Text(local.name.ifBlank { stringResource(maskName(local.mask.type), i + 1) }) },
+                            trailingIcon = if (!local.enabled) ({ Text(stringResource(R.string.mask_off)) }) else null,
                         )
                     }
                 }
@@ -165,7 +181,18 @@ fun LocalPanel(
                 val whole = masks[index]
                 val local = whole.copy(mask = whole.mask.selection(selectedPart))
                 if (activeSection == 0) {
-                    ComponentControls(whole.mask, selectedPart, onSelectPart, onAddPart, onDeletePart)
+                    ComponentControls(whole.mask, selectedPart, onSelectPart, onAddPart, onDeletePart, onMovePart)
+                }
+                if (renaming) MaskNameDialog(whole.name, { renaming = false }) {
+                    onRename(it)
+                    renaming = false
+                }
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Switch(checked = whole.enabled, onCheckedChange = onEnabled)
+                    Text(stringResource(if (whole.enabled) R.string.mask_enabled else R.string.mask_disabled), Modifier.weight(1f), style = MaterialTheme.typography.labelLarge)
+                    IconButton(onClick = { renaming = true }) {
+                        Icon(Icons.Outlined.Edit, stringResource(R.string.mask_rename))
+                    }
                 }
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Switch(checked = local.mask.invert, onCheckedChange = onInvert)
@@ -486,6 +513,7 @@ private fun ComponentControls(
     onSelect: (Int) -> Unit,
     onAdd: (MaskType, MaskOperation) -> Unit,
     onDelete: () -> Unit,
+    onMove: (Int) -> Unit,
 ) {
     var operation by rememberSaveable { mutableStateOf<MaskOperation?>(null) }
     Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -517,6 +545,17 @@ private fun ComponentControls(
             Icon(Icons.Outlined.Delete, stringResource(R.string.mask_delete_selection))
         }
     }
+    if (selected > 0 && mask.parts.size > 1) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(stringResource(R.string.mask_order), Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+            IconButton(enabled = selected > 1, onClick = { onMove(-1) }) {
+                Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.mask_move_before))
+            }
+            IconButton(enabled = selected < mask.parts.size, onClick = { onMove(1) }) {
+                Icon(Icons.AutoMirrored.Outlined.ArrowForward, stringResource(R.string.mask_move_after))
+            }
+        }
+    }
     operation?.let { op ->
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             for (type in MaskType.entries.filter { it != MaskType.FULL }) {
@@ -528,5 +567,27 @@ private fun ComponentControls(
         stringResource(R.string.mask_components_hint),
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+@Composable
+private fun MaskNameDialog(initial: String, onDismiss: () -> Unit, onDone: (String) -> Unit) {
+    var text by rememberSaveable { mutableStateOf(initial) }
+    val focus = remember { FocusRequester() }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.mask_rename)) },
+        text = {
+            val keyboard = LocalSoftwareKeyboardController.current
+            OutlinedTextField(
+                value = text, onValueChange = { text = it.take(60) }, singleLine = true,
+                label = { Text(stringResource(R.string.mask_name)) },
+                supportingText = { Text(stringResource(R.string.mask_name_hint)) },
+                modifier = Modifier.focusRequester(focus),
+            )
+            LaunchedEffect(Unit) { delay(150); focus.requestFocus(); keyboard?.show() }
+        },
+        confirmButton = { TextButton(onClick = { onDone(text) }) { Text(stringResource(android.R.string.ok)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(android.R.string.cancel)) } },
     )
 }

@@ -171,6 +171,14 @@ data class Mask(
         })
     }
 
+    /** Move only added components; the initial selection stays first. Invalid moves are no-ops. */
+    fun movePart(from: Int, to: Int): Mask {
+        if (from !in parts.indices || to !in parts.indices || from == to) return this
+        val reordered = parts.toMutableList()
+        reordered.add(to, reordered.removeAt(from))
+        return copy(parts = reordered)
+    }
+
     companion object { const val MAX_PARTS = 15 }
 
     /**
@@ -232,13 +240,15 @@ data class LocalAdjustment(
     val backgroundColor: Int = WHITE,
     val texture: Float = 0f,
     val dehaze: Float = 0f,
+    val name: String = "",
+    val enabled: Boolean = true,
 ) {
     companion object {
         const val WHITE = 0xFFFFFFFF.toInt()
 
         /** Index of the mask that cuts the photo out (see [background]), or -1. */
         fun cutoutIndex(masks: List<LocalAdjustment>): Int =
-            masks.take(MAX).indexOfFirst { it.background != Background.KEEP }
+            masks.take(MAX).indexOfFirst { it.enabled && it.background != Background.KEEP }
 
         /** Whether the mask of [type] is drawn into a raster rather than computed from its shape. */
         fun usesRaster(type: MaskType) = type == MaskType.BRUSH || type == MaskType.SUBJECT || type == MaskType.SKY

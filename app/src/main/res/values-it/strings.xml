@@ -486,4 +486,13 @@
     <string name="mask_new">Nuova maschera</string>
     <string name="mask_intersect_selection">Interseca selezione</string>
     <string name="mask_duplicate">Duplica maschera</string>
+    <string name="mask_off">Off</string>
+    <string name="mask_enabled">Maschera attiva</string>
+    <string name="mask_disabled">Maschera disattivata</string>
+    <string name="mask_rename">Rinomina maschera</string>
+    <string name="mask_name">Nome</string>
+    <string name="mask_name_hint">Lascia vuoto per usare il nome automatico.</string>
+    <string name="mask_order">Ordine delle selezioni</string>
+    <string name="mask_move_before">Sposta prima</string>
+    <string name="mask_move_after">Sposta dopo</string>
 </resources>
