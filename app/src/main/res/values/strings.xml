@@ -528,4 +528,14 @@
     <string name="library_status_all">All versions</string>
     <string name="library_status_edited">Edited</string>
     <string name="library_status_unedited">Unedited</string>
+    <string name="preset_manage">Manage presets</string>
+    <string name="preset_search">Search saved presets</string>
+    <string name="preset_no_results">No saved presets match.</string>
+    <string name="preset_rename">Rename preset</string>
+    <string name="preset_duplicate">Duplicate preset</string>
+    <string name="preset_rename_named">Rename %1$s</string>
+    <string name="preset_duplicate_named">Duplicate %1$s</string>
+    <string name="preset_copy_name">Copy of %1$s</string>
+    <string name="preset_delete_hint">Delete this saved preset? Existing photo edits will stay unchanged.</string>
+    <string name="msg_preset_failed">Could not save the preset library. Existing presets were kept.</string>
 </resources>

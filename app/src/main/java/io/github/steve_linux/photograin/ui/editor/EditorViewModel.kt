@@ -92,7 +92,7 @@ import kotlin.math.roundToInt
 
 enum class Message {
     EXPORTED, EXPORTED_TO_PICTURES, EXPORTED_TO_DOWNLOADS, EXPORT_FAILED, LOAD_FAILED, ADJUSTMENTS_COPIED, ADJUSTMENTS_PASTED, OUT_OF_MEMORY,
-    LUT_IMPORTED, LUT_INVALID, LUT_MISSING, PRESET_SAVED, HORIZON_NOT_FOUND, SUBJECT_FAILED, SKY_NOT_FOUND, SKY_FAILED,
+    LUT_IMPORTED, LUT_INVALID, LUT_MISSING, PRESET_SAVED, PRESET_FAILED, HORIZON_NOT_FOUND, SUBJECT_FAILED, SKY_NOT_FOUND, SKY_FAILED,
     REMOVE_FAILED, AUTO_LIGHT_UNAVAILABLE, HSL_COLOR_NOT_FOUND, AUTO_WB_UNAVAILABLE,
 }
 
@@ -554,20 +554,25 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
     /** Saves the current adjustments as a preset named [name]. */
     fun savePreset(name: String) {
         val adjustments = _state.value.edit.adjustments
-        viewModelScope.launch {
-            withContext(Dispatchers.IO) { library.savePreset(Preset(id = "", name = name.trim(), adjustments = adjustments)) }
-            val presets = withContext(Dispatchers.IO) { library.userPresets() }
-            _state.update { it.copy(userPresets = presets, message = Message.PRESET_SAVED) }
-        }
+        changePresets(Message.PRESET_SAVED) { library.savePreset(Preset(id = "", name = name, adjustments = adjustments)) }
     }
 
-    fun deletePreset(preset: Preset) {
+    fun deletePreset(preset: Preset) = changePresets { library.deletePreset(preset.id) }
+    fun renamePreset(id: String, name: String) = changePresets { library.renamePreset(id, name) }
+    fun duplicatePreset(id: String, name: String) = changePresets(Message.PRESET_SAVED) { library.duplicatePreset(id, name) }
+
+    private fun changePresets(message: Message? = null, change: () -> Unit) {
         viewModelScope.launch {
-            val presets = withContext(Dispatchers.IO) {
-                library.deletePreset(preset.id)
-                library.userPresets()
+            try {
+                val presets = withContext(saveDispatcher) { change(); library.userPresets() }
+                _state.update { it.copy(userPresets = presets, message = message ?: it.message) }
+            } catch (e: java.io.IOException) {
+                Log.w(TAG, "Cannot update presets", e)
+                _state.update { it.copy(message = Message.PRESET_FAILED) }
+            } catch (e: IllegalArgumentException) {
+                Log.w(TAG, "Cannot update presets", e)
+                _state.update { it.copy(message = Message.PRESET_FAILED) }
             }
-            _state.update { it.copy(userPresets = presets) }
         }
     }
 

@@ -52,6 +52,8 @@ fun LookPanel(
     onApplyPreset: (Preset) -> Unit,
     onSavePreset: (String) -> Unit,
     onDeletePreset: (Preset) -> Unit,
+    onRenamePreset: (String, String) -> Unit,
+    onDuplicatePreset: (String, String) -> Unit,
     onImportLut: (Uri) -> Unit,
     onSelectLut: (LutEntry?) -> Unit,
     onDeleteLut: (LutEntry) -> Unit,
@@ -61,6 +63,7 @@ fun LookPanel(
     val look = adjustments.look
     // A preset is shown as active while the photo's adjustments are exactly what it would produce.
     fun isActive(preset: Preset) = preset.applyTo(adjustments) == adjustments
+    var managing by rememberSaveable { mutableStateOf(false) }
     var naming by rememberSaveable { mutableStateOf(false) }
     // .cube files have no registered MIME type, so the picker has to offer every file.
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -84,17 +87,9 @@ fun LookPanel(
                 )
             }
             for (preset in userPresets) {
-                InputChip(
-                    selected = isActive(preset),
-                    onClick = { onApplyPreset(preset) },
+                FilterChip(
+                    selected = isActive(preset), onClick = { onApplyPreset(preset) },
                     label = { Text(preset.name) },
-                    trailingIcon = {
-                        Icon(
-                            Icons.Outlined.Close,
-                            contentDescription = stringResource(R.string.look_delete, preset.name),
-                            modifier = Modifier.size(18.dp).clickableIcon { onDeletePreset(preset) },
-                        )
-                    },
                 )
             }
             AssistChip(
@@ -102,6 +97,10 @@ fun LookPanel(
                 label = { Text(stringResource(R.string.look_save_preset)) },
                 leadingIcon = { Icon(Icons.Outlined.Add, null, Modifier.size(18.dp)) },
             )
+        }
+
+        if (userPresets.isNotEmpty()) TextButton(onClick = { managing = true }) {
+            Text(stringResource(R.string.preset_manage))
         }
 
         SectionTitle(R.string.look_lut)
@@ -153,6 +152,8 @@ fun LookPanel(
             )
         }
     }
+
+    if (managing) PresetManagerDialog(userPresets, onRenamePreset, onDuplicatePreset, onDeletePreset) { managing = false }
 
     if (naming) {
         var name by rememberSaveable { mutableStateOf("") }
