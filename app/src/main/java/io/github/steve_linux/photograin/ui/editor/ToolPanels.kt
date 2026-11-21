@@ -4,6 +4,7 @@ package io.github.steve_linux.photograin.ui.editor
 import androidx.annotation.StringRes
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemGestures
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -29,18 +31,26 @@ import androidx.compose.material.icons.outlined.Rotate90DegreesCw
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
@@ -49,14 +59,18 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import io.github.steve_linux.photograin.R
 import io.github.steve_linux.photograin.model.Adjustments
+import io.github.steve_linux.photograin.model.AdjustmentSelection
 import io.github.steve_linux.photograin.model.AspectRatio
+import io.github.steve_linux.photograin.model.CropGuide
 import io.github.steve_linux.photograin.model.Geometry
 import io.github.steve_linux.photograin.model.ParamSpec
 import io.github.steve_linux.photograin.model.Params
@@ -95,9 +109,143 @@ fun AdjustmentPanel(
     }
 }
 
+/** Find and edit global adjustments across tool groups. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun AdjustmentFinder(adjustments: Adjustments, viewModel: EditorViewModel, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val prefs = remember(context) { context.getSharedPreferences("editor_tools", android.content.Context.MODE_PRIVATE) }
+    var query by rememberSaveable { mutableStateOf("") }
+    var changedOnly by rememberSaveable { mutableStateOf(false) }
+    var favoritesOnly by rememberSaveable { mutableStateOf(false) }
+    var favorites by remember { mutableStateOf(prefs.getStringSet("favorite_params", emptySet()).orEmpty().toSet()) }
+    val visible = Params.all.filter { spec ->
+        val label = context.getString(paramLabel(spec.id))
+        (query.isBlank() || label.contains(query.trim(), ignoreCase = true) ||
+            context.getString(toolLabel(spec.group)).contains(query.trim(), ignoreCase = true)) &&
+            (!changedOnly || spec.get(adjustments) != spec.default) &&
+            (!favoritesOnly || spec.id in favorites)
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.adjustment_finder)) },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text(stringResource(R.string.adjustment_search)) },
+                    singleLine = true,
+                )
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = changedOnly,
+                        onClick = { changedOnly = !changedOnly },
+                        label = { Text(stringResource(R.string.adjustment_changed)) },
+                    )
+                    FilterChip(
+                        selected = favoritesOnly,
+                        onClick = { favoritesOnly = !favoritesOnly },
+                        label = { Text(stringResource(R.string.adjustment_favorites)) },
+                    )
+                }
+                Column(Modifier.heightIn(max = 300.dp).verticalScroll(rememberScrollState())) {
+                    if (visible.isEmpty()) Text(stringResource(R.string.adjustment_no_results))
+                    for (spec in visible) {
+                        androidx.compose.runtime.key(spec.id) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                val favorite = spec.id in favorites
+                                IconButton(onClick = {
+                                    favorites = if (favorite) favorites - spec.id else favorites + spec.id
+                                    prefs.edit().putStringSet("favorite_params", favorites).apply()
+                                }) {
+                                    Text(
+                                        if (favorite) "★" else "☆",
+                                        modifier = Modifier.semantics {
+                                            contentDescription = context.getString(
+                                                if (favorite) R.string.adjustment_unfavorite else R.string.adjustment_favorite,
+                                            )
+                                        },
+                                    )
+                                }
+                                Column(Modifier.weight(1f)) {
+                                    ParamSlider(
+                                        label = stringResource(paramLabel(spec.id)),
+                                        value = spec.get(adjustments),
+                                        range = spec.min..spec.max,
+                                        display = formatValue(spec, spec.get(adjustments)),
+                                        onChange = { viewModel.setParam(spec, it) },
+                                        onChangeFinished = viewModel::commit,
+                                        onReset = { viewModel.resetParam(spec) },
+                                        help = helpFor(paramLabel(spec.id)),
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) } },
+    )
+}
+
+@Composable
+internal fun SelectivePasteDialog(
+    onApply: (AdjustmentSelection) -> Unit,
+    onDismiss: () -> Unit,
+    @StringRes title: Int = R.string.paste_selective,
+    @StringRes confirmLabel: Int = R.string.paste_adjustments,
+    sourceName: String? = null,
+    onApplyAll: (() -> Unit)? = null,
+) {
+    var groups by remember { mutableStateOf(setOf(ToolGroup.LIGHT, ToolGroup.COLOR)) }
+    var curves by rememberSaveable { mutableStateOf(false) }
+    var hsl by rememberSaveable { mutableStateOf(false) }
+    var lut by rememberSaveable { mutableStateOf(false) }
+    val selection = AdjustmentSelection(groups, curves, hsl, lut)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(title)) },
+        text = {
+            Column(Modifier.heightIn(max = 340.dp).verticalScroll(rememberScrollState())) {
+                if (onApplyAll != null) {
+                    if (!sourceName.isNullOrBlank()) {
+                        Text(
+                            stringResource(R.string.apply_previous_source, sourceName),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+                    TextButton(onClick = { onApplyAll(); onDismiss() }) {
+                        Text(stringResource(R.string.apply_previous_all))
+                    }
+                }
+                for (group in listOf(ToolGroup.LIGHT, ToolGroup.COLOR, ToolGroup.DETAIL, ToolGroup.EFFECTS)) {
+                    FilterChip(
+                        selected = group in groups,
+                        onClick = { groups = if (group in groups) groups - group else groups + group },
+                        label = { Text(stringResource(toolLabel(group))) },
+                    )
+                }
+                FilterChip(selected = curves, onClick = { curves = !curves }, label = { Text(stringResource(R.string.mode_curves)) })
+                FilterChip(selected = hsl, onClick = { hsl = !hsl }, label = { Text(stringResource(R.string.mode_hsl)) })
+                FilterChip(selected = lut, onClick = { lut = !lut }, label = { Text("LUT") })
+            }
+        },
+        confirmButton = {
+            TextButton(enabled = !selection.isEmpty, onClick = {
+                onApply(selection)
+                onDismiss()
+            }) { Text(stringResource(confirmLabel)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(android.R.string.cancel)) } },
+    )
+}
+
 /** The white balance eyedropper: on, the next tap on the photo makes that spot neutral. */
 @Composable
-fun WhiteBalancePicker(picking: Boolean, onPicking: (Boolean) -> Unit) {
+fun WhiteBalancePicker(picking: Boolean, onAuto: () -> Unit, onPicking: (Boolean) -> Unit) {
     Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
         FilterChip(
             selected = picking,
@@ -114,6 +262,11 @@ fun WhiteBalancePicker(picking: Boolean, onPicking: (Boolean) -> Unit) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        } else {
+            Spacer(Modifier.width(8.dp))
+            OutlinedButton(onClick = onAuto) {
+                Text(stringResource(R.string.wb_auto))
+            }
         }
     }
 }
@@ -130,36 +283,55 @@ internal fun ParamSlider(
     @StringRes help: Int? = null,
 ) {
     var showHelp by remember { mutableStateOf(false) }
-    // One row per slider (name, track, value) leaves more of the screen to the photo.
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        // A double tap on the name or value resets the slider; a long press explains it.
-        val reset = Modifier.pointerInput(help) {
-            detectTapGestures(
-                onDoubleTap = { onReset() },
-                onLongPress = { if (help != null) showHelp = true },
-            )
-        }
+    val resetLabel = stringResource(R.string.editor_reset_slider, label, display)
+    val resetValue by rememberUpdatedState(onReset)
+    Row(
+        Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
         Text(
             label,
             style = MaterialTheme.typography.labelLarge,
             maxLines = 2,
-            modifier = reset.width(96.dp),
+            modifier = Modifier.width(92.dp).pointerInput(help) {
+                detectTapGestures(
+                    onDoubleTap = { resetValue() },
+                    onLongPress = { if (help != null) showHelp = true },
+                )
+            },
         )
         Slider(
             value = value,
             onValueChange = onChange,
             onValueChangeFinished = onChangeFinished,
             valueRange = range,
-            modifier = Modifier.weight(1f).clearOfEdgeGestures(),
+            colors = SliderDefaults.colors(
+                thumbColor = MaterialTheme.colorScheme.primary,
+                activeTrackColor = MaterialTheme.colorScheme.primary,
+                inactiveTrackColor = MaterialTheme.colorScheme.outlineVariant,
+            ),
+            modifier = Modifier.weight(1f).clearOfEdgeGestures()
+                .semantics { contentDescription = label },
         )
-        Text(
-            display,
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.primary,
-            textAlign = TextAlign.End,
-            maxLines = 1,
-            modifier = reset.width(48.dp),
-        )
+        Surface(
+            onClick = onReset,
+            shape = MaterialTheme.shapes.small,
+            color = MaterialTheme.colorScheme.secondaryContainer,
+            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+            modifier = Modifier.semantics { contentDescription = resetLabel },
+        ) {
+            Box(
+                Modifier.widthIn(min = 48.dp).padding(horizontal = 6.dp, vertical = 4.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    display,
+                    style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
+                    maxLines = 1,
+                )
+            }
+        }
     }
     if (showHelp && help != null) {
         AlertDialog(
@@ -194,10 +366,26 @@ private fun Modifier.clearOfEdgeGestures(): Modifier {
         )
 }
 
+@StringRes
+private fun cropGuideLabel(guide: CropGuide): Int = when (guide) {
+    CropGuide.NONE -> R.string.crop_guide_none
+    CropGuide.THIRDS -> R.string.crop_guide_thirds
+    CropGuide.GRID -> R.string.crop_guide_grid
+    CropGuide.CENTER -> R.string.crop_guide_center
+    CropGuide.DIAGONAL -> R.string.crop_guide_diagonal
+    CropGuide.TRIANGLES -> R.string.crop_guide_triangles
+    CropGuide.GOLDEN_RATIO -> R.string.crop_guide_golden_ratio
+    CropGuide.GOLDEN_SPIRAL -> R.string.crop_guide_golden_spiral
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun CropPanel(
     geometry: Geometry,
+    cropGuide: CropGuide,
+    cropGuideOrientation: Int,
+    onCropGuide: (CropGuide) -> Unit,
+    onCycleCropGuideOrientation: () -> Unit,
     onAspect: (AspectRatio) -> Unit,
     onStraighten: (Float) -> Unit,
     onStraightenFinished: () -> Unit,
@@ -207,6 +395,9 @@ fun CropPanel(
     onFlipV: () -> Unit,
     onReset: () -> Unit,
     quadDraft: Quad?,
+    verticalGuides: Boolean,
+    onStartVerticalGuides: () -> Unit,
+    onSuggestVerticalGuides: () -> Unit,
     onAutoStraighten: () -> Unit,
     onStartQuad: () -> Unit,
     onApplyQuad: () -> Unit,
@@ -216,14 +407,14 @@ fun CropPanel(
     if (quadDraft != null) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
             Text(
-                stringResource(R.string.quad_hint),
+                stringResource(if (verticalGuides) R.string.vertical_guides_hint else R.string.quad_hint),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.End) {
                 TextButton(onClick = onCancelQuad) { Text(stringResource(R.string.look_cancel)) }
                 Spacer(Modifier.width(8.dp))
-                Button(onClick = onApplyQuad) { Text(stringResource(R.string.quad_apply)) }
+                Button(onClick = onApplyQuad, enabled = quadDraft.isUsable(1.0, 1.0)) { Text(stringResource(R.string.quad_apply)) }
             }
         }
         return
@@ -235,6 +426,34 @@ fun CropPanel(
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp, vertical = 4.dp),
     ) {
+        var guidesOpen by remember { mutableStateOf(false) }
+        FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Box {
+                AssistChip(
+                    onClick = { guidesOpen = true },
+                    label = { Text(stringResource(R.string.crop_guide_picker, stringResource(cropGuideLabel(cropGuide)))) },
+                )
+                DropdownMenu(expanded = guidesOpen, onDismissRequest = { guidesOpen = false }) {
+                    for (guide in CropGuide.entries) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(cropGuideLabel(guide))) },
+                            onClick = {
+                                guidesOpen = false
+                                onCropGuide(guide)
+                            },
+                        )
+                    }
+                }
+            }
+            if (cropGuide.orientations > 1) {
+                AssistChip(
+                    onClick = onCycleCropGuideOrientation,
+                    label = {
+                        Text(stringResource(R.string.crop_guide_orientation, cropGuideOrientation + 1, cropGuide.orientations))
+                    },
+                )
+            }
+        }
         // Wrapped rather than scrolled, so every ratio is in sight.
         FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             for (aspect in AspectRatio.entries) {
@@ -270,6 +489,11 @@ fun CropPanel(
                 label = { Text(stringResource(if (geometry.quad != null) R.string.quad_edit else R.string.quad_start)) },
                 leadingIcon = { Icon(Icons.Outlined.CropFree, null, Modifier.size(18.dp)) },
             )
+            AssistChip(
+                onClick = onStartVerticalGuides,
+                label = { Text(stringResource(R.string.vertical_guides)) },
+            )
+            AssistChip(onClick = onSuggestVerticalGuides, label = { Text(stringResource(R.string.vertical_auto)) })
             if (geometry.quad != null) {
                 AssistChip(onClick = onRemoveQuad, label = { Text(stringResource(R.string.quad_remove)) })
             }
@@ -366,12 +590,96 @@ internal fun paramLabel(id: String): Int = when (id) {
     "saturation" -> R.string.param_saturation
     "sharpness" -> R.string.param_sharpness
     "clarity" -> R.string.param_clarity
+    "lensDistortion" -> R.string.param_lens_distortion
+    "defringe" -> R.string.param_defringe
+    "localAmount" -> R.string.param_local_amount
+    "localHueShift" -> R.string.param_local_hue_shift
+    "localSharpness" -> R.string.param_local_sharpness
+    "localBlur" -> R.string.param_local_blur
+    "localPixelate" -> R.string.param_local_pixelate
     "dehaze" -> R.string.param_dehaze
     "noiseReduction" -> R.string.param_noise_reduction
     "colorNoiseReduction" -> R.string.param_color_noise_reduction
     "vignette" -> R.string.param_vignette
+    "vignetteMidpoint" -> R.string.param_vignette_midpoint
+    "vignetteRoundness" -> R.string.param_vignette_roundness
+    "vignetteFeather" -> R.string.param_vignette_feather
+    "vignetteHighlights" -> R.string.param_vignette_highlights
+    "grainRoughness" -> R.string.param_grain_roughness
     "grain" -> R.string.param_grain
     "grainSize" -> R.string.param_grain_size
+    "bloom" -> R.string.param_bloom
+    "halation" -> R.string.param_halation
+    "midtoneGamma" -> R.string.param_midtonegamma
+    "shadowContrast" -> R.string.param_shadowcontrast
+    "midtoneContrast" -> R.string.param_midtonecontrast
+    "highlightContrast" -> R.string.param_highlightcontrast
+    "shadowTone" -> R.string.param_shadowtone
+    "midtoneTone" -> R.string.param_midtonetone
+    "highlightTone" -> R.string.param_highlighttone
+    "globalHue" -> R.string.param_globalhue
+    "redBlueSwap" -> R.string.param_redblueswap
+    "softFocus" -> R.string.param_softfocus
+    "matte" -> R.string.param_matte
+    "sepia" -> R.string.param_sepia
+    "cyanotype" -> R.string.param_cyanotype
+    "negative" -> R.string.param_negative
+    "solarize" -> R.string.param_solarize
+    "posterize" -> R.string.param_posterize
+    "threshold" -> R.string.param_threshold
+    "bleachBypass" -> R.string.param_bleachbypass
+    "crossProcess" -> R.string.param_crossprocess
+    "orton" -> R.string.param_orton
+    "brightness" -> R.string.param_brightness
+    "shadowFloor" -> R.string.param_shadowfloor
+    "whiteCeiling" -> R.string.param_whiteceiling
+    "shadowSoftClip" -> R.string.param_shadowsoftclip
+    "highlightSoftClip" -> R.string.param_highlightsoftclip
+    "lumaContrast" -> R.string.param_lumacontrast
+    "shadowExposure" -> R.string.param_shadowexposure
+    "highlightExposure" -> R.string.param_highlightexposure
+    "redGamma" -> R.string.param_redgamma
+    "greenGamma" -> R.string.param_greengamma
+    "blueGamma" -> R.string.param_bluegamma
+    "redGain" -> R.string.param_redgain
+    "greenGain" -> R.string.param_greengain
+    "blueGain" -> R.string.param_bluegain
+    "redOffset" -> R.string.param_redoffset
+    "greenOffset" -> R.string.param_greenoffset
+    "blueOffset" -> R.string.param_blueoffset
+    "shadowSaturation" -> R.string.param_shadowsaturation
+    "midtoneSaturation" -> R.string.param_midtonesaturation
+    "highlightSaturation" -> R.string.param_highlightsaturation
+    "shadowTint" -> R.string.param_shadowtint
+    "midtoneTint" -> R.string.param_midtonetint
+    "highlightTint" -> R.string.param_highlighttint
+    "cycleRgb" -> R.string.param_cyclergb
+    "monochromeRed" -> R.string.param_monochromered
+    "monochromeGreen" -> R.string.param_monochromegreen
+    "monochromeBlue" -> R.string.param_monochromeblue
+    "lumaSharpen" -> R.string.param_lumasharpen
+    "chromaSharpen" -> R.string.param_chromasharpen
+    "textureAmount" -> R.string.param_textureamount
+    "edgeDetect" -> R.string.param_edgedetect
+    "emboss" -> R.string.param_emboss
+    "pencilSketch" -> R.string.param_pencilsketch
+    "highPass" -> R.string.param_highpass
+    "channelInvertRed" -> R.string.param_channelinvertred
+    "channelInvertGreen" -> R.string.param_channelinvertgreen
+    "channelInvertBlue" -> R.string.param_channelinvertblue
+    "lumaInvert" -> R.string.param_lumainvert
+    "thresholdColor" -> R.string.param_thresholdcolor
+    "posterizeLuma" -> R.string.param_posterizeluma
+    "thermalMap" -> R.string.param_thermalmap
+    "purpleGold" -> R.string.param_purplegold
+    "tealOrange" -> R.string.param_tealorange
+    "infraredLook" -> R.string.param_infraredlook
+    "filmToe" -> R.string.param_filmtoe
+    "filmShoulder" -> R.string.param_filmshoulder
+    "lightLeak" -> R.string.param_lightleak
+    "tiltShift" -> R.string.param_tiltshift
+    "radialBlur" -> R.string.param_radialblur
+    "scanlines" -> R.string.param_scanlines
     else -> error("No label for $id")
 }
 
@@ -400,6 +708,9 @@ fun toolLabel(t: ToolGroup): Int = when (t) {
 /** The explanation shown on a long press of the slider named [label], if there is one. */
 @StringRes
 internal fun helpFor(@StringRes label: Int): Int? = when (label) {
+    R.string.param_local_amount -> R.string.help_local_amount
+    R.string.param_local_hue_shift -> R.string.help_local_hue_shift
+    R.string.param_local_sharpness -> R.string.help_local_sharpness
     R.string.param_exposure -> R.string.help_param_exposure
     R.string.param_contrast -> R.string.help_param_contrast
     R.string.param_highlights -> R.string.help_param_highlights
@@ -418,6 +729,28 @@ internal fun helpFor(@StringRes label: Int): Int? = when (label) {
     R.string.param_vignette -> R.string.help_param_vignette
     R.string.param_grain -> R.string.help_param_grain
     R.string.param_grain_size -> R.string.help_param_grain_size
+    R.string.param_bloom -> R.string.help_param_bloom
+    R.string.param_halation -> R.string.help_param_halation
+    R.string.param_midtonegamma -> R.string.help_param_midtonegamma
+    R.string.param_shadowcontrast -> R.string.help_param_shadowcontrast
+    R.string.param_midtonecontrast -> R.string.help_param_midtonecontrast
+    R.string.param_highlightcontrast -> R.string.help_param_highlightcontrast
+    R.string.param_shadowtone -> R.string.help_param_shadowtone
+    R.string.param_midtonetone -> R.string.help_param_midtonetone
+    R.string.param_highlighttone -> R.string.help_param_highlighttone
+    R.string.param_globalhue -> R.string.help_param_globalhue
+    R.string.param_redblueswap -> R.string.help_param_redblueswap
+    R.string.param_softfocus -> R.string.help_param_softfocus
+    R.string.param_matte -> R.string.help_param_matte
+    R.string.param_sepia -> R.string.help_param_sepia
+    R.string.param_cyanotype -> R.string.help_param_cyanotype
+    R.string.param_negative -> R.string.help_param_negative
+    R.string.param_solarize -> R.string.help_param_solarize
+    R.string.param_posterize -> R.string.help_param_posterize
+    R.string.param_threshold -> R.string.help_param_threshold
+    R.string.param_bleachbypass -> R.string.help_param_bleachbypass
+    R.string.param_crossprocess -> R.string.help_param_crossprocess
+    R.string.param_orton -> R.string.help_param_orton
     R.string.frame_width -> R.string.help_frame_width
     R.string.text_size -> R.string.help_text_size
     R.string.text_opacity -> R.string.help_text_opacity

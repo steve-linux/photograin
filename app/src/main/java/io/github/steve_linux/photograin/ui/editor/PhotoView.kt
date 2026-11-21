@@ -39,6 +39,9 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import io.github.steve_linux.photograin.model.CropRect
 import io.github.steve_linux.photograin.model.Frame
+import io.github.steve_linux.photograin.model.FrameStyle
+import io.github.steve_linux.photograin.model.HslBand
+import io.github.steve_linux.photograin.model.HslControl
 import io.github.steve_linux.photograin.model.LocalAdjustment
 import io.github.steve_linux.photograin.model.MaskType
 import io.github.steve_linux.photograin.model.RetouchType
@@ -46,18 +49,26 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import io.github.steve_linux.photograin.model.ToolGroup
+import io.github.steve_linux.photograin.model.ToneHistogram
 import io.github.steve_linux.photograin.render.PreviewFrame
 import io.github.steve_linux.photograin.render.PreviewRenderer
+import kotlin.math.abs
 import kotlin.math.min
 import kotlin.math.roundToInt
 
 /** The photo with live GPU rendering, zoom/pan, press-to-compare and the crop overlay. */
 @Composable
-fun PhotoView(
+internal fun PhotoView(
     state: EditorUiState,
     viewModel: EditorViewModel,
     background: Color,
     modifier: Modifier = Modifier,
+    showExposureWarning: Boolean = false,
+    focusPeaking: Boolean = false,
+    proof: io.github.steve_linux.photograin.model.ColorProfile? = null,
+    gamutWarning: Boolean = false,
+    onHistogram: ((ToneHistogram) -> Unit)? = null,
+    hslControl: HslControl = HslControl.SATURATION,
 ) {
     val image = state.image ?: return
     val cropMode = state.tool == ToolGroup.CROP
@@ -117,14 +128,19 @@ fun PhotoView(
             bitmap = if (state.showOriginal) image.preview else state.retouchedPreview ?: image.preview,
             base = image.base,
             geometry = displayGeometry,
-            adjustments = state.edit.adjustments,
+            adjustments = if (cropMode) state.edit.adjustments.copy(lensDistortion = 0f) else state.edit.adjustments,
             lut = state.lut,
             imageRect = rect,
+            edgeExtension = frameRect.takeIf { decorFrame.style == FrameStyle.EXTEND_EDGES && layout.imageLeft > 0 },
             compareSplit = compare,
             background = floatArrayOf(background.red, background.green, background.blue),
             profile = image.profile,
             masks = state.edit.masks,
             subjects = state.subjects,
+            showExposureWarning = showExposureWarning,
+            focusPeaking = focusPeaking && !cropMode,
+            proof = proof.takeUnless { cropMode },
+            gamutWarning = gamutWarning,
             showMask = if (maskMode && (state.showMask || state.maskDragging)) state.activeMask ?: -1 else -1,
         )
 
@@ -154,6 +170,9 @@ fun PhotoView(
                 }
             },
             update = { view ->
+                renderer.onHistogram = if (onHistogram == null) null else { histogram ->
+                    view.post { onHistogram(histogram) }
+                }
                 renderer.submit(frame)
                 view.requestRender()
             },
@@ -165,14 +184,31 @@ fun PhotoView(
                 decorFrame, frameRect, rect, total,
                 state.edit.texts, if (textMode) state.activeText else null,
                 state.edit.shapes, if (shapeMode) state.activeShape else null,
+                images = if (state.showOriginal) emptyList() else state.edit.images,
+                imageBitmaps = state.imageLayerBitmaps,
             )
         }
 
+        if (state.tool == ToolGroup.EFFECTS && (state.effectsMode == 4 && state.edit.images.isNotEmpty() ||
+            state.effectsMode == 2 && state.activeText != null || state.effectsMode == 3 && state.activeShape != null)) {
+            Canvas(Modifier.fillMaxSize()) {
+                val guide = Color.White.copy(alpha = 0.48f)
+                for (i in 1..2) {
+                    val x = frameRect.left + frameRect.width() * i / 3
+                    val y = frameRect.top + frameRect.height() * i / 3
+                    drawLine(guide, Offset(x, frameRect.top), Offset(x, frameRect.bottom), 1.dp.toPx())
+                    drawLine(guide, Offset(frameRect.left, y), Offset(frameRect.right, y), 1.dp.toPx())
+                }
+            }
+        }
+
         if (quadDraft != null) {
-            QuadOverlay(quadDraft, rect, viewModel::setQuadDraft)
+            QuadOverlay(quadDraft, rect, viewModel::setQuadDraft, state.verticalGuides)
         } else if (cropMode) {
             CropOverlay(
                 crop = geometry.crop,
+                guide = state.cropGuide,
+                guideOrientation = state.cropGuideOrientation,
                 imageRect = rect,
                 aspect = viewModel.aspectRatioValue(geometry.aspect),
                 frameWidth = mapper.frameWidth.toFloat(),
@@ -182,8 +218,10 @@ fun PhotoView(
             )
         } else {
             val currentRect by rememberUpdatedState(rect)
+            val currentHsl by rememberUpdatedState(state.edit.adjustments.hsl)
+            val currentPicking by rememberUpdatedState(picking)
             val space = if (localMode || picking) {
-                MaskSpace(rect, mapper.normalizedOutputToSource(), image.preview.width, image.preview.height)
+                MaskSpace(rect, mapper.normalizedOutputToSource(), image.preview.width, image.preview.height, state.edit.adjustments.lensDistortion)
             } else {
                 null
             }
@@ -244,7 +282,7 @@ fun PhotoView(
                                 coroutineScope {
                                     val reveal = launch {
                                         delay(180)
-                                        if (!handleHeld) viewModel.setShowOriginal(true)
+                                        if (!handleHeld && !currentPicking) viewModel.setShowOriginal(true)
                                     }
                                     tryAwaitRelease()
                                     reveal.cancel()
@@ -478,12 +516,57 @@ fun PhotoView(
                             }
                         }
                     }
-                    .pointerInput(picking) {
+                    .pointerInput(state.picker, hslControl, image, state.version) {
                         if (!picking) return@pointerInput
+                        if (state.picker == Picker.HSL) {
+                            awaitEachGesture {
+                                val down = awaitFirstDown(requireUnconsumed = false)
+                                val space = currentSpace ?: return@awaitEachGesture
+                                if (!space.rect.contains(down.position.x, down.position.y)) return@awaitEachGesture
+                                val (x, y) = space.toSource(down.position)
+                                if (x !in 0.0..1.0 || y !in 0.0..1.0) return@awaitEachGesture
+
+                                var band: HslBand? = null
+                                var initial = 0f
+                                var edited = false
+                                val travel = 160.dp.toPx()
+                                try {
+                                    while (true) {
+                                        val event = awaitPointerEvent()
+                                        if (event.changes.any { it.id != down.id && it.pressed }) return@awaitEachGesture
+                                        val change = event.changes.firstOrNull { it.id == down.id } ?: return@awaitEachGesture
+                                        if (change.isConsumed) return@awaitEachGesture
+                                        val delta = change.position - down.position
+                                        if (!change.pressed) {
+                                            if (band == null && delta.getDistance() <= viewConfiguration.touchSlop) {
+                                                viewModel.pickHslBand(x.toFloat(), y.toFloat())
+                                            }
+                                            change.consume()
+                                            return@awaitEachGesture
+                                        }
+                                        if (band == null) {
+                                            if (delta.getDistance() <= viewConfiguration.touchSlop) continue
+                                            if (abs(delta.x) < abs(delta.y)) return@awaitEachGesture
+                                            band = viewModel.pickHslBand(x.toFloat(), y.toFloat()) ?: return@awaitEachGesture
+                                            initial = hslControl.value(currentHsl, band)
+                                        }
+                                        viewModel.dragHsl(hslControl, band, initial + delta.x / travel)
+                                        edited = true
+                                        change.consume()
+                                    }
+                                } finally {
+                                    if (edited) viewModel.finishHslDrag(image, state.version)
+                                }
+                            }
+                            return@pointerInput
+                        }
                         awaitEachGesture {
                             val down = awaitFirstDown(requireUnconsumed = false)
                             val sp = currentSpace ?: return@awaitEachGesture
-                            // A tap picks the color under it; anything else is zoom or pan.
+                            if (state.picker == Picker.DEPTH && !sp.rect.contains(down.position.x, down.position.y)) {
+                                return@awaitEachGesture
+                            }
+                            // A tap picks the sample under it; anything else is zoom or pan.
                             while (true) {
                                 val event = awaitPointerEvent()
                                 if (event.changes.count { it.pressed } > 1) return@awaitEachGesture

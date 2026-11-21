@@ -34,6 +34,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -41,6 +42,8 @@ import io.github.steve_linux.photograin.R
 import io.github.steve_linux.photograin.data.LutEntry
 import io.github.steve_linux.photograin.model.Adjustments
 import io.github.steve_linux.photograin.model.Preset
+import io.github.steve_linux.photograin.model.PresetPart
+import kotlin.math.roundToInt
 
 /** Presets (built-in and saved) and creative LUTs with their strength. */
 @Composable
@@ -49,8 +52,12 @@ fun LookPanel(
     lutLoaded: Boolean,
     luts: List<LutEntry>,
     userPresets: List<Preset>,
+    activePreset: AppliedPreset?,
     onApplyPreset: (Preset) -> Unit,
-    onSavePreset: (String) -> Unit,
+    onPresetAmount: (Float) -> Unit,
+    onPresetAmountFinished: () -> Unit,
+    onImportPreset: () -> Unit,
+    onSavePreset: (String, Set<PresetPart>) -> Unit,
     onDeletePreset: (Preset) -> Unit,
     onImportLut: (Uri) -> Unit,
     onSelectLut: (LutEntry?) -> Unit,
@@ -59,8 +66,8 @@ fun LookPanel(
     onAmountFinished: () -> Unit,
 ) {
     val look = adjustments.look
-    // A preset is shown as active while the photo's adjustments are exactly what it would produce.
-    fun isActive(preset: Preset) = preset.applyTo(adjustments) == adjustments
+    // A partially applied preset stays selected while its amount is editable.
+    fun isActive(preset: Preset) = activePreset?.let { it.id == preset.id } ?: (preset.applyTo(adjustments) == adjustments)
     var naming by rememberSaveable { mutableStateOf(false) }
     // .cube files have no registered MIME type, so the picker has to offer every file.
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -74,7 +81,14 @@ fun LookPanel(
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp, vertical = 4.dp),
     ) {
-        SectionTitle(R.string.look_presets)
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            SectionTitle(R.string.look_presets)
+            TextButton(onClick = onImportPreset) { Text(stringResource(R.string.preset_import)) }
+        }
         ChipRow {
             for (preset in Preset.BUILT_IN) {
                 FilterChip(
@@ -102,6 +116,27 @@ fun LookPanel(
                 label = { Text(stringResource(R.string.look_save_preset)) },
                 leadingIcon = { Icon(Icons.Outlined.Add, null, Modifier.size(18.dp)) },
             )
+        }
+
+        if (activePreset != null) {
+            if (activePreset.canAdjustAmount) {
+                ParamSlider(
+                    label = stringResource(R.string.preset_amount),
+                    value = activePreset.amount,
+                    range = 0f..1f,
+                    display = "${(activePreset.amount * 100).roundToInt()}%",
+                    onChange = onPresetAmount,
+                    onChangeFinished = onPresetAmountFinished,
+                    onReset = { onPresetAmount(1f); onPresetAmountFinished() },
+                )
+            } else {
+                Text(
+                    stringResource(R.string.preset_amount_unavailable),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(vertical = 4.dp),
+                )
+            }
         }
 
         SectionTitle(R.string.look_lut)
@@ -156,21 +191,37 @@ fun LookPanel(
 
     if (naming) {
         var name by rememberSaveable { mutableStateOf("") }
+        var selected by rememberSaveable { mutableStateOf(PresetPart.entries.map { it.name }.toTypedArray()) }
         AlertDialog(
             onDismissRequest = { naming = false },
             title = { Text(stringResource(R.string.look_save_preset)) },
             text = {
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it.take(40) },
-                    label = { Text(stringResource(R.string.look_preset_name)) },
-                    singleLine = true,
-                )
+                Column(Modifier.heightIn(max = 350.dp).verticalScroll(rememberScrollState())) {
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = { name = it.take(40) },
+                        label = { Text(stringResource(R.string.look_preset_name)) },
+                        singleLine = true,
+                    )
+                    Text(stringResource(R.string.preset_include), modifier = Modifier.padding(top = 12.dp))
+                    for (part in PresetPart.entries) {
+                        val checked = part.name in selected
+                        FilterChip(
+                            selected = checked,
+                            onClick = {
+                                selected = if (checked) selected.filterNot { it == part.name }.toTypedArray()
+                                else selected + part.name
+                            },
+                            label = { Text(stringResource(presetPartLabel(part))) },
+                        )
+                    }
+                }
             },
             confirmButton = {
-                TextButton(enabled = name.isNotBlank(), onClick = { naming = false; onSavePreset(name) }) {
-                    Text(stringResource(R.string.look_save))
-                }
+                TextButton(enabled = name.isNotBlank() && selected.isNotEmpty(), onClick = {
+                    naming = false
+                    onSavePreset(name, selected.map { PresetPart.valueOf(it) }.toSet())
+                }) { Text(stringResource(R.string.look_save)) }
             },
             dismissButton = {
                 TextButton(onClick = { naming = false }) { Text(stringResource(R.string.look_cancel)) }
@@ -209,4 +260,15 @@ internal fun presetLabel(key: String?): Int = when (key) {
     "bw" -> R.string.preset_bw
     "bw_contrast" -> R.string.preset_bw_contrast
     else -> R.string.preset_natural
+}
+
+@StringRes
+private fun presetPartLabel(part: PresetPart): Int = when (part) {
+    PresetPart.LIGHT -> R.string.tool_light
+    PresetPart.COLOR -> R.string.tool_color
+    PresetPart.DETAIL -> R.string.tool_detail
+    PresetPart.EFFECTS -> R.string.tool_effects
+    PresetPart.CURVES -> R.string.mode_curves
+    PresetPart.MIX -> R.string.mode_hsl
+    PresetPart.LUT -> R.string.look_lut
 }

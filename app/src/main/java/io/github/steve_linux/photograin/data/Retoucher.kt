@@ -120,7 +120,7 @@ object Retoucher {
         } finally {
             image.recycle()
         }
-        val alpha = Removal.raster(spot.strokes, crop, w, h, cw, ch)
+        val alpha = Removal.blendRaster(spot.strokes, crop, w, h, cw, ch)
         val opacity = spot.opacity.coerceIn(0f, 1f)
         val buffer = ByteBuffer.allocateDirect(filled.byteCount).order(ByteOrder.nativeOrder())
         filled.copyPixelsToBuffer(buffer)

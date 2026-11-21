@@ -38,7 +38,7 @@ public:
     int probe(RawInfo* info);
 
     /** Decodes and demosaics. halfSize skips demosaicing and halves each side, for previews. */
-    int develop(bool halfSize);
+    int develop(bool halfSize, int highlight = 2, int whiteBalance = 0, float red = 1.f, float blue = 1.f, bool hotPixels = false);
     int developedWidth() const;
     int developedHeight() const;
     /**

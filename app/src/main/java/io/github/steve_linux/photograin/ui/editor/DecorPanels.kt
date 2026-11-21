@@ -84,7 +84,7 @@ private val SWATCHES = listOf(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EffectsModeSelector(mode: Int, onSelect: (Int) -> Unit) {
-    val labels = listOf(R.string.mode_effects, R.string.mode_frame, R.string.mode_text, R.string.mode_shapes)
+    val labels = listOf(R.string.mode_effects, R.string.mode_frame, R.string.mode_text, R.string.mode_shapes, R.string.mode_images)
     SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
         labels.forEachIndexed { i, label ->
             SegmentedButton(
@@ -120,8 +120,8 @@ fun FramePanel(frame: Frame, onChange: (Frame) -> Unit, onChangeFinished: () -> 
         }
         if (frame.style == FrameStyle.NONE) return@Column
         ParamSlider(
-            label = stringResource(R.string.frame_width),
-            help = helpFor(R.string.frame_width),
+            label = stringResource(if (frame.style == FrameStyle.EXTEND_EDGES) R.string.frame_extend_amount else R.string.frame_width),
+            help = if (frame.style == FrameStyle.EXTEND_EDGES) null else helpFor(R.string.frame_width),
             value = frame.width,
             range = 0.02f..1f,
             display = "${Math.round(frame.width * 100)}",
@@ -132,6 +132,7 @@ fun FramePanel(frame: Frame, onChange: (Frame) -> Unit, onChangeFinished: () -> 
                 onChangeFinished()
             },
         )
+        if (frame.style == FrameStyle.EXTEND_EDGES) return@Column
         ColorRow(frame.color) {
             onChange(frame.copy(color = it))
             onChangeFinished()
@@ -615,6 +616,7 @@ private fun frameLabel(s: FrameStyle): Int = when (s) {
     FrameStyle.NONE -> R.string.frame_none
     FrameStyle.BORDER -> R.string.frame_border
     FrameStyle.POLAROID -> R.string.frame_polaroid
+    FrameStyle.EXTEND_EDGES -> R.string.frame_extend_edges
 }
 
 private fun fontLabel(f: TextFont): Int = when (f) {
@@ -629,4 +631,146 @@ private fun fontLabel(f: TextFont): Int = when (f) {
     TextFont.SMALL_CAPS -> R.string.font_small_caps
     TextFont.CASUAL -> R.string.font_casual
     TextFont.SERIF_MONO -> R.string.font_serif_mono
+}
+
+@Composable
+internal fun GradientMapDialog(
+    initial: io.github.steve_linux.photograin.model.GradientMap,
+    onApply: (io.github.steve_linux.photograin.model.GradientMap) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var map by remember { mutableStateOf(initial) }
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.gradient_map)) },
+        text = {
+            Column(Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState())) {
+                Text(stringResource(R.string.gradient_strength))
+                androidx.compose.material3.Slider(value = map.amount, onValueChange = { map = map.copy(amount = it) })
+                Text(stringResource(R.string.gradient_midpoint))
+                androidx.compose.material3.Slider(value = map.midpoint, onValueChange = { map = map.copy(midpoint = it) }, valueRange = 0.05f..0.95f)
+                Text(stringResource(R.string.param_shadows))
+                ColorRow(map.shadow) { map = map.copy(shadow = it) }
+                Text(stringResource(R.string.gradient_midpoint))
+                ColorRow(map.middle) { map = map.copy(middle = it) }
+                Text(stringResource(R.string.param_highlights))
+                ColorRow(map.highlight) { map = map.copy(highlight = it) }
+            }
+        },
+        confirmButton = {
+            androidx.compose.material3.TextButton(onClick = { onApply(map); onDismiss() }) {
+                Text(stringResource(R.string.quad_apply))
+            }
+        },
+        dismissButton = {
+            androidx.compose.material3.TextButton(onClick = onDismiss) { Text(stringResource(android.R.string.cancel)) }
+        },
+    )
+}
+
+@Composable
+internal fun SampledToolsDialog(
+    adjustments: io.github.steve_linux.photograin.model.Adjustments,
+    viewModel: EditorViewModel,
+    onDismiss: () -> Unit,
+) {
+    val tools = listOf(
+        Triple(Picker.FILM_BASE, R.string.sampled_film, adjustments.filmBase != null),
+        Triple(Picker.COLOR_REFERENCE, R.string.sampled_gray, adjustments.colorReference != null),
+        Triple(Picker.COLOR_KEY, R.string.sampled_key, adjustments.colorKey != null),
+    )
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.sampled_tools)) },
+        text = {
+            Column(Modifier.heightIn(max = 370.dp).verticalScroll(rememberScrollState())) {
+                for ((picker, label, active) in tools) {
+                    androidx.compose.material3.TextButton(onClick = { viewModel.setPicker(picker); onDismiss() }) {
+                        Text(stringResource(label))
+                    }
+                    if (active) androidx.compose.material3.TextButton(onClick = {
+                        viewModel.setSampledColorOptions {
+                            when (picker) {
+                                Picker.FILM_BASE -> it.copy(filmBase = null)
+                                Picker.COLOR_REFERENCE -> it.copy(colorReference = null)
+                                else -> it.copy(colorKey = null)
+                            }
+                        }
+                        viewModel.commit()
+                    }) { Text(stringResource(R.string.sampled_clear)) }
+                }
+                if (adjustments.filmBase != null) {
+                    ParamSlider(stringResource(R.string.param_exposure), adjustments.filmExposure, -3f..3f,
+                        "%.1f".format(adjustments.filmExposure),
+                        { value -> viewModel.setSampledColorOptions { it.copy(filmExposure = value) } },
+                        viewModel::commit, { viewModel.setSampledColorOptions { it.copy(filmExposure = 0f) }; viewModel.commit() })
+                    ParamSlider(stringResource(R.string.param_blacks), adjustments.filmBlack, 0f..0.4f,
+                        "%.2f".format(adjustments.filmBlack),
+                        { value -> viewModel.setSampledColorOptions { it.copy(filmBlack = value) } },
+                        viewModel::commit, { viewModel.setSampledColorOptions { it.copy(filmBlack = 0.04f) }; viewModel.commit() })
+                }
+                if (adjustments.colorKey != null) {
+                    ParamSlider(stringResource(R.string.sampled_tolerance), adjustments.colorKeyTolerance, 0.02f..0.8f,
+                        "%.2f".format(adjustments.colorKeyTolerance),
+                        { value -> viewModel.setSampledColorOptions { it.copy(colorKeyTolerance = value) } },
+                        viewModel::commit, { viewModel.setSampledColorOptions { it.copy(colorKeyTolerance = 0.12f) }; viewModel.commit() })
+                }
+            }
+        },
+        confirmButton = {
+            androidx.compose.material3.TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) }
+        },
+    )
+}
+
+@Composable
+internal fun ColorGradingDialog(
+    grading: io.github.steve_linux.photograin.model.ColorGrading,
+    viewModel: EditorViewModel,
+    onDismiss: () -> Unit,
+) {
+    var selected by remember { mutableStateOf(0) }
+    val tones = listOf(grading.shadows, grading.midtones, grading.highlights, grading.global)
+    val current = tones[selected]
+    fun update(tone: io.github.steve_linux.photograin.model.GradingTone) {
+        viewModel.setColorGrading(when (selected) {
+            0 -> grading.copy(shadows = tone)
+            1 -> grading.copy(midtones = tone)
+            2 -> grading.copy(highlights = tone)
+            else -> grading.copy(global = tone)
+        })
+    }
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = { viewModel.commit(); onDismiss() },
+        title = { Text(stringResource(R.string.color_grading)) },
+        text = {
+            Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
+                val labels = listOf(R.string.param_shadows, R.string.grading_midtones, R.string.param_highlights, R.string.grading_global)
+                for (i in labels.indices) {
+                    FilterChip(selected = selected == i, onClick = { viewModel.commit(); selected = i },
+                        label = { Text(stringResource(labels[i])) })
+                }
+                ParamSlider(stringResource(R.string.grading_hue), current.hue, 0f..360f, "%.0f°".format(current.hue),
+                    { update(current.copy(hue = it)) }, viewModel::commit,
+                    { update(current.copy(hue = 0f)); viewModel.commit() })
+                ParamSlider(stringResource(R.string.param_saturation), current.saturation, 0f..1f, "%.0f".format(current.saturation * 100),
+                    { update(current.copy(saturation = it)) }, viewModel::commit,
+                    { update(current.copy(saturation = 0f)); viewModel.commit() })
+                ParamSlider(stringResource(R.string.grading_luminance), current.luminance, -1f..1f, "%.0f".format(current.luminance * 100),
+                    { update(current.copy(luminance = it)) }, viewModel::commit,
+                    { update(current.copy(luminance = 0f)); viewModel.commit() })
+                ParamSlider(stringResource(R.string.grading_balance), grading.balance, -1f..1f, "%.0f".format(grading.balance * 100),
+                    { viewModel.setColorGrading(grading.copy(balance = it)) }, viewModel::commit,
+                    { viewModel.setColorGrading(grading.copy(balance = 0f)); viewModel.commit() })
+                ParamSlider(stringResource(R.string.grading_blending), grading.blending, 0f..1f, "%.0f".format(grading.blending * 100),
+                    { viewModel.setColorGrading(grading.copy(blending = it)) }, viewModel::commit,
+                    { viewModel.setColorGrading(grading.copy(blending = 0.5f)); viewModel.commit() })
+                TextButton(onClick = {
+                    viewModel.setColorGrading(io.github.steve_linux.photograin.model.ColorGrading())
+                    viewModel.commit()
+                }) { Text(stringResource(R.string.grading_reset)) }
+            }
+        },
+        confirmButton = { TextButton(onClick = { viewModel.commit(); onDismiss() }) { Text(stringResource(R.string.close)) } },
+    )
 }

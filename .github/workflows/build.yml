@@ -14,7 +14,7 @@ jobs:
           submodules: true
       # libjxl needs only these of its own submodules (not its test data or tool dependencies).
       - name: libjxl dependencies
-        run: git -C app/src/main/cpp/libjxl submodule update --init --depth 1 third_party/highway third_party/brotli third_party/skcms
+        run: git -C app/src/main/cpp/libjxl submodule update --init --depth 1 third_party/highway third_party/brotli third_party/skcms third_party/lcms
       # ncnn needs glslang to compile its Vulkan shaders, not its Python bindings.
       - name: ncnn dependencies
         run: git -C app/src/main/cpp/ncnn submodule update --init --depth 1 glslang
@@ -29,6 +29,29 @@ jobs:
         with:
           name: photograin-debug-apk
           path: app/build/outputs/apk/debug/*.apk
+      - name: Sign a stable test APK
+        id: signed-test
+        if: >-
+          (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+          (github.event_name == 'pull_request' &&
+           github.event.pull_request.head.repo.full_name == github.repository &&
+           github.head_ref == 'codex/editor-tools')
+        env:
+          PHOTOGRAIN_TEST_SIGNING: ${{ secrets.PHOTOGRAIN_TEST_SIGNING }}
+        run: |
+          if [[ -z "$PHOTOGRAIN_TEST_SIGNING" ]]; then
+            echo "::notice::Stable test signing is not configured."
+            exit 0
+          fi
+          export AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
+          export APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          tools/test-signing/sign.sh app/build/outputs/apk/debug/app-debug.apk "$RUNNER_TEMP/Photograin-test.apk"
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        if: steps.signed-test.outputs.ready == 'true'
+        with:
+          name: photograin-stable-test-apk
+          path: ${{ runner.temp }}/Photograin-test.apk
       - name: Lint
         run: ./gradlew --no-daemon lintDebug
       - uses: actions/upload-artifact@v4

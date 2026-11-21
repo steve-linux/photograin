@@ -64,6 +64,26 @@ class SubjectMaskTest {
     }
 
     @Test
+    fun detailedModelPreservesSoftEdgesAndGapsInEveryOrientation() {
+        val raw = byteArrayOf(0, 64, 128.toByte(), 255.toByte())
+        for (turns in 0..3) for (mirror in listOf(false, true)) {
+            val base = BaseOrientation(mirror = mirror, quarterTurns = turns)
+            val mask = SubjectMask.fromModel(raw, base, 2, 2, 2, boostSubject = false)
+            val mapping = SubjectMask.uprightToStored(base, 2)
+            for (i in raw.indices) assertEquals(raw[i], mask.data[mapping[i]])
+        }
+        // The legacy boost would make a half-confident edge completely opaque.
+        val boosted = SubjectMask.fromModel(raw, BaseOrientation(), 2, 2, 2)
+        assertEquals(255, boosted.data[2].toInt() and 255)
+    }
+
+    @Test
+    fun detailedModelResizesAlphaWithoutBoostingIt() {
+        val mask = SubjectMask.fromModel(byteArrayOf(0, -1, 0, -1), BaseOrientation(), 4, 2, 2, boostSubject = false)
+        assertArrayEquals(byteArrayOf(0, 64, -65, -1, 0, 64, -65, -1), mask.data)
+    }
+
+    @Test
     fun resizingKeepsTheShape() {
         val mask = SubjectMask(4, 2, byteArrayOf(0, 0, -1, -1, 0, 0, -1, -1))
         val big = mask.resizedTo(8, 4)

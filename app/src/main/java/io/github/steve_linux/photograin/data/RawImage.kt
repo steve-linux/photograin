@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package io.github.steve_linux.photograin.data
 
+import io.github.steve_linux.photograin.model.RawWhiteBalance
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -46,8 +47,8 @@ object RawImage {
      * Develops the whole file into a half-float bitmap, so pushing exposure or shadows does not
      * band like 8-bit data would. [halfSize] halves each side and is several times faster.
      */
-    fun develop(context: Context, uri: Uri, halfSize: Boolean): Bitmap = withPath(context, uri) { path ->
-        val handle = nativeDevelop(path, halfSize)
+    fun develop(context: Context, uri: Uri, halfSize: Boolean, highlight: Int = 2, whiteBalance: RawWhiteBalance = RawWhiteBalance()): Bitmap = withPath(context, uri) { path ->
+        val handle = nativeDevelop(path, halfSize, highlight, whiteBalance.mode.ordinal, whiteBalance.red.coerceIn(0.1f, 8f), whiteBalance.blue.coerceIn(0.1f, 8f), whiteBalance.hotPixels)
         try {
             val bitmap = Bitmap.createBitmap(nativeWidth(handle), nativeHeight(handle), Bitmap.Config.RGBA_F16)
             nativeCopyTo(handle, bitmap)
@@ -100,7 +101,7 @@ object RawImage {
         runCatching { OsConstants.S_ISREG(Os.fstat(pfd.fileDescriptor).st_mode) }.getOrDefault(false)
 
     @JvmStatic private external fun nativeProbe(path: String): IntArray?
-    @JvmStatic private external fun nativeDevelop(path: String, halfSize: Boolean): Long
+    @JvmStatic private external fun nativeDevelop(path: String, halfSize: Boolean, highlight: Int, whiteBalance: Int, red: Float, blue: Float, hotPixels: Boolean): Long
     @JvmStatic private external fun nativeWidth(handle: Long): Int
     @JvmStatic private external fun nativeHeight(handle: Long): Int
     @JvmStatic private external fun nativeCopyTo(handle: Long, bitmap: Bitmap)

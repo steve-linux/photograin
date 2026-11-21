@@ -15,6 +15,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.steve_linux.photograin.data.Preferences
@@ -45,6 +46,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             val appSettings by settings.state.collectAsStateWithLifecycle()
             PhotograinTheme(appSettings.theme) {
+                val homeState = rememberSaveableStateHolder()
                 val state by editor.state.collectAsStateWithLifecycle()
                 val batchState by batch.state.collectAsStateWithLifecycle()
                 var recents by remember { mutableStateOf(prefs.recents()) }
@@ -65,7 +67,7 @@ class MainActivity : ComponentActivity() {
                     GuideScreen(onClose = { showGuide = false }, focus = guideFocus)
                 } else if (showSettings) {
                     SettingsScreen(
-                        onClose = { showSettings = false },
+                        onClose = { showSettings = false; recents = prefs.recents() },
                         onShowTips = {
                             prefs.presetTipDismissed = false
                             showTip = true
@@ -89,26 +91,30 @@ class MainActivity : ComponentActivity() {
                         },
                     )
                 } else {
-                    HomeScreen(
-                        recents = recents,
-                        onOpenPicker = { picker.launch(OPEN_TYPES) },
-                        onOpen = { uri, version -> editor.open(uri, version) },
-                        onQuickAction = { action ->
-                            pickedAction = action
-                            picker.launch(OPEN_TYPES)
-                        },
-                        onBatch = { multiPicker.launch(OPEN_TYPES) },
-                        showTip = showTip,
-                        onDismissTip = {
-                            prefs.presetTipDismissed = true
-                            showTip = false
-                        },
-                        onSettings = { showSettings = true },
-                        onGuide = {
-                            guideFocus = null
-                            showGuide = true
-                        },
-                    )
+                    homeState.SaveableStateProvider("gallery") {
+                        HomeScreen(
+                            recents = recents,
+                            onOpenPicker = { picker.launch(OPEN_TYPES) },
+                            onOpen = editor::openFromCollection,
+                            onQuickAction = { action ->
+                                pickedAction = action
+                                picker.launch(OPEN_TYPES)
+                            },
+                            onBatch = { multiPicker.launch(OPEN_TYPES) },
+                            onBatchSelection = batch::start,
+                            onBatchQueue = if (batchState.queueAvailable) batch::openQueue else null,
+                            showTip = showTip,
+                            onDismissTip = {
+                                prefs.presetTipDismissed = true
+                                showTip = false
+                            },
+                            onSettings = { showSettings = true },
+                            onGuide = {
+                                guideFocus = null
+                                showGuide = true
+                            },
+                        )
+                    }
                 }
             }
         }
@@ -136,4 +142,4 @@ class MainActivity : ComponentActivity() {
 }
 
 /** Everything the system picker should offer: all images, plus RAW and JPEG XL types it may not count as images. */
-private val OPEN_TYPES = arrayOf("image/*", "image/jxl") + RawImage.MIME_TYPES
+internal val OPEN_TYPES = arrayOf("image/*", "image/jxl") + RawImage.MIME_TYPES

@@ -55,6 +55,10 @@ Editor fotografico non distruttivo per Android, libero (GPL-3.0-or-later) e pens
 - **Nessun permesso** richiesto: si apre tramite le finestre di sistema e si salva in `Immagini`
   tramite MediaStore (da Android 10) o nella cartella scelta.
 
+## Guida utente
+
+La [guida di Photograin](docs/USER_GUIDE.md) descrive i pannelli, la composizione di più foto, l’estensione dei bordi e le opzioni di esportazione.
+
 ## Architettura
 
 ```
@@ -88,7 +92,7 @@ Serve JDK 17 o successivo, l'Android SDK (API 36) e l'NDK 27.0.12077973 con CMak
 
 ```
 git submodule update --init    # dopo il clone, una volta
-git -C app/src/main/cpp/libjxl submodule update --init third_party/highway third_party/brotli third_party/skcms
+git -C app/src/main/cpp/libjxl submodule update --init third_party/highway third_party/brotli third_party/skcms third_party/lcms
 ./gradlew assembleDebug        # APK di debug
 ./gradlew testDebugUnitTest    # test unitari
 ```
@@ -104,8 +108,22 @@ GNU General Public License, versione 3 o (a tua scelta) qualsiasi versione succe
 Tutte le dipendenze (AndroidX, Jetpack Compose, Kotlin, kotlinx) sono Apache-2.0, compatibili con la GPL-3.0.
 LibRaw è distribuita con doppia licenza LGPL-2.1 o CDDL-1.0; Photograin la usa secondo la LGPL-2.1,
 compatibile con la GPL-3.0.
-libjxl (con highway, brotli e skcms), libavif e libaom sono BSD, compatibili con la GPL-3.0.
+libjxl (con highway, brotli e skcms), libavif e libaom sono BSD. Little CMS, usato per la prova ICC, è MIT. Queste licenze sono compatibili con la GPL-3.0.
 ncnn (BSD-3-Clause) con glslang (licenze BSD/MIT/Apache-2.0), il modello Real-ESRGAN (BSD-3-Clause)
 il modello U²-Net (Apache-2.0), il modello MI-GAN (MIT) e il modello MobileSAM (Apache-2.0) sono
 compatibili con la GPL-3.0, come il pacchetto facoltativo IS-Net (Apache-2.0).
 Nessuna dipendenza da Google Play Services o servizi proprietari.
+
+### APK di collaudo con firma stabile
+
+Il proprietario del repository può configurare la firma una volta dal clone di Photograin, con GitHub CLI autenticato e il JDK installato.
+
+```sh
+bash tools/test-signing/setup.sh
+```
+
+Lo script conserva la chiave e la password in `${XDG_DATA_HOME:-~/.local/share}/photograin/test-signing` e registra un secret GitHub Actions. Le esecuzioni successive riutilizzano la chiave locale e lasciano intatto un secret già configurato. Conserva una copia protetta di quella cartella per poter recuperare la stessa firma.
+
+Le build sul ramo principale e sulla pull request interna del ramo `codex/editor-tools` caricano il pacchetto firmato come `photograin-stable-test-apk`. La firma si applica al pacchetto di collaudo `io.github.steve_linux.photograin.debug`. Al primo passaggio, una build di collaudo già installata e firmata con una chiave differente richiede il trasferimento dei dati prima della sostituzione. Le modifiche delle singole foto si possono trasferire con **Ricetta portatile della foto**.
+
+Per firmare in locale, esegui `bash tools/test-signing/setup.sh --local` e poi `bash tools/test-signing/sign.sh input.apk Photograin-test.apk`. I comandi `aapt` e `apksigner` devono essere sul PATH o indicati tramite le variabili `AAPT` e `APKSIGNER`.

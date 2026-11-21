@@ -54,6 +54,47 @@ object DecorPainter {
     }
 
     /** Draws [shapes] on [canvas], whose units are pixels of a [total]-sized framed output. */
+    fun drawImages(
+        canvas: Canvas,
+        total: PxSize,
+        layers: List<io.github.steve_linux.photograin.model.ImageLayer>,
+        bitmaps: Map<String, android.graphics.Bitmap>,
+        blendWithPhoto: Boolean = true,
+    ) {
+        val paint = android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG)
+        for (layer in layers) {
+            if (!layer.visible) continue
+            val bitmap = bitmaps[layer.id] ?: continue
+            val cx = layer.x * total.width
+            val cy = layer.y * total.height
+            val scale = layer.size * minOf(total.width, total.height) / maxOf(bitmap.width, bitmap.height)
+            val halfW = bitmap.width * scale / 2
+            val halfH = bitmap.height * scale / 2
+            paint.alpha = (layer.opacity.coerceIn(0f, 1f) * 255).toInt()
+            canvas.save()
+            canvas.rotate(layer.angle, cx, cy)
+            val bounds = android.graphics.RectF(cx - halfW, cy - halfH, cx + halfW, cy + halfH)
+            if (layer.maskRadius > 0f) {
+                val path = android.graphics.Path().apply {
+                    val radius = layer.maskRadius.coerceAtMost(1f)
+                    addOval(cx - halfW * radius, cy - halfH * radius, cx + halfW * radius, cy + halfH * radius,
+                        android.graphics.Path.Direction.CW)
+                }
+                canvas.clipPath(path)
+            }
+            if (blendWithPhoto && android.os.Build.VERSION.SDK_INT >= 29) {
+                paint.blendMode = when (layer.blend) {
+                    io.github.steve_linux.photograin.model.LayerBlend.NORMAL -> null
+                    io.github.steve_linux.photograin.model.LayerBlend.MULTIPLY -> android.graphics.BlendMode.MULTIPLY
+                    io.github.steve_linux.photograin.model.LayerBlend.SCREEN -> android.graphics.BlendMode.SCREEN
+                    io.github.steve_linux.photograin.model.LayerBlend.SOFT_LIGHT -> android.graphics.BlendMode.SOFT_LIGHT
+                }
+            }
+            canvas.drawBitmap(bitmap, null, bounds, paint)
+            canvas.restore()
+        }
+    }
+
     fun drawShapes(canvas: Canvas, total: PxSize, shapes: List<ShapeItem>) {
         val short = min(total.width, total.height)
         for (shape in shapes) {

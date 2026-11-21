@@ -66,7 +66,7 @@ int RawDecoder::probe(RawInfo* info) {
     return LIBRAW_SUCCESS;
 }
 
-int RawDecoder::develop(bool halfSize) {
+int RawDecoder::develop(bool halfSize, int highlight, int whiteBalance, float red, float blue, bool hotPixels) {
     releaseImage();
     libraw_output_params_t& p = raw_->imgdata.params;
     p.user_flip = 0;        // orientation is applied later, on the GPU
@@ -74,15 +74,42 @@ int RawDecoder::develop(bool halfSize) {
     p.output_color = 7;     // DCI-P3 primaries, D65 white: with the sRGB curve below this is Display P3
     p.gamm[0] = 1 / 2.4;    // sRGB transfer curve
     p.gamm[1] = 12.92;
-    p.use_camera_wb = 1;
+    p.use_camera_wb = whiteBalance == 0;
+    p.use_auto_wb = whiteBalance == 1;
+    if (whiteBalance == 2) {
+        p.user_mul[0] = red;
+        p.user_mul[1] = 1.f;
+        p.user_mul[2] = blue;
+        p.user_mul[3] = 1.f;
+    }
     p.half_size = halfSize ? 1 : 0;
     p.user_qual = 3;        // AHD demosaicing
-    p.highlight = 2;        // blend clipped channels instead of tinting them magenta
+    p.highlight = highlight == 0 || highlight == 1 || highlight == 5 ? highlight : 2;
     // Auto brightness clips the brightest 0.2% instead of 1%, keeping more highlight detail.
     p.auto_bright_thr = 0.002f;
 
     int ret = raw_->unpack();
     if (ret != LIBRAW_SUCCESS) return ret;
+    if (hotPixels && raw_->imgdata.idata.filters != 0 && raw_->imgdata.idata.filters != 9 &&
+        raw_->imgdata.rawdata.raw_image != nullptr) {
+        auto* pixels = raw_->imgdata.rawdata.raw_image;
+        const auto& sizes = raw_->imgdata.sizes;
+        const int width = sizes.raw_width;
+        const int height = sizes.raw_height;
+        const int stride = sizes.raw_pitch ? sizes.raw_pitch / sizeof(unsigned short) : width;
+        // Bayer samples two pixels apart share a color. Only isolated bright outliers qualify.
+        for (int y = 2; y < height - 2; ++y) for (int x = 2; x < width - 2; ++x) {
+            auto* center = pixels + static_cast<size_t>(y) * stride + x;
+            const int neighbors[] = {center[-2], center[2], center[-2 * stride], center[2 * stride]};
+            int brightest = 0;
+            int sum = 0;
+            for (int value : neighbors) {
+                if (value > brightest) brightest = value;
+                sum += value;
+            }
+            if (*center > brightest * 2 + 192) *center = static_cast<unsigned short>(sum / 4);
+        }
+    }
     ret = raw_->dcraw_process();
     if (ret != LIBRAW_SUCCESS) return ret;
     image_ = raw_->dcraw_make_mem_image(&ret);

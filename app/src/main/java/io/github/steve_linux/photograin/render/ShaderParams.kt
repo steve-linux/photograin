@@ -6,6 +6,7 @@ import io.github.steve_linux.photograin.model.Background
 import io.github.steve_linux.photograin.model.ColorProfile
 import io.github.steve_linux.photograin.model.HslBand
 import io.github.steve_linux.photograin.model.LocalAdjustment
+import io.github.steve_linux.photograin.model.LocalParams
 import io.github.steve_linux.photograin.model.MaskRange
 import io.github.steve_linux.photograin.model.MaskType
 import io.github.steve_linux.photograin.model.Mat3
@@ -68,7 +69,11 @@ object ShaderParams {
         return out
     }
 
-    /** Local adjustments packed as four vec4 arrays; see the mask uniforms in the color shader. */
+    private const val INVERT_SELECTION = 4
+    private const val DISABLED_EFFECT = 8
+    private const val MULTIPLE_COMPONENTS = 16
+
+    /** Local adjustments packed for the color shader, including each mask's options and effects. */
     class MaskUniforms(
         val count: Int,
         val geo: FloatArray,
@@ -76,6 +81,9 @@ object ShaderParams {
         val range: FloatArray,
         val locA: FloatArray,
         val locB: FloatArray,
+        val locEffects: FloatArray,
+        val locToneDetail: FloatArray,
+        val locDetail: FloatArray,
     )
 
     fun maskUniforms(masks: List<LocalAdjustment>): MaskUniforms {
@@ -85,11 +93,21 @@ object ShaderParams {
         val range = FloatArray(LocalAdjustment.MAX * 4)
         val locA = FloatArray(LocalAdjustment.MAX * 4)
         val locB = FloatArray(LocalAdjustment.MAX * 4)
+        val locEffects = FloatArray(LocalAdjustment.MAX * 4)
+        val locToneDetail = FloatArray(LocalAdjustment.MAX * 4)
+        val locDetail = FloatArray(LocalAdjustment.MAX * 4)
         for (i in 0 until n) {
             val l = masks[i]
             val m = l.mask
             val k = i * 4
-            if (m.type == MaskType.LINEAR) {
+            if (m.type == MaskType.DEPTH) {
+                m.depth?.let { depth ->
+                    geo[k] = depth.center.coerceIn(0f, 1f)
+                    geo[k + 1] = depth.width.coerceIn(0f, 1f) * 0.5f
+                    geo[k + 2] = depth.transition.coerceIn(0.004f, 1f)
+                    geo[k + 3] = if (depth.map.raster != null) 1f else 0f
+                }
+            } else if (m.type == MaskType.LINEAR) {
                 geo[k] = m.x0; geo[k + 1] = m.y0; geo[k + 2] = m.x1; geo[k + 3] = m.y1
             } else {
                 geo[k] = m.x0; geo[k + 1] = m.y0; geo[k + 2] = m.radiusX; geo[k + 3] = m.radiusY
@@ -100,10 +118,11 @@ object ShaderParams {
                 // A subject mask is a brush mask seeded with the model's result.
                 MaskType.BRUSH, MaskType.SUBJECT -> 2f
                 MaskType.FULL -> 3f
+                MaskType.DEPTH -> 4f
             }
             // A brush mask is drawn into the layer of the brush texture matching its index.
-            opt[k + 1] = if (LocalAdjustment.usesRaster(m.type)) i.toFloat() else m.angle
-            opt[k + 2] = m.feather
+            opt[k + 1] = if (LocalAdjustment.usesRaster(m.type) || m.type == MaskType.DEPTH) i.toFloat() else m.angle
+            opt[k + 2] = if (l.autoSky && m.type == MaskType.FULL) -1f else m.feather
             opt[k + 3] = if (m.invert) 1f else 0f
             val r = m.range
             when (r.type) {
@@ -116,10 +135,47 @@ object ShaderParams {
                     range[k + 3] = r.saturation
                 }
             }
-            locA[k] = l.exposure; locA[k + 1] = l.contrast; locA[k + 2] = l.highlights; locA[k + 3] = l.shadows
-            locB[k] = l.temperature; locB[k + 1] = l.tint; locB[k + 2] = l.saturation; locB[k + 3] = l.clarity
+            val amount = l.amount.coerceIn(LocalParams.amount.min, LocalParams.amount.max)
+            locA[k] = l.exposure * amount
+            locA[k + 1] = l.contrast * amount
+            locA[k + 2] = l.highlights * amount
+            locA[k + 3] = l.shadows * amount
+            locB[k] = l.temperature * amount
+            locB[k + 1] = l.tint * amount
+            locB[k + 2] = l.saturation * amount
+            locB[k + 3] = l.clarity * amount
+            locEffects[k] = l.blur * amount
+            locEffects[k + 1] = l.pixelate * amount
+            val components = l.components.filter { it.index in 0 until n && it.index != i }.distinctBy { it.index }
+            // Preserve the legacy layout for old recipes. New lists store up to seven operations
+            // in two exactly representable float-backed words, using five bits per operation.
+            val flags = l.combination.ordinal or
+                (if (l.invertSelection) INVERT_SELECTION else 0) or
+                (if (l.enabled) 0 else DISABLED_EFFECT)
+            if (components.isEmpty()) {
+                locEffects[k + 2] = (l.combineWith?.takeIf { it in 0 until n && it != i } ?: -1).toFloat()
+                locEffects[k + 3] = flags.toFloat()
+            } else {
+                var first = 0
+                var rest = flags or MULTIPLE_COMPONENTS
+                components.forEachIndexed { position, component ->
+                    val code = 1 + component.index + component.operation.ordinal * 8
+                    if (position < 4) first = first or (code shl (5 * position))
+                    else rest = rest or (code shl (5 * (position - 3)))
+                }
+                locEffects[k + 2] = first.toFloat()
+                locEffects[k + 3] = rest.toFloat()
+            }
+            locToneDetail[k] = l.whites * amount
+            locToneDetail[k + 1] = l.blacks * amount
+            locToneDetail[k + 2] = l.textureAmount * amount
+            locToneDetail[k + 3] = l.dehaze * amount
+            locDetail[k] = l.hueShift / 360f * amount
+            locDetail[k + 1] = l.sharpness * amount
+            locDetail[k + 2] = l.noiseReduction * amount
+            locDetail[k + 3] = l.defringe * amount
         }
-        return MaskUniforms(n, geo, opt, range, locA, locB)
+        return MaskUniforms(n, geo, opt, range, locA, locB, locEffects, locToneDetail, locDetail)
     }
 
     /**

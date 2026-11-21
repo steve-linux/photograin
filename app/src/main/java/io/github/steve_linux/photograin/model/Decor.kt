@@ -7,7 +7,7 @@ import kotlin.math.min
 import kotlin.math.roundToInt
 
 @Serializable
-enum class FrameStyle { NONE, BORDER, POLAROID }
+enum class FrameStyle { NONE, BORDER, POLAROID, EXTEND_EDGES }
 
 /**
  * A plain border around the photo, which makes the output larger. [width] (0..1) sets the
@@ -23,7 +23,8 @@ data class Frame(
     /** Where the photo sits in the framed output, for a photo of [image] pixels. */
     fun layout(image: PxSize): FrameLayout {
         if (style == FrameStyle.NONE) return FrameLayout(image, 0, 0)
-        val side = (min(image.width, image.height) * MAX_FRACTION * width.coerceIn(0f, 1f)).roundToInt()
+        val fraction = if (style == FrameStyle.EXTEND_EDGES) 0.5 else MAX_FRACTION
+        val side = (min(image.width, image.height) * fraction * width.coerceIn(0f, 1f)).roundToInt()
         val bottom = if (style == FrameStyle.POLAROID) max(side * 3, (min(image.width, image.height) * 0.12).roundToInt()) else side
         return FrameLayout(PxSize(image.width + 2 * side, image.height + side + bottom), side, side)
     }
@@ -113,3 +114,22 @@ data class ShapeItem(
         const val RED = 0xFFC62828.toInt()
     }
 }
+
+@Serializable
+enum class LayerBlend { NORMAL, MULTIPLY, SCREEN, SOFT_LIGHT }
+
+/** A PNG stored in the app's private files, positioned relative to the framed output. */
+@Serializable
+data class ImageLayer(
+    val id: String,
+    val x: Float = 0.5f,
+    val y: Float = 0.5f,
+    val size: Float = 0.5f,
+    val opacity: Float = 1f,
+    val angle: Float = 0f,
+    val instanceId: String = id,
+    val visible: Boolean = true,
+    val blend: LayerBlend = LayerBlend.NORMAL,
+    val maskRadius: Float = 0f,
+
+)

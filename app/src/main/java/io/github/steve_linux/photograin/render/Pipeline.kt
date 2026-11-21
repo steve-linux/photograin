@@ -81,6 +81,8 @@ internal class Pipeline {
         height: Int,
         longEdgePx: Int,
         cubicSize: PxSize? = null,
+        lensAmount: Float = 0f,
+        lensSize: PxSize = PxSize(width, height),
     ) {
         val geoTarget = geo?.takeIf { it.matches(width, height) } ?: run {
             geo?.release()
@@ -92,6 +94,8 @@ internal class Pipeline {
         geometryProgram.use()
         geometryProgram.texture("uTex", 0, sourceTexture)
         geometryProgram.mat3("uM", outputToUv.toGlMat3())
+        geometryProgram.float("uLensAmount", lensAmount.coerceIn(-1f, 1f))
+        geometryProgram.vec2("uLensSize", lensSize.width.toFloat(), lensSize.height.toFloat())
         geometryProgram.int("uCubic", if (cubicSize != null) 1 else 0)
         geometryProgram.vec2("uTexSize", (cubicSize?.width ?: 1).toFloat(), (cubicSize?.height ?: 1).toFloat())
         drawQuad(geometryProgram, FULL_CLIP, floatArrayOf(originX, originY, width.toFloat(), height.toFloat()))
@@ -139,7 +143,7 @@ internal class Pipeline {
      * @param masks local adjustments; [posToSource] maps output positions (0..1) to source
      *   positions (0..1), and [sourceWidth] x [sourceHeight] gives the source's shape.
      * @param subjects what the subject masks cover; until it is known they are empty.
-     * @param showMask index of the mask to tint red, or -1.
+     * @param showMask index of the mask to highlight, or -1.
      */
     fun renderColor(
         adjustments: Adjustments,
@@ -160,33 +164,112 @@ internal class Pipeline {
         sourceHeight: Int = 1,
         subjects: Subjects? = null,
         showMask: Int = -1,
+        showExposureWarning: Boolean = false,
+        histogramSample: Boolean = false,
+        outputSharpen: Float = 0f,
+        focusPeaking: Boolean = false,
+        proof: ColorProfile? = null,
+        gamutWarning: Boolean = false,
     ) {
         val geoTarget = checkNotNull(geo) { "renderIntermediate() must run first" }
         val blurred = checkNotNull(blurB)
         val p = colorProgram
         p.use()
+        p.int("uExposureWarning", if (showExposureWarning) 1 else 0)
+        p.int("uFocusPeaking", if (focusPeaking) 1 else 0)
+        p.int("uHistogramSample", if (histogramSample) 1 else 0)
         p.texture("uGeo", 0, geoTarget.texture)
         p.texture("uBlur", 1, blurred.texture)
         p.vec2("uGeoTexel", 1f / geoTarget.width, 1f / geoTarget.height)
         p.vec4("uImgMap", imageMap)
         val long = max(outputWidth, outputHeight).toFloat()
         p.vec2("uAspect", outputWidth / long, outputHeight / long)
+        p.vec2("uLensSize", outputWidth.toFloat(), outputHeight.toFloat())
+        p.float("uLensAmount", adjustments.lensDistortion.coerceIn(-1f, 1f))
         p.float("uLongEdgePx", long)
 
         val wb = ShaderParams.whiteBalanceGains(adjustments)
         p.vec3("uWb", wb[0], wb[1], wb[2])
         p.float("uExposure", adjustments.exposure)
-        p.float("uContrast", adjustments.contrast)
-        p.float("uHighlights", adjustments.highlights)
-        p.float("uShadows", adjustments.shadows)
-        p.float("uWhites", adjustments.whites)
-        p.float("uBlacks", adjustments.blacks)
+        // Pack global scalars to leave room for local adjustments on minimum-limit GLES 3 devices.
+        p.vec4("uBasicTone", floatArrayOf(adjustments.contrast, adjustments.highlights, adjustments.shadows, adjustments.clarity))
+        p.vec4("uToneDetail", floatArrayOf(adjustments.whites, adjustments.blacks, adjustments.textureAmount, adjustments.dehaze))
         p.float("uVibrance", adjustments.vibrance)
         p.float("uSaturation", adjustments.saturation)
         p.float("uSharpness", adjustments.sharpness)
-        p.float("uClarity", adjustments.clarity)
-        p.float("uDehaze", adjustments.dehaze)
+        p.float("uOutputSharpen", outputSharpen.coerceIn(0f, 1f))
         p.float("uVignette", adjustments.vignette)
+        p.float("uVignetteMidpoint", adjustments.vignetteMidpoint.coerceIn(0f, 1f))
+        p.float("uVignetteRoundness", adjustments.vignetteRoundness.coerceIn(0f, 1f))
+        p.float("uVignetteFeather", adjustments.vignetteFeather.coerceIn(0f, 1f))
+        p.float("uVignetteHighlights", adjustments.vignetteHighlights.coerceIn(0f, 1f))
+        p.float("uGrainRoughness", adjustments.grainRoughness.coerceIn(0f, 1f))
+        p.float("uBloom", adjustments.bloom)
+        p.float("uHalation", adjustments.halation)
+        p.float("uMidtoneGamma", adjustments.midtoneGamma)
+        p.float("uShadowContrast", adjustments.shadowContrast)
+        p.float("uMidtoneContrast", adjustments.midtoneContrast)
+        p.float("uHighlightContrast", adjustments.highlightContrast)
+        p.float("uShadowTone", adjustments.shadowTone)
+        p.float("uMidtoneTone", adjustments.midtoneTone)
+        p.float("uHighlightTone", adjustments.highlightTone)
+        p.float("uGlobalHue", adjustments.globalHue)
+        p.float("uRedBlueSwap", adjustments.redBlueSwap)
+        p.float("uSoftFocus", adjustments.softFocus)
+        p.float("uMatte", adjustments.matte)
+        p.float("uSepia", adjustments.sepia)
+        p.float("uCyanotype", adjustments.cyanotype)
+        p.float("uNegative", adjustments.negative)
+        p.float("uSolarize", adjustments.solarize)
+        p.float("uPosterize", adjustments.posterize)
+        p.float("uThreshold", adjustments.threshold)
+        p.float("uBleachBypass", adjustments.bleachBypass)
+        p.float("uCrossProcess", adjustments.crossProcess)
+        p.float("uOrton", adjustments.orton)
+        p.float("uBrightness", adjustments.brightness)
+        p.float("uShadowFloor", adjustments.shadowFloor)
+        p.float("uWhiteCeiling", adjustments.whiteCeiling)
+        p.float("uShadowSoftClip", adjustments.shadowSoftClip)
+        p.float("uHighlightSoftClip", adjustments.highlightSoftClip)
+        p.float("uLumaContrast", adjustments.lumaContrast)
+        p.float("uShadowExposure", adjustments.shadowExposure)
+        p.float("uHighlightExposure", adjustments.highlightExposure)
+        p.vec3("uRgbGamma", adjustments.redGamma, adjustments.greenGamma, adjustments.blueGamma)
+        p.vec3("uRgbGain", adjustments.redGain, adjustments.greenGain, adjustments.blueGain)
+        p.vec3("uRgbOffset", adjustments.redOffset, adjustments.greenOffset, adjustments.blueOffset)
+        p.float("uShadowSaturation", adjustments.shadowSaturation)
+        p.float("uMidtoneSaturation", adjustments.midtoneSaturation)
+        p.float("uHighlightSaturation", adjustments.highlightSaturation)
+        p.float("uShadowTint", adjustments.shadowTint)
+        p.float("uMidtoneTint", adjustments.midtoneTint)
+        p.float("uHighlightTint", adjustments.highlightTint)
+        p.float("uCycleRgb", adjustments.cycleRgb)
+        p.float("uMonochromeRed", adjustments.monochromeRed)
+        p.float("uMonochromeGreen", adjustments.monochromeGreen)
+        p.float("uMonochromeBlue", adjustments.monochromeBlue)
+        p.float("uLumaSharpen", adjustments.lumaSharpen)
+        p.float("uChromaSharpen", adjustments.chromaSharpen)
+        p.float("uEdgeDetect", adjustments.edgeDetect)
+        p.float("uEmboss", adjustments.emboss)
+        p.float("uPencilSketch", adjustments.pencilSketch)
+        p.float("uHighPass", adjustments.highPass)
+        p.float("uChannelInvertRed", adjustments.channelInvertRed)
+        p.float("uChannelInvertGreen", adjustments.channelInvertGreen)
+        p.float("uChannelInvertBlue", adjustments.channelInvertBlue)
+        p.float("uLumaInvert", adjustments.lumaInvert)
+        p.float("uThresholdColor", adjustments.thresholdColor)
+        p.float("uPosterizeLuma", adjustments.posterizeLuma)
+        p.float("uThermalMap", adjustments.thermalMap)
+        p.float("uPurpleGold", adjustments.purpleGold)
+        p.float("uTealOrange", adjustments.tealOrange)
+        p.float("uInfraredLook", adjustments.infraredLook)
+        p.float("uFilmToe", adjustments.filmToe)
+        p.float("uFilmShoulder", adjustments.filmShoulder)
+        p.float("uLightLeak", adjustments.lightLeak)
+        p.float("uTiltShift", adjustments.tiltShift)
+        p.float("uRadialBlur", adjustments.radialBlur)
+        p.float("uScanlines", adjustments.scanlines)
+        p.float("uDefringe", adjustments.defringe)
         p.float("uGrain", adjustments.grain)
         p.float("uGrainCell", ShaderParams.grainCellFraction(adjustments))
         p.float("uLumaNr", adjustments.noiseReduction)
@@ -197,6 +280,48 @@ internal class Pipeline {
         val hslOn = !adjustments.hsl.isIdentity
         p.float("uHslOn", if (hslOn) 1f else 0f)
         if (hslOn) p.vec3Array("uHsl", ShaderParams.hslUniform(adjustments))
+        fun sampledColor(name: String, color: Int?) {
+            val rgb = color ?: 0
+            val srgb = ColorProfile.SRGB
+            val linear = Mat3.apply(srgb.conversionTo(working), doubleArrayOf(
+                srgb.decode(((rgb ushr 16) and 255) / 255.0),
+                srgb.decode(((rgb ushr 8) and 255) / 255.0),
+                srgb.decode((rgb and 255) / 255.0),
+            ))
+            p.vec4(name, floatArrayOf(srgb.encode(linear[0]).toFloat(), srgb.encode(linear[1]).toFloat(),
+                srgb.encode(linear[2]).toFloat(), if (color == null) 0f else 1f))
+        }
+        sampledColor("uFilmBase", adjustments.filmBase)
+        sampledColor("uColorReference", adjustments.colorReference)
+        sampledColor("uColorKey", adjustments.colorKey)
+        p.float("uFilmExposure", adjustments.filmExposure)
+        p.float("uFilmBlack", adjustments.filmBlack)
+        p.float("uColorKeyTolerance", adjustments.colorKeyTolerance)
+        val grading = adjustments.grading
+        val tones = listOf(grading.shadows, grading.midtones, grading.highlights, grading.global)
+        val activeGrading = tones.any { it.saturation != 0f || it.luminance != 0f }
+        p.int("uGradingOn", if (activeGrading) 1 else 0)
+        if (activeGrading) {
+            p.vec4Array("uGrading", tones.flatMap { listOf(it.hue / 360f, it.saturation, it.luminance, 0f) }.toFloatArray())
+            p.vec2("uGradeMix", grading.balance.coerceIn(-1f, 1f), grading.blending.coerceIn(0f, 1f))
+        }
+        val gradient = adjustments.gradientMap
+        p.float("uGradientAmount", gradient.amount.coerceIn(0f, 1f))
+        if (gradient.amount > 0f) {
+            fun setColor(name: String, color: Int) {
+                val srgb = ColorProfile.SRGB
+                val linear = Mat3.apply(srgb.conversionTo(working), doubleArrayOf(
+                    srgb.decode(((color ushr 16) and 255) / 255.0),
+                    srgb.decode(((color ushr 8) and 255) / 255.0),
+                    srgb.decode((color and 255) / 255.0),
+                ))
+                p.vec3(name, srgb.encode(linear[0]).toFloat(), srgb.encode(linear[1]).toFloat(), srgb.encode(linear[2]).toFloat())
+            }
+            setColor("uGradientShadow", gradient.shadow)
+            setColor("uGradientMiddle", gradient.middle)
+            setColor("uGradientHighlight", gradient.highlight)
+            p.float("uGradientMidpoint", gradient.midpoint.coerceIn(0.05f, 0.95f))
+        }
         val lutOn = lut != null && adjustments.look.isActive
         p.float("uLutOn", if (lutOn) 1f else 0f)
         // The sampler must always point at a 3D texture, even when unused.
@@ -206,9 +331,7 @@ internal class Pipeline {
         p.int("uLut", 3)
         if (lutOn) {
             val n = lut!!.size.toFloat()
-            p.float("uLutAmount", adjustments.look.amount.coerceIn(0f, 1f))
-            p.float("uLutScale", (n - 1f) / n)
-            p.float("uLutOffset", 0.5f / n)
+            p.vec3("uLutMix", adjustments.look.amount.coerceIn(0f, 1f), (n - 1f) / n, 0.5f / n)
         }
         val luma = working.luma
         p.vec3("uLuma", luma[0].toFloat(), luma[1].toFloat(), luma[2].toFloat())
@@ -217,6 +340,12 @@ internal class Pipeline {
         if (lutConvert) {
             p.mat3("uToSrgb", Mat3.toGl(working.conversionTo(ColorProfile.SRGB)))
             p.mat3("uFromSrgb", Mat3.toGl(ColorProfile.SRGB.conversionTo(working)))
+        }
+        p.int("uProof", if (proof != null) 1 else 0)
+        p.int("uGamutWarning", if (gamutWarning) 1 else 0)
+        if (proof != null) {
+            p.mat3("uProofM", Mat3.toGl(working.conversionTo(proof)))
+            p.mat3("uProofToScreen", Mat3.toGl(proof.conversionTo(ColorProfile.SRGB)))
         }
         val outConvert = working != output
         p.float("uOutConvert", if (outConvert) 1f else 0f)
@@ -228,6 +357,12 @@ internal class Pipeline {
         p.int("uMaskCount", mu.count)
         val shown = if (showMask in 0 until mu.count) showMask else -1
         p.int("uShowMask", shown)
+        if (shown >= 0) {
+            val mask = masks[shown]
+            p.int("uMaskOverlayMode", mask.overlayMode.shaderId)
+            sampledColor("uMaskOverlayColor", mask.overlayColor)
+            p.float("uMaskOverlayOpacity", mask.overlayOpacity.coerceIn(0f, 1f))
+        }
         GLES30.glActiveTexture(GLES30.GL_TEXTURE4)
         GLES30.glBindTexture(GLES30.GL_TEXTURE_2D_ARRAY, brushTexture(masks, sourceWidth, sourceHeight, subjects))
         p.int("uBrush", 4)
@@ -240,6 +375,9 @@ internal class Pipeline {
             p.vec4Array("uMaskRange", mu.range)
             p.vec4Array("uLocA", mu.locA)
             p.vec4Array("uLocB", mu.locB)
+            p.vec4Array("uLocEffects", mu.locEffects)
+            p.vec4Array("uLocToneDetail", mu.locToneDetail)
+            p.vec4Array("uLocDetail", mu.locDetail)
         }
         val cutout = LocalAdjustment.cutoutIndex(masks).takeIf { it < mu.count } ?: -1
         p.int("uCutout", cutout)
@@ -300,7 +438,7 @@ internal class Pipeline {
      * Without such masks it is a 1x1 texture, so the sampler stays valid.
      */
     private fun brushTexture(masks: List<LocalAdjustment>, sourceWidth: Int, sourceHeight: Int, subjects: Subjects?): Int {
-        val hasBrush = masks.take(LocalAdjustment.MAX).any { LocalAdjustment.usesRaster(it.mask.type) }
+        val hasBrush = masks.take(LocalAdjustment.MAX).any { LocalAdjustment.usesRaster(it.mask.type) || it.mask.type == MaskType.DEPTH }
         val size = if (hasBrush) {
             BrushRaster.size(sourceWidth, sourceHeight)
         } else {
@@ -327,12 +465,19 @@ internal class Pipeline {
         GLES30.glBindTexture(GLES30.GL_TEXTURE_2D_ARRAY, brushTexture)
         GLES30.glPixelStorei(GLES30.GL_UNPACK_ALIGNMENT, 1)
         masks.take(LocalAdjustment.MAX).forEachIndexed { i, local ->
-            if (!LocalAdjustment.usesRaster(local.mask.type)) return@forEachIndexed
+            val isDepth = local.mask.type == MaskType.DEPTH
+            if (!isDepth && !LocalAdjustment.usesRaster(local.mask.type)) return@forEachIndexed
             // A new raster is uploaded even when empty: the layer may hold another photo's paint.
             val created = brushRasters[i] == null
             val raster = brushRasters[i] ?: BrushRaster(sourceWidth, sourceHeight).also { brushRasters[i] = it }
-            val base = if (local.mask.type == MaskType.SUBJECT) subjects?.of(local.mask)?.resizedTo(raster.width, raster.height)?.data else null
-            if (raster.sync(local.mask.strokes, base) || created) {
+            val original = when (local.mask.type) {
+                MaskType.SUBJECT -> subjects?.of(local.mask)
+                MaskType.DEPTH -> local.mask.depth?.map?.raster
+                else -> null
+            }
+            val base = original?.resizedTo(raster.width, raster.height)?.data
+            val strokes = if (isDepth) emptyList() else local.mask.strokes
+            if (raster.sync(strokes, base) || created) {
                 val buffer = brushUpload?.takeIf { it.capacity() == raster.data.size }
                     ?: ByteBuffer.allocateDirect(raster.data.size).also { brushUpload = it }
                 buffer.clear()

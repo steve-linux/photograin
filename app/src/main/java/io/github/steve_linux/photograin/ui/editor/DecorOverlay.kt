@@ -105,9 +105,11 @@ fun DecorOverlay(
     selected: Int?,
     shapes: List<ShapeItem>,
     selectedShape: Int?,
+    images: List<io.github.steve_linux.photograin.model.ImageLayer> = emptyList(),
+    imageBitmaps: Map<String, android.graphics.Bitmap> = emptyMap(),
 ) {
     Canvas(Modifier.fillMaxSize()) {
-        if (frame.style != FrameStyle.NONE) {
+        if (frame.style == FrameStyle.BORDER || frame.style == FrameStyle.POLAROID) {
             val c = Color(frame.color)
             val f = frameRect
             val r = imageRect
@@ -121,7 +123,7 @@ fun DecorOverlay(
             }
             drawPath(border, c)
         }
-        if (texts.isNotEmpty() || shapes.isNotEmpty()) {
+        if (texts.isNotEmpty() || shapes.isNotEmpty() || images.isNotEmpty()) {
             drawIntoCanvas { canvas ->
                 val native = canvas.nativeCanvas
                 val s = frameRect.width() / total.width
@@ -130,6 +132,7 @@ fun DecorOverlay(
                 native.scale(s, s)
                 // A tiled watermark covers the whole output: keep it inside the framed photo.
                 native.clipRect(0f, 0f, total.width.toFloat(), total.height.toFloat())
+                DecorPainter.drawImages(native, total, images, imageBitmaps, blendWithPhoto = false)
                 DecorPainter.drawShapes(native, total, shapes)
                 DecorPainter.drawTexts(native, total, texts)
                 native.restore()

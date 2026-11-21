@@ -13,7 +13,13 @@ import kotlin.math.min
 import kotlin.math.sin
 
 @Serializable
-enum class MaskType { LINEAR, RADIAL, BRUSH, FULL, SUBJECT }
+enum class MaskType { LINEAR, RADIAL, BRUSH, FULL, SUBJECT, DEPTH }
+
+@Serializable
+enum class MaskCombination { ADD, SUBTRACT, INTERSECT }
+
+@Serializable
+data class MaskComponent(val index: Int, val operation: MaskCombination = MaskCombination.ADD)
 
 @Serializable
 enum class RangeType { NONE, LUMINANCE, COLOR }
@@ -102,7 +108,8 @@ private fun smoothstep(e0: Float, e1: Float, x: Float): Float {
  * coordinates, [radius] is in source long-edge units. [hardness] is the part of the radius
  * painted at full strength; [erase] removes paint instead of adding it. With [fill], drawn
  * with the lasso, the points outline a closed area that is filled whole, with a smooth edge;
- * [radius] and [hardness] do not apply.
+ * [radius], [hardness], [flow] and [density] do not apply. For brush strokes, [flow]
+ * controls the change per pass and [density] caps how much the brush can paint or erase.
  */
 @Serializable
 data class BrushStroke(
@@ -111,6 +118,8 @@ data class BrushStroke(
     val hardness: Float = 0.5f,
     val erase: Boolean = false,
     val fill: Boolean = false,
+    val flow: Float = 1f,
+    val density: Float = 1f,
 ) {
     val pointCount get() = points.size / 2
 }
@@ -145,6 +154,7 @@ data class Mask(
     val range: MaskRange = MaskRange(),
     /** Subject only: taps on the object to select, as x, y, include (1, or 0 to leave out) triples. */
     val points: List<Float> = emptyList(),
+    val depth: DepthFocus? = null,
 ) {
     /**
      * Strength 0..1 at source-normalized ([x], [y]) for a source of width / long edge [aspectX]
@@ -172,11 +182,18 @@ data class Mask(
                 val v = (-sn * dx + cs * dy) / max(radiusY, 1e-5f)
                 1f - smoothstep(1f - max(feather, 0.001f), 1f, hypot(u, v))
             }
-            MaskType.BRUSH, MaskType.SUBJECT -> 0f
+            MaskType.BRUSH, MaskType.SUBJECT, MaskType.DEPTH -> 0f
             MaskType.FULL -> 1f
         }
         return if (invert) 1f - w else w
     }
+}
+
+/** Preview only. IDs are shared with the OpenGL color shader. */
+@Serializable
+enum class MaskOverlayMode(val shaderId: Int, val usesColorOverlay: Boolean = false) {
+    COLOR(0, true), COLOR_ON_MONO(1, true), IMAGE_ON_MONO(2),
+    IMAGE_ON_BLACK(3), IMAGE_ON_WHITE(4), MASK_ONLY(5),
 }
 
 /** What becomes of the photo outside a mask: by default nothing. */
@@ -203,13 +220,57 @@ data class LocalAdjustment(
     val clarity: Float = 0f,
     val background: Background = Background.KEEP,
     val backgroundColor: Int = WHITE,
+    val blur: Float = 0f,
+    val pixelate: Float = 0f,
+    val autoSky: Boolean = false,
+    val combineWith: Int? = null,
+    val combination: MaskCombination = MaskCombination.ADD,
+    val name: String? = null,
+    val overlayColor: Int? = null,
+    val overlayOpacity: Float = 0.6f,
+    val overlayMode: MaskOverlayMode = MaskOverlayMode.COLOR,
+    val enabled: Boolean = true,
+    val invertSelection: Boolean = false,
+    val whites: Float = 0f,
+    val blacks: Float = 0f,
+    val textureAmount: Float = 0f,
+    val dehaze: Float = 0f,
+    val hueShift: Float = 0f,
+    /** Scales the corrections while leaving the selection and cutout intact. */
+    val amount: Float = 1f,
+    val sharpness: Float = 0f,
+    val noiseReduction: Float = 0f,
+    val defringe: Float = 0f,
+    val components: List<MaskComponent> = emptyList(),
 ) {
+    /** Existing saved masks use the earlier single reference. */
+    fun componentList(): List<MaskComponent> =
+        components.ifEmpty { combineWith?.let { listOf(MaskComponent(it, combination)) }.orEmpty() }
+
+    fun withComponents(value: List<MaskComponent>): LocalAdjustment =
+        copy(components = value, combineWith = null)
+
+    fun afterMaskRemoved(index: Int): LocalAdjustment = withComponents(componentList().mapNotNull {
+        when {
+            it.index < index -> it
+            it.index > index -> it.copy(index = it.index - 1)
+            else -> null
+        }
+    })
+
+    /** Copies the adjustments and selection without replacing the original's cutout. */
+    fun duplicate(name: String, invert: Boolean): LocalAdjustment = copy(
+        name = name.trim().take(64).takeIf { it.isNotEmpty() },
+        background = Background.KEEP,
+        invertSelection = invertSelection xor invert,
+    )
+
     companion object {
         const val WHITE = 0xFFFFFFFF.toInt()
 
         /** Index of the mask that cuts the photo out (see [background]), or -1. */
         fun cutoutIndex(masks: List<LocalAdjustment>): Int =
-            masks.take(MAX).indexOfFirst { it.background != Background.KEEP }
+            masks.take(MAX).indexOfFirst { it.enabled && it.background != Background.KEEP }
 
         /** Whether the mask of [type] is drawn into a raster rather than computed from its shape. */
         fun usesRaster(type: MaskType) = type == MaskType.BRUSH || type == MaskType.SUBJECT
@@ -276,14 +337,27 @@ class LocalParamSpec(
 )
 
 object LocalParams {
+    val amount = LocalParamSpec("localAmount", 0f, 2f, { it.amount }, { a, v -> a.copy(amount = v) })
+    val hueShift = LocalParamSpec("localHueShift", -180f, 180f, { it.hueShift }, { a, v -> a.copy(hueShift = v) }, displayScale = 1f)
+
     val all: List<LocalParamSpec> = listOf(
         LocalParamSpec("exposure", -4f, 4f, { it.exposure }, { a, v -> a.copy(exposure = v) }, displayScale = 1f, decimals = 2),
         LocalParamSpec("contrast", -1f, 1f, { it.contrast }, { a, v -> a.copy(contrast = v) }),
         LocalParamSpec("highlights", -1f, 1f, { it.highlights }, { a, v -> a.copy(highlights = v) }),
         LocalParamSpec("shadows", -1f, 1f, { it.shadows }, { a, v -> a.copy(shadows = v) }),
+        LocalParamSpec("whites", -1f, 1f, { it.whites }, { a, v -> a.copy(whites = v) }),
+        LocalParamSpec("blacks", -1f, 1f, { it.blacks }, { a, v -> a.copy(blacks = v) }),
         LocalParamSpec("temperature", -1f, 1f, { it.temperature }, { a, v -> a.copy(temperature = v) }),
         LocalParamSpec("tint", -1f, 1f, { it.tint }, { a, v -> a.copy(tint = v) }),
         LocalParamSpec("saturation", -1f, 1f, { it.saturation }, { a, v -> a.copy(saturation = v) }),
+        hueShift,
         LocalParamSpec("clarity", -1f, 1f, { it.clarity }, { a, v -> a.copy(clarity = v) }),
+        LocalParamSpec("textureAmount", -1f, 1f, { it.textureAmount }, { a, v -> a.copy(textureAmount = v) }),
+        LocalParamSpec("dehaze", -1f, 1f, { it.dehaze }, { a, v -> a.copy(dehaze = v) }),
+        LocalParamSpec("localSharpness", -1f, 1f, { it.sharpness }, { a, v -> a.copy(sharpness = v) }),
+        LocalParamSpec("noiseReduction", 0f, 1f, { it.noiseReduction }, { a, v -> a.copy(noiseReduction = v) }),
+        LocalParamSpec("defringe", 0f, 1f, { it.defringe }, { a, v -> a.copy(defringe = v) }),
+        LocalParamSpec("localBlur", 0f, 1f, { it.blur }, { a, v -> a.copy(blur = v) }),
+        LocalParamSpec("localPixelate", 0f, 1f, { it.pixelate }, { a, v -> a.copy(pixelate = v) }),
     )
 }

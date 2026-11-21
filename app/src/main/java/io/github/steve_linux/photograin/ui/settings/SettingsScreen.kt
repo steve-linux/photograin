@@ -77,6 +77,7 @@ private val LIBRARIES = listOf(
     "Highway" to "Apache-2.0 / BSD-3-Clause",
     "Brotli" to "MIT",
     "skcms" to "BSD-3-Clause",
+    "Little CMS" to "MIT",
     "libavif" to "BSD-2-Clause",
     "libaom" to "BSD-2-Clause + AOM Patent License 1.0",
     "ncnn" to "BSD-3-Clause",
@@ -127,6 +128,9 @@ fun SettingsScreen(onClose: () -> Unit, onShowTips: () -> Unit) {
         Column(
             Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(bottom = 24.dp),
         ) {
+            Section(R.string.collection_backup)
+            CollectionBackupControls()
+            HorizontalDivider()
             Section(R.string.settings_save)
             val picturesAvailable = Build.VERSION.SDK_INT >= 29
             Choice(

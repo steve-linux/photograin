@@ -2,6 +2,7 @@
 package io.github.steve_linux.photograin.ui.editor
 
 import android.graphics.RectF
+import io.github.steve_linux.photograin.math.LensWarp
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -39,14 +40,17 @@ class MaskSpace(
     private val posToSource: Homography,
     sourceWidth: Int,
     sourceHeight: Int,
+    lensAmount: Float = 0f,
 ) {
+    private val lens = LensWarp(rect.width().toInt().coerceAtLeast(1), rect.height().toInt().coerceAtLeast(1), lensAmount)
     private val sourceToPos = posToSource.inverse()
     private val ax = sourceWidth / max(sourceWidth, sourceHeight).toDouble()
     private val ay = sourceHeight / max(sourceWidth, sourceHeight).toDouble()
 
     /** Source-normalized point -> screen. */
     fun toScreen(x: Double, y: Double): Offset {
-        val p = sourceToPos.apply(x, y)
+        val mapped = sourceToPos.apply(x, y)
+        val p = lens.inverse(mapped.x, mapped.y)
         return Offset((rect.left + p.x * rect.width()).toFloat(), (rect.top + p.y * rect.height()).toFloat())
     }
 
@@ -55,7 +59,8 @@ class MaskSpace(
 
     /** Screen -> source-normalized point. */
     fun toSource(p: Offset): Pair<Double, Double> {
-        val s = posToSource.apply((p.x - rect.left) / rect.width().toDouble(), (p.y - rect.top) / rect.height().toDouble())
+        val normalized = lens.apply((p.x - rect.left) / rect.width().toDouble(), (p.y - rect.top) / rect.height().toDouble())
+        val s = posToSource.apply(normalized)
         return s.x to s.y
     }
 
@@ -67,7 +72,7 @@ class MaskSpace(
     }
 
     fun handles(m: Mask): Map<MaskHandle, Offset> = when (m.type) {
-        MaskType.BRUSH, MaskType.FULL, MaskType.SUBJECT -> emptyMap()
+        MaskType.BRUSH, MaskType.FULL, MaskType.SUBJECT, MaskType.DEPTH -> emptyMap()
         MaskType.LINEAR -> mapOf(
             MaskHandle.START to toScreen(m.x0.toDouble(), m.y0.toDouble()),
             MaskHandle.END to toScreen(m.x1.toDouble(), m.y1.toDouble()),
@@ -92,7 +97,7 @@ class MaskSpace(
             val mid = it.pointCount / 2
             toScreen(it.points[2 * mid].toDouble(), it.points[2 * mid + 1].toDouble())
         }
-        MaskType.FULL, MaskType.SUBJECT -> null
+        MaskType.FULL, MaskType.SUBJECT, MaskType.DEPTH -> null
         else -> handles(m).getValue(MaskHandle.MOVE)
     }
 
@@ -239,7 +244,7 @@ private fun DrawScope.drawSelected(m: Mask, space: MaskSpace, dragging: Boolean)
                 val mid = handles.getValue(MaskHandle.MOVE)
                 drawLine(line, mid - perp, mid + perp, strokeWidth = width, pathEffect = dashed)
             }
-            MaskType.BRUSH, MaskType.FULL -> Unit
+            MaskType.BRUSH, MaskType.FULL, MaskType.DEPTH -> Unit
             MaskType.SUBJECT -> for (k in 0 until m.points.size / 3) {
                 // The taps that select the object: a plus where it is, a minus where it is not.
                 val p = space.toScreen(m.points[3 * k].toDouble(), m.points[3 * k + 1].toDouble())

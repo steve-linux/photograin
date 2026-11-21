@@ -13,7 +13,12 @@ on:
       - .github/workflows/fdroid.yml
       - .gitmodules
       - gradle/**
-      - app/build.gradle.kts
+      - app/**
+      - build.gradle.kts
+      - settings.gradle.kts
+      - gradle.properties
+      - gradlew
+      - gradlew.bat
 
 jobs:
   fdroid:

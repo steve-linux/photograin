@@ -33,10 +33,10 @@ object SubjectSegmenter {
     private val ISNET_DEVIATION = floatArrayOf(1f, 1f, 1f)
 
     /**
-     * Free memory IS-Net needs to run: about 0.5 GB at its peak on ARM, with room to spare.
+     * Free memory IS-Net needs to run: about 1 GB at its peak, with room to spare.
      * With less the system would kill the app, so the bundled model finds the subject instead.
      */
-    private const val ISNET_MEMORY = 1L shl 30
+    private const val ISNET_MEMORY = 3L shl 29
 
     private val loaded by lazy { runCatching { System.loadLibrary("photograin_ai") }.isSuccess }
     private var handle = 0L
@@ -46,6 +46,8 @@ object SubjectSegmenter {
     private var size = SubjectMask.MODEL_SIZE
 
     val available: Boolean get() = loaded
+
+    data class Result(val mask: SubjectMask, val usedFallback: Boolean)
 
     /** Loads the best model installed; later calls reuse it until the packs change. */
     @Synchronized
@@ -72,20 +74,31 @@ object SubjectSegmenter {
      * The subject of [image], the whole source as stored, shown with orientation [base].
      * Blocking: call from a background thread.
      */
+    fun segment(context: Context, image: Bitmap, base: BaseOrientation): SubjectMask =
+        segmentResult(context, image, base).mask
+
+    /** Returns the model choice together with its mask, even if another caller runs next. */
     @Synchronized
-    fun segment(context: Context, image: Bitmap, base: BaseOrientation): SubjectMask {
+    fun segmentResult(context: Context, image: Bitmap, base: BaseOrientation): Result {
         val h = handle(context)
+        val fallback = handlePack == null && ModelPacks.isInstalled(context, ModelPack.ISNET)
         val grid = BrushRaster.size(image.width, image.height)
-        val scaled = Bitmap.createScaledBitmap(image, grid.width, grid.height, true)
-        val pixels = IntArray(grid.width * grid.height)
-        scaled.getPixels(pixels, 0, grid.width, 0, 0, grid.width, grid.height)
-        if (scaled !== image) scaled.recycle()
         val n = size
+        // Resize directly to the network input. Going through the rectangular brush grid
+        // discards short-edge detail, then enlarges it again (with nearest-neighbour sampling).
+        // Keep the bundled model's area-averaged preprocessing unchanged.
+        val detailed = handlePack == ModelPack.ISNET
+        val w = if (detailed) n else grid.width
+        val height = if (detailed) n else grid.height
+        val scaled = Bitmap.createScaledBitmap(image, w, height, true)
+        val pixels = IntArray(w * height)
+        scaled.getPixels(pixels, 0, w, 0, 0, w, height)
+        if (scaled !== image) scaled.recycle()
         val input = Bitmap.createBitmap(n, n, Bitmap.Config.ARGB_8888)
         try {
-            input.setPixels(SubjectMask.modelInput(pixels, grid.width, grid.height, base, n), 0, n, 0, 0, n, n)
+            input.setPixels(SubjectMask.modelInput(pixels, w, height, base, n), 0, n, 0, 0, n, n)
             val raw = nativeRun(h, input) ?: throw IOException("Subject detection failed")
-            return SubjectMask.fromModel(raw, base, grid.width, grid.height, n)
+            return Result(SubjectMask.fromModel(raw, base, grid.width, grid.height, n, boostSubject = !detailed), fallback)
         } finally {
             input.recycle()
         }
