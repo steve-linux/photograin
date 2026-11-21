@@ -253,6 +253,13 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit, onGuide: (topi
     }
     var showProjectTransfer by rememberSaveable { mutableStateOf(false) }
     var projectOriginal by rememberSaveable { mutableStateOf(false) }
+    var showRecipeTransfer by rememberSaveable { mutableStateOf(false) }
+    val recipeImport = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) viewModel.transferProject(uri, restore = true, singleRecipe = true)
+    }
+    val recipeExport = rememberLauncherForActivityResult(CreateImageDocument()) { uri ->
+        if (uri != null) viewModel.transferProject(uri, restore = false, singleRecipe = true)
+    }
     val projectImport = rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.OpenDocument(),
     ) { uri -> if (uri != null) viewModel.transferProject(uri, restore = true) }
@@ -433,6 +440,11 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit, onGuide: (topi
                                 text = { Text(stringResource(R.string.project_transfer)) },
                                 enabled = state.image != null,
                                 onClick = { menuOpen = false; showProjectTransfer = true },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.recipe_transfer)) },
+                                enabled = state.image != null,
+                                onClick = { menuOpen = false; showRecipeTransfer = true },
                             )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.preset_transfer)) },
@@ -923,6 +935,29 @@ fun EditorScreen(viewModel: EditorViewModel, onClose: () -> Unit, onGuide: (topi
         )
     }
     if (showOcr) state.image?.let { OcrDialog(it, onDismiss = { showOcr = false }) }
+    if (showRecipeTransfer) {
+        val baseName = state.image?.displayName?.substringBeforeLast('.')?.take(120)
+            ?.takeIf { it.isNotBlank() } ?: "photograin"
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showRecipeTransfer = false },
+            title = { Text(stringResource(R.string.recipe_transfer)) },
+            text = {
+                Column {
+                    Text(stringResource(R.string.recipe_transfer_hint))
+                    androidx.compose.material3.TextButton(onClick = {
+                        showRecipeTransfer = false
+                        recipeImport.launch(arrayOf("*/*"))
+                    }) { Text(stringResource(R.string.recipe_import)) }
+                }
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    showRecipeTransfer = false
+                    recipeExport.launch("application/zip" to "$baseName.photograin.zip")
+                }) { Text(stringResource(R.string.recipe_export)) }
+            },
+        )
+    }
     if (showProjectTransfer) {
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { showProjectTransfer = false },
@@ -1312,6 +1347,9 @@ private fun messageText(m: Message): Int = when (m) {
     Message.RAW_PREVIEW_FAILED -> R.string.raw_preview_failed
     Message.PROJECT_TRANSFER_DONE -> R.string.project_transfer_done
     Message.PROJECT_TRANSFER_FAILED -> R.string.project_transfer_failed
+    Message.RECIPE_TRANSFER_DONE -> R.string.recipe_transfer_done
+    Message.RECIPE_TRANSFER_FAILED -> R.string.recipe_transfer_failed
+    Message.RECIPE_WRONG_ORIGINAL -> R.string.recipe_wrong_original
     Message.IMAGE_LAYER_FAILED -> R.string.image_layer_failed
     Message.REMOVE_FAILED -> R.string.msg_remove_failed
 }

@@ -954,4 +954,12 @@
     <string name="editor_reference_error">Reference preview unavailable</string>
     <string name="guide_review_reference_title">Burst ranking and reference photo</string>
     <string name="guide_review_reference_body">In Review bursts, zoom and move the crosshair over the subject, then tap Rank by sharpness at the crosshair. Compare the first-ranked shot with the other candidates before picking. In the editor menu, Choose reference photo opens another image alongside the live edit.</string>
+    <string name="recipe_transfer">Portable photo recipe</string>
+    <string name="recipe_transfer_hint">Keep the recipe file with the original photo. Importing it adds a version to the same original.</string>
+    <string name="recipe_export">Export current recipe</string>
+    <string name="recipe_import">Import recipe</string>
+    <string name="recipe_transfer_done">Photo recipe transferred</string>
+    <string name="recipe_transfer_failed">Could not transfer this photo recipe</string>
+    <string name="recipe_wrong_original">Open the original file used to create this recipe</string>
+    <string name="guide_recipe_body">In the editor menu, open Portable photo recipe to export the current edit and its layers or LUT. Keep the file with the original photo. Open the same original on another device and import the recipe to add a version.</string>
 </resources>

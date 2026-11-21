@@ -13,21 +13,46 @@ import java.util.zip.ZipOutputStream
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
+internal class RecipeOriginalMismatch : IOException("The recipe belongs to a different original")
+
 internal class ProjectBackup(private val context: Context, private val library: LookLibrary) {
     private val recipes = RecipeStore(context)
 
     @Serializable
-    private data class Version(val name: String?, val recipe: String)
+    internal data class Version(val name: String?, val recipe: String)
 
     @Serializable
-    private data class Manifest(val format: Int = 1, val versions: List<Version>)
+    internal data class Manifest(
+        val format: Int = 1,
+        val versions: List<Version>,
+        val originalSha256: String? = null,
+    ) {
+        fun validate(digest: String?) {
+            if (digest == null) {
+                require(format == 1 && originalSha256 == null && versions.size in 1..128)
+            } else {
+                require(format == 2 && versions.size == 1 && originalSha256?.matches(sha256Pattern) == true)
+                if (originalSha256 != digest) throw RecipeOriginalMismatch()
+            }
+        }
+    }
 
     fun export(photo: Uri, destination: Uri, includeOriginal: Boolean) {
         val versions = recipes.versions(photo).map {
             Version(it.name, (recipes.load(photo, it.id) ?: EditState()).toJson())
         }
-        require(versions.size in 1..128)
-        val edits = versions.map { checkNotNull(EditState.fromJson(it.recipe)) }
+        exportArchive(photo, destination, includeOriginal, Manifest(versions = versions), digest = null)
+    }
+
+    suspend fun exportRecipe(photo: Uri, destination: Uri, edit: EditState, name: String?) {
+        val digest = photoDigest(context, photo) ?: throw IOException("Cannot read original")
+        val manifest = Manifest(2, listOf(Version(name, edit.toJson())), digest)
+        exportArchive(photo, destination, false, manifest, digest)
+    }
+
+    private fun exportArchive(photo: Uri, destination: Uri, includeOriginal: Boolean, manifest: Manifest, digest: String?) {
+        manifest.validate(digest)
+        val edits = manifest.versions.map { checkNotNull(EditState.fromJson(it.recipe)) }
         val assets = assetNames(edits)
         for (name in assets) check(File(context.filesDir, name).isFile) { "Missing project asset" }
         val originalName = if (includeOriginal) {
@@ -44,7 +69,7 @@ internal class ProjectBackup(private val context: Context, private val library: 
                     zip.closeEntry()
                 }
             }
-            add("project.json", Json.encodeToString(Manifest.serializer(), Manifest(versions = versions)).byteInputStream())
+            add("project.json", Json.encodeToString(Manifest.serializer(), manifest).byteInputStream())
             for (name in assets) add(name, File(context.filesDir, name).inputStream())
             if (originalName != null) {
                 val source = context.contentResolver.openInputStream(photo) ?: throw IOException("Cannot read original")
@@ -54,7 +79,14 @@ internal class ProjectBackup(private val context: Context, private val library: 
     }
 
     /** Adds the imported edits as versions of the selected original, preserving existing edits. */
-    fun restore(photo: Uri, archive: Uri): Int {
+    fun restore(photo: Uri, archive: Uri): Int = restoreArchive(photo, archive, null)
+
+    suspend fun restoreRecipe(photo: Uri, archive: Uri): Int {
+        val digest = photoDigest(context, photo) ?: throw IOException("Cannot read original")
+        return restoreArchive(photo, archive, digest)
+    }
+
+    private fun restoreArchive(photo: Uri, archive: Uri, digest: String?): Int {
         val staging = java.nio.file.Files.createTempDirectory(context.cacheDir.toPath(), "project").toFile()
         try {
             val source = context.contentResolver.openInputStream(archive) ?: throw IOException("Cannot read project")
@@ -65,7 +97,7 @@ internal class ProjectBackup(private val context: Context, private val library: 
                     val entry = zip.nextEntry ?: break
                     val name = entry.name
                     require(files.size < 1024 && files.add(name))
-                    require(name == "project.json" || assetPattern.matches(name) || originalPattern.matches(name))
+                    require(name == "project.json" || assetPattern.matches(name) || (digest == null && originalPattern.matches(name)))
                     val file = File(staging, name)
                     if (originalPattern.matches(name)) {
                         total += consume(zip, null, 512L * 1024 * 1024 - total)
@@ -80,7 +112,7 @@ internal class ProjectBackup(private val context: Context, private val library: 
                 }
             }
             val manifest = Json.decodeFromString(Manifest.serializer(), File(staging, "project.json").readText())
-            require(manifest.format == 1 && manifest.versions.size in 1..128)
+            manifest.validate(digest)
             val edits = manifest.versions.map { requireNotNull(EditState.fromJson(it.recipe)) }
             val assets = assetNames(edits)
             restoreAssets(staging, assets, edits)
@@ -164,6 +196,7 @@ internal class ProjectBackup(private val context: Context, private val library: 
     }
 
     internal companion object {
+        private val sha256Pattern = Regex("[0-9a-f]{64}")
         val assetPattern = Regex("(image-layers/[0-9a-f-]{36}\\.png|luts/[0-9a-f]{64}\\.cube)")
         val originalPattern = Regex("original\\.[a-zA-Z0-9]{1,8}")
     }

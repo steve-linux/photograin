@@ -17,6 +17,8 @@ import io.github.steve_linux.photograin.data.DepthMapImport
 import io.github.steve_linux.photograin.data.LoadedImage
 import io.github.steve_linux.photograin.data.LensProfiles
 import io.github.steve_linux.photograin.data.LookLibrary
+import io.github.steve_linux.photograin.data.ProjectBackup
+import io.github.steve_linux.photograin.data.RecipeOriginalMismatch
 import io.github.steve_linux.photograin.data.LutEntry
 import io.github.steve_linux.photograin.data.ObjectRemover
 import io.github.steve_linux.photograin.data.Preferences
@@ -96,7 +98,7 @@ import java.io.IOException
 enum class Message {
     EXPORTED, EXPORTED_TO_PICTURES, EXPORTED_TO_DOWNLOADS, EXPORT_FAILED, EXPORT_SIZE_LIMIT, LOAD_FAILED, ADJUSTMENTS_COPIED, ADJUSTMENTS_PASTED, OUT_OF_MEMORY,
     LUT_IMPORTED, LUT_INVALID, LUT_MISSING, PRESET_SAVED, HORIZON_NOT_FOUND, WHITE_BALANCE_NOT_FOUND, SUBJECT_FAILED,
-    REMOVE_FAILED, SUBJECT_FALLBACK, IMAGE_LAYER_FAILED, LENS_CATALOG_IMPORTED, LENS_CATALOG_FAILED, PRESET_TRANSFER_DONE, PRESET_TRANSFER_FAILED, PROJECT_TRANSFER_DONE, PROJECT_TRANSFER_FAILED, RAW_PREVIEW_FAILED, GPX_FAILED, GPX_MATCHED, VERTICAL_GUIDES_NOT_FOUND,
+    REMOVE_FAILED, SUBJECT_FALLBACK, IMAGE_LAYER_FAILED, LENS_CATALOG_IMPORTED, LENS_CATALOG_FAILED, PRESET_TRANSFER_DONE, PRESET_TRANSFER_FAILED, PROJECT_TRANSFER_DONE, PROJECT_TRANSFER_FAILED, RECIPE_TRANSFER_DONE, RECIPE_TRANSFER_FAILED, RECIPE_WRONG_ORIGINAL, RAW_PREVIEW_FAILED, GPX_FAILED, GPX_MATCHED, VERTICAL_GUIDES_NOT_FOUND,
     HSL_COLOR_NOT_FOUND, DEPTH_MAP_FAILED, FILMSTRIP_LOAD_FAILED, PREVIOUS_ADJUSTMENTS_APPLIED,
 }
 
@@ -780,33 +782,46 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         if (_state.value.activePreset != null) commit()
     }
 
-    /** Saves the current adjustments as a preset named [name]. */
-    fun transferProject(destination: Uri, restore: Boolean, includeOriginal: Boolean = false) {
+    fun transferProject(destination: Uri, restore: Boolean, includeOriginal: Boolean = false, singleRecipe: Boolean = false) {
         val start = _state.value
         val photo = start.image?.uri ?: return
         viewModelScope.launch {
             try {
                 val restored = withContext(saveDispatcher) {
-                    val projects = io.github.steve_linux.photograin.data.ProjectBackup(getApplication(), library)
-                    if (restore) projects.restore(photo, destination)
-                    else {
-                        projects.export(photo, destination, includeOriginal)
-                        null
+                    val projects = ProjectBackup(getApplication(), library)
+                    when {
+                        singleRecipe && restore -> projects.restoreRecipe(photo, destination)
+                        singleRecipe -> {
+                            val name = start.versions.firstOrNull { it.id == start.version }?.name
+                            projects.exportRecipe(photo, destination, start.edit, name)
+                            null
+                        }
+                        restore -> projects.restore(photo, destination)
+                        else -> {
+                            projects.export(photo, destination, includeOriginal)
+                            null
+                        }
                     }
                 }
                 if (restored != null && _state.value.image === start.image) {
                     val (versions, luts) = withContext(saveDispatcher) { recipes.versions(photo) to library.luts() }
                     if (_state.value.image === start.image) {
                         _state.update { it.copy(versions = versions, luts = luts) }
-                        switchVersion(restored)
+                        if (!singleRecipe || _state.value.version == start.version) switchVersion(restored)
                     }
                 }
-                _state.update { it.copy(message = Message.PROJECT_TRANSFER_DONE) }
+                _state.update {
+                    it.copy(message = if (singleRecipe) Message.RECIPE_TRANSFER_DONE else Message.PROJECT_TRANSFER_DONE)
+                }
+            } catch (_: RecipeOriginalMismatch) {
+                _state.update { it.copy(message = Message.RECIPE_WRONG_ORIGINAL) }
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) {
                 Log.w(TAG, "Project transfer failed", e)
-                _state.update { it.copy(message = Message.PROJECT_TRANSFER_FAILED) }
+                _state.update {
+                    it.copy(message = if (singleRecipe) Message.RECIPE_TRANSFER_FAILED else Message.PROJECT_TRANSFER_FAILED)
+                }
             } catch (_: OutOfMemoryError) {
                 _state.update { it.copy(message = Message.OUT_OF_MEMORY) }
             }

@@ -941,4 +941,12 @@
     <string name="editor_reference_error">Anteprima di riferimento non disponibile</string>
     <string name="guide_review_reference_title">Classifica raffiche e foto di riferimento</string>
     <string name="guide_review_reference_body">In Confronta raffiche, ingrandisci e porta il mirino sul soggetto, poi tocca Ordina per nitidezza al mirino. Confronta il primo scatto con gli altri prima di scegliere. Nel menu dell’editor, Scegli foto di riferimento affianca un’altra immagine mentre regoli la foto.</string>
+    <string name="recipe_transfer">Ricetta portatile della foto</string>
+    <string name="recipe_transfer_hint">Conserva il file della ricetta insieme alla foto originale. Importandolo aggiungi una versione allo stesso originale.</string>
+    <string name="recipe_export">Esporta ricetta corrente</string>
+    <string name="recipe_import">Importa ricetta</string>
+    <string name="recipe_transfer_done">Ricetta della foto trasferita</string>
+    <string name="recipe_transfer_failed">Impossibile trasferire la ricetta di questa foto</string>
+    <string name="recipe_wrong_original">Apri il file originale usato per creare questa ricetta</string>
+    <string name="guide_recipe_body">Nel menu dell’editor, apri Ricetta portatile della foto per esportare la versione corrente con i suoi livelli e la LUT. Conserva il file con l’originale. Su un altro dispositivo apri lo stesso originale e importa la ricetta per aggiungere una versione.</string>
 </resources>

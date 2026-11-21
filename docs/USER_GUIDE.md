@@ -312,3 +312,9 @@ Da **Galleria → Confronta raffiche**, apri un gruppo. Ingrandisci e sposta le 
 ## Affiancare una foto di riferimento
 
 Nell’editor apri **⋮ → Scegli foto di riferimento** e seleziona una foto. Il riferimento compare accanto alla foto che stai modificando e resta visibile quando passi a un altro scatto dalla pellicola. Se la foto di riferimento ha una ricetta principale salvata, l’app ne mostra l’anteprima modificata. Usa lo stesso comando per cambiare riferimento oppure la **X** per chiuderlo. Puoi continuare a usare i cursori e gli strumenti dell’editor mentre confronti le due immagini.
+
+## Trasferire la ricetta di una singola foto
+
+Dall’editor apri **⋮ → Ricetta portatile della foto → Esporta ricetta corrente**. Tieni il file `.photograin.zip` accanto all’originale. Il file contiene le modifiche della versione aperta, i livelli immagine e la LUT usata. Copia entrambi i file sul PC o sull’altro telefono.
+
+Per riprendere il lavoro, apri lo stesso originale in Photograin e scegli **⋮ → Ricetta portatile della foto → Importa ricetta**. L’app verifica che il contenuto dell’originale corrisponda e aggiunge una nuova versione. Puoi rinominare o spostare l’originale. Se lo ricomprimi o lo modifichi con un’altra app, il suo contenuto cambia e la ricetta chiede l’originale usato all’esportazione.

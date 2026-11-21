@@ -75,6 +75,7 @@ private val TOPICS = listOf(
     Topic(Icons.Outlined.Save, R.string.guide_export_title, R.string.guide_export_body, Icons.Outlined.Save),
     Topic(Icons.Outlined.AddPhotoAlternate, R.string.guide_collection_tools_title, R.string.guide_collection_tools_body),
     Topic(Icons.Outlined.Compare, R.string.guide_review_reference_title, R.string.guide_review_reference_body),
+    Topic(Icons.Outlined.Save, R.string.recipe_transfer, R.string.guide_recipe_body),
     Topic(Icons.Outlined.Save, R.string.export_watermark, R.string.guide_export_watermark_body),
     Topic(Icons.Outlined.Compare, R.string.guide_merging_title, R.string.guide_merging_body),
     Topic(Icons.Outlined.Palette, R.string.guide_color_tools_title, R.string.guide_color_tools_body),
