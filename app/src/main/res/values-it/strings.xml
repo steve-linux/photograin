@@ -495,4 +495,12 @@
     <string name="mask_order">Ordine delle selezioni</string>
     <string name="mask_move_before">Sposta prima</string>
     <string name="mask_move_after">Sposta dopo</string>
+    <string name="history_title">Cronologia modifiche</string>
+    <string name="history_hint">Passaggi di questa sessione. Il ripristino conserva i passaggi successivi finché non fai una nuova modifica. Usa Versioni per conservare alternative dopo la chiusura della foto.</string>
+    <string name="history_initial">Stato iniziale della sessione</string>
+    <string name="history_step">Passaggio %1$d</string>
+    <string name="history_current">Stato attuale</string>
+    <string name="history_redo">Disponibile per ripristino</string>
+    <string name="history_restore">Ripristina passaggio</string>
+    <string name="history_shapes">Forme</string>
 </resources>

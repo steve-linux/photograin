@@ -23,6 +23,7 @@ import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.ContentPaste
 import androidx.compose.material.icons.outlined.Fullscreen
 import androidx.compose.material.icons.outlined.FullscreenExit
+import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material.icons.outlined.MoreVert
@@ -94,6 +95,7 @@ private fun PhotoWorkspace(viewModel: EditorViewModel, onClose: () -> Unit, onGu
     var menuOpen by remember { mutableStateOf(false) }
     var showInfo by remember { mutableStateOf(false) }
     var showCopy by rememberSaveable { mutableStateOf(false) }
+    var showHistory by rememberSaveable { mutableStateOf(false) }
     var showVersions by rememberSaveable { mutableStateOf(false) }
     var showOptics by rememberSaveable { mutableStateOf(false) }
     var showActions by rememberSaveable { mutableStateOf(false) }
@@ -238,6 +240,12 @@ private fun PhotoWorkspace(viewModel: EditorViewModel, onClose: () -> Unit, onGu
                                     viewModel.setPicker(Picker.NONE)
                                     fullPhoto = true
                                 },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.history_title)) },
+                                leadingIcon = { Icon(Icons.Outlined.History, null) },
+                                enabled = state.image != null,
+                                onClick = { menuOpen = false; showHistory = true },
                             )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.versions_title)) },
@@ -554,6 +562,13 @@ private fun PhotoWorkspace(viewModel: EditorViewModel, onClose: () -> Unit, onGu
     }
     if (showInfo) {
         state.image?.let { PhotoInfoDialog(it, onDismiss = { showInfo = false }) }
+    }
+    if (showHistory) {
+        EditHistoryDialog(
+            states = state.historyStates, current = state.historyPosition,
+            onRestore = { viewModel.restoreHistory(it); showHistory = false },
+            onDismiss = { showHistory = false },
+        )
     }
     if (showVersions) {
         state.image?.let { image ->
