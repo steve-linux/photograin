@@ -548,4 +548,10 @@
     <string name="point_color_range">Range</string>
     <string name="point_color_swatch">Picked color</string>
     <string name="help_point_color_range">How many similar colors are changed with the one picked. Turn on Show range to see what is reached: the rest of the photo turns gray.</string>
+    <!-- Optics -->
+    <string name="optics_remove_ca">Remove chromatic aberration</string>
+    <string name="optics_distortion">Distortion</string>
+    <string name="optics_vignetting">Vignetting</string>
+    <string name="help_optics_distortion">Straightens lines bent by the lens. Move right when straight lines bulge outward (barrel, common with wide angles), left when they curve inward (pincushion).</string>
+    <string name="help_optics_vignetting">Evens out light the lens loses toward the corners. Move right to brighten dark corners, left to darken them.</string>
 </resources>

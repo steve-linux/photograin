@@ -448,7 +448,15 @@ private fun PhotoWorkspace(viewModel: EditorViewModel, onClose: () -> Unit, onGu
                         )
                     }
                     if (showOptics && state.quadDraft == null) {
-                        OpticsPanel(state.image?.lens, state.edit.correctLens, viewModel::setLensCorrection)
+                        OpticsPanel(
+                            profile = state.image?.lens,
+                            edit = state.edit,
+                            onLensCorrection = viewModel::setLensCorrection,
+                            onRemoveChromaticAberration = viewModel::setRemoveChromaticAberration,
+                            onDistortion = viewModel::setLensDistortion,
+                            onVignetting = viewModel::setLensVignetting,
+                            onChangeFinished = viewModel::commit,
+                        )
                     } else {
                         CropPanel(
                             geometry = state.edit.geometry,

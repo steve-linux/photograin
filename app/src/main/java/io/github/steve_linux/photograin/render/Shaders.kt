@@ -168,6 +168,7 @@ uniform float uVignette;
 uniform vec4 uVignetteShape;
 uniform float uGrain;
 uniform float uGrainCell;
+uniform bool uDefringe;
 uniform float uLumaNr;
 uniform float uChromaNr;
 // 256x1 lookup: channel c at input i = curve_c(master(i)).
@@ -560,8 +561,34 @@ vec3 applyVignette(vec3 color, vec2 pos) {
     return mix(color, vec3(1.0), uVignette * weight * 0.8);
 }
 
+// Lateral chromatic aberration leaves purple and green fringes along high-contrast edges:
+// near such an edge, those hues lose their color and keep their luminance.
+vec3 defringe(vec3 s) {
+    vec2 r = uGeoTexel * max(1.0, 0.0008 * uLongEdgePx);
+    float l = dot(s, LUMA);
+    float lo = l;
+    float hi = l;
+    for (int i = 0; i < 8; i++) {
+        float a = float(i) * 0.7853982;
+        vec2 o = vec2(cos(a), sin(a)) * r;
+        float n1 = dot(texture(uGeo, vCoord + o).rgb, LUMA);
+        float n2 = dot(texture(uGeo, vCoord + 2.0 * o).rgb, LUMA);
+        lo = min(lo, min(n1, n2));
+        hi = max(hi, max(n1, n2));
+    }
+    float edge = smoothstep(0.12, 0.30, hi - lo);
+    if (edge <= 0.0) return s;
+    vec3 hsv = rgbToHsv(s);
+    float h = hsv.x * 360.0;
+    float purple = smoothstep(250.0, 275.0, h) * (1.0 - smoothstep(315.0, 340.0, h));
+    float green = smoothstep(85.0, 100.0, h) * (1.0 - smoothstep(150.0, 165.0, h));
+    float fringe = max(purple, green) * smoothstep(0.08, 0.25, hsv.y) * edge;
+    return mix(s, vec3(l), fringe);
+}
+
 vec3 process(vec3 s, vec2 pos) {
     vec3 source = s;
+    if (uDefringe) s = defringe(s);
     vec4 la = vec4(0.0);
     vec4 lb = vec4(0.0);
     vec2 effects = vec2(0.0);

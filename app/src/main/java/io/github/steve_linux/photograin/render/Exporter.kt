@@ -16,6 +16,7 @@ import io.github.steve_linux.photograin.data.Retoucher
 import io.github.steve_linux.photograin.math.Affine
 import io.github.steve_linux.photograin.math.Homography
 import io.github.steve_linux.photograin.model.LensCorrection
+import io.github.steve_linux.photograin.model.lensCorrection
 import io.github.steve_linux.photograin.model.LensMapping
 import io.github.steve_linux.photograin.math.then
 import io.github.steve_linux.photograin.math.Vec2
@@ -125,7 +126,7 @@ object Exporter {
         onProgress: (Float) -> Unit,
     ): Bitmap {
         val mapper = GeometryMapper(source.width, source.height, base, edit.geometry)
-        val lens = lensCorrection?.takeIf { edit.correctLens }?.mapping(source.width, source.height)
+        val lens = edit.lensCorrection(lensCorrection)?.mapping(source.width, source.height)
         val full = mapper.outputSize
         val scale = scaleFor(full, maxLongEdge, upscale)
         val out = imageSize(PxSize(source.width, source.height), base, edit, maxLongEdge, upscale)
@@ -249,6 +250,7 @@ object Exporter {
                         sourceHeight = source.height,
                         subjects = subjects,
                         lens = lens,
+                        removeFringes = edit.removeChromaticAberration,
                     )
 
                     pixels.clear()

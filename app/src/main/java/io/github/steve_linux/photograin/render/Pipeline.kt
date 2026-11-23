@@ -157,6 +157,7 @@ internal class Pipeline {
      *   positions (0..1), and [sourceWidth] x [sourceHeight] gives the source's shape.
      * @param subjects what the subject masks cover; until it is known they are empty.
      * @param showMask index of the mask to tint red, or -1.
+     * @param removeFringes removes purple and green fringes along high-contrast edges.
      * @param showPointColor index in [Adjustments.pointColors] whose range is shown, or -1.
      */
     fun renderColor(
@@ -182,6 +183,7 @@ internal class Pipeline {
         showClipping: Boolean = false,
         lens: LensMapping? = null,
         showPointColor: Int = -1,
+        removeFringes: Boolean = false,
     ) {
         val geoTarget = checkNotNull(geo) { "renderIntermediate() must run first" }
         val blurred = checkNotNull(blurB)
@@ -222,6 +224,7 @@ internal class Pipeline {
         }
         p.float("uGrain", adjustments.grain)
         p.float("uGrainCell", ShaderParams.grainCellFraction(adjustments))
+        p.int("uDefringe", if (removeFringes) 1 else 0)
         p.float("uLumaNr", adjustments.noiseReduction)
         p.float("uChromaNr", adjustments.colorNoiseReduction)
         val curvesOn = !adjustments.curves.isIdentity

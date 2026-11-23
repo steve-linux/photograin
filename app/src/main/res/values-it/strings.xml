@@ -534,4 +534,10 @@
     <string name="point_color_range">Intervallo</string>
     <string name="point_color_swatch">Colore scelto</string>
     <string name="help_point_color_range">Quanti colori simili vengono cambiati insieme a quello scelto. Attiva Mostra intervallo per vedere cosa raggiunge: il resto della foto diventa grigio.</string>
+    <!-- Ottica -->
+    <string name="optics_remove_ca">Rimuovi aberrazione cromatica</string>
+    <string name="optics_distortion">Distorsione</string>
+    <string name="optics_vignetting">Vignettatura</string>
+    <string name="help_optics_distortion">Raddrizza le linee piegate dall\'obiettivo. Sposta a destra quando le linee dritte si gonfiano verso l\'esterno (a botte, tipico dei grandangoli), a sinistra quando si curvano verso l\'interno (a cuscinetto).</string>
+    <string name="help_optics_vignetting">Compensa la luce che l\'obiettivo perde verso gli angoli. Sposta a destra per schiarire gli angoli scuri, a sinistra per scurirli.</string>
 </resources>

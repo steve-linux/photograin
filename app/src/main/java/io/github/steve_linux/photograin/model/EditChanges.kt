@@ -21,7 +21,10 @@ object EditChanges {
             if (before.frame != after.frame) add(Area.FRAME)
             if (before.texts != after.texts) add(Area.TEXT)
             if (before.shapes != after.shapes) add(Area.SHAPES)
-            if (before.correctLens != after.correctLens) add(Area.OPTICS)
+            if (before.correctLens != after.correctLens || before.lensDistortion != after.lensDistortion ||
+                before.lensVignetting != after.lensVignetting ||
+                before.removeChromaticAberration != after.removeChromaticAberration
+            ) add(Area.OPTICS)
         }
         return Summary(Params.all.filter { it.get(a) != it.get(b) }.map { it.id }, areas)
     }

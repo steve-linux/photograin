@@ -20,6 +20,42 @@ data class LensCorrection(
     fun mapping(width: Int, height: Int) = LensMapping(this, width, height)
 }
 
+/** No correction at all: the base for manual distortion and vignetting when the lens has no profile. */
+private val MANUAL = LensCorrection(
+    name = "",
+    calibrationScale = 1.0,
+    vignetteScale = 1.0,
+    distortion = listOf(1.0, 0.0, 0.0, 0.0, 0.0),
+    red = listOf(1.0, 0.0, 0.0),
+    blue = listOf(1.0, 0.0, 0.0),
+    vignette = listOf(0.0, 0.0, 0.0),
+)
+
+/** Distortion coefficient (on r², the radius 1 at the corners) at full manual slider. */
+internal const val MANUAL_DISTORTION = 0.15
+
+/** Vignetting coefficient (on r², in linear light) at full manual slider: a stop at the corners. */
+internal const val MANUAL_VIGNETTING = 0.5
+
+/**
+ * The correction this edit asks for: [profile] when [EditState.correctLens] is on, with the
+ * manual distortion and vignetting added on top; null when there is nothing to correct.
+ */
+fun EditState.lensCorrection(profile: LensCorrection?): LensCorrection? {
+    val base = profile?.takeIf { correctLens }
+    val distortion = lensDistortion.coerceIn(-1f, 1f).toDouble()
+    val vignetting = lensVignetting.coerceIn(-1f, 1f).toDouble()
+    if (distortion == 0.0 && vignetting == 0.0) return base
+    val start = base ?: MANUAL
+    val d = start.distortion.toMutableList().apply { while (size < 5) add(0.0) }
+    // Corrected radius r reads the original at r * (1 + k r²): k < 0 pulls in a barrel lens's bulge.
+    d[2] -= MANUAL_DISTORTION * distortion
+    val v = start.vignette.toMutableList().apply { while (size < 3) add(0.0) }
+    // The shader divides by 1 + k1 v² + ...: a smaller divisor brightens the corners.
+    v[0] -= MANUAL_VIGNETTING * vignetting
+    return start.copy(distortion = d, vignette = v)
+}
+
 /** Maps corrected UVs (before rotation/crop) to the original stored image. */
 class LensMapping internal constructor(val profile: LensCorrection, width: Int, height: Int) {
     private val diagonal = hypot(width.toDouble(), height.toDouble())

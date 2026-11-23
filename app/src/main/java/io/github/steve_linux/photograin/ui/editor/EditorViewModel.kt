@@ -72,6 +72,7 @@ import io.github.steve_linux.photograin.model.RetouchSpot
 import io.github.steve_linux.photograin.model.RetouchType
 import io.github.steve_linux.photograin.model.ToolGroup
 import io.github.steve_linux.photograin.model.flippedHorizontally
+import io.github.steve_linux.photograin.model.lensCorrection
 import io.github.steve_linux.photograin.model.flippedVertically
 import io.github.steve_linux.photograin.model.rotatedClockwise
 import io.github.steve_linux.photograin.model.Quad
@@ -489,7 +490,7 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
     private fun readCropPreview(image: LoadedImage, edit: EditState): CropSamples {
         val preview = image.preview
         val mapper = GeometryMapper(preview.width, preview.height, image.base, edit.geometry)
-        val lens = image.lens?.takeIf { edit.correctLens }?.mapping(preview.width, preview.height)
+        val lens = edit.lensCorrection(image.lens)?.mapping(preview.width, preview.height)
         val scale = minOf(1.0, 384.0 / maxOf(preview.width, preview.height))
         val width = (preview.width * scale).roundToInt().coerceAtLeast(1)
         val height = (preview.height * scale).roundToInt().coerceAtLeast(1)
@@ -1293,6 +1294,17 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
     fun setLensCorrection(enabled: Boolean) {
         if (_state.value.image?.lens == null) return
         updateLive { it.copy(correctLens = enabled) }
+        commit()
+    }
+
+    /** Live update of the manual distortion; [commit] when the slider is released. */
+    fun setLensDistortion(amount: Float) = updateLive { it.copy(lensDistortion = amount.coerceIn(-1f, 1f)) }
+
+    /** Live update of the manual vignetting; [commit] when the slider is released. */
+    fun setLensVignetting(amount: Float) = updateLive { it.copy(lensVignetting = amount.coerceIn(-1f, 1f)) }
+
+    fun setRemoveChromaticAberration(enabled: Boolean) {
+        updateLive { it.copy(removeChromaticAberration = enabled) }
         commit()
     }
 
