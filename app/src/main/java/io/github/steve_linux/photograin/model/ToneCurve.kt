@@ -109,6 +109,38 @@ data class ToneCurve(val points: List<CurvePoint> = IDENTITY_POINTS) {
 
 enum class CurveChannel { MASTER, RED, GREEN, BLUE }
 
+/**
+ * Lightroom's parametric curve: four sliders (-1..1) that lift or lower the shadows, darks,
+ * lights and highlights, each a quarter of the tonal range. The curve goes through the middle
+ * of each quarter moved by at most [MAX_SHIFT], so it can never turn back on itself.
+ */
+@Serializable
+data class ParametricCurve(
+    val highlights: Float = 0f,
+    val lights: Float = 0f,
+    val darks: Float = 0f,
+    val shadows: Float = 0f,
+) {
+    val isIdentity get() = highlights == 0f && lights == 0f && darks == 0f && shadows == 0f
+
+    fun toCurve(): ToneCurve {
+        fun point(x: Float, amount: Float) = CurvePoint(x, (x + amount.coerceIn(-1f, 1f) * MAX_SHIFT).coerceIn(0f, 1f))
+        return ToneCurve(listOf(
+            CurvePoint(0f, 0f),
+            point(0.125f, shadows),
+            point(0.375f, darks),
+            point(0.625f, lights),
+            point(0.875f, highlights),
+            CurvePoint(1f, 1f),
+        ))
+    }
+
+    companion object {
+        /** How far a region's middle moves at full slider; under half the 0.25 gap between middles. */
+        const val MAX_SHIFT = 0.12f
+    }
+}
+
 /** One master curve applied to all channels, then one curve per channel. */
 @Serializable
 data class Curves(
@@ -116,8 +148,10 @@ data class Curves(
     val red: ToneCurve = ToneCurve(),
     val green: ToneCurve = ToneCurve(),
     val blue: ToneCurve = ToneCurve(),
+    /** Applied before the point curves, like Lightroom's parametric curve. */
+    val parametric: ParametricCurve = ParametricCurve(),
 ) {
-    val isIdentity get() = master.isIdentity && red.isIdentity && green.isIdentity && blue.isIdentity
+    val isIdentity get() = parametric.isIdentity && master.isIdentity && red.isIdentity && green.isIdentity && blue.isIdentity
 
     operator fun get(c: CurveChannel) = when (c) {
         CurveChannel.MASTER -> master
@@ -134,15 +168,18 @@ data class Curves(
     }
 
     /**
-     * 256 RGBA8 texels: channel c at input i holds curve_c(master(i)), ready to upload as a
-     * 256x1 lookup texture.
+     * 256 RGBA8 texels: channel c at input i holds curve_c(master(parametric(i))), ready to
+     * upload as a 256x1 lookup texture.
      */
     fun toLut(): ByteArray {
-        val m = master.sample()
         val r = red.sample()
         val g = green.sample()
         val b = blue.sample()
         fun lookup(curve: FloatArray, v: Float) = curve[(v * 255f + 0.5f).toInt().coerceIn(0, 255)]
+        val m = master.sample().let { master ->
+            if (parametric.isIdentity) master
+            else parametric.toCurve().sample().let { p -> FloatArray(256) { lookup(master, p[it]) } }
+        }
         val out = ByteArray(256 * 4)
         for (i in 0 until 256) {
             out[i * 4] = toByte(lookup(r, m[i]))

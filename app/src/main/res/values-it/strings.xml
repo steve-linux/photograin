@@ -540,4 +540,10 @@
     <string name="optics_vignetting">Vignettatura</string>
     <string name="help_optics_distortion">Raddrizza le linee piegate dall\'obiettivo. Sposta a destra quando le linee dritte si gonfiano verso l\'esterno (a botte, tipico dei grandangoli), a sinistra quando si curvano verso l\'interno (a cuscinetto).</string>
     <string name="help_optics_vignetting">Compensa la luce che l\'obiettivo perde verso gli angoli. Sposta a destra per schiarire gli angoli scuri, a sinistra per scurirli.</string>
+    <!-- Curva parametrica -->
+    <string name="curve_parametric">Parametrica</string>
+    <string name="curve_highlights">Luci</string>
+    <string name="curve_lights">Chiari</string>
+    <string name="curve_darks">Scuri</string>
+    <string name="curve_shadows">Ombre</string>
 </resources>
