@@ -168,6 +168,7 @@ uniform float uVignette;
 uniform vec4 uVignetteShape;
 uniform float uGrain;
 uniform float uGrainCell;
+uniform bool uDefringe;
 uniform float uLumaNr;
 uniform float uChromaNr;
 // 256x1 lookup: channel c at input i = curve_c(master(i)).
@@ -176,6 +177,12 @@ uniform float uCurvesOn;
 // Per band: hue shift, saturation, luminance (-1..1).
 uniform vec3 uHsl[8];
 uniform float uHslOn;
+// Point colors: sample (hue, saturation, value, range) and shift (hue in turns, saturation, luminance).
+uniform int uPointCount;
+uniform vec4 uPointSample[8];
+uniform vec3 uPointShift[8];
+// Packed index of the point whose range is shown (the rest of the photo in gray), or -1.
+uniform int uPointShow;
 uniform bool uMonochrome;
 uniform vec4 uMonoLow;
 uniform vec4 uMonoHigh;
@@ -328,6 +335,37 @@ vec3 applyHsl(vec3 v) {
     // Luminance only moves colored pixels; grays have no hue to belong to.
     hsv.z = clamp(hsv.z * exp2(acc.z * 0.8 * hsv.y), 0.0, 1.0);
     return hsvToRgb(hsv);
+}
+
+// Same as PointColor.weight, on the source pixel's HSV.
+float pointColorWeight(vec4 p, vec3 hsv) {
+    float k = clamp(p.w, 0.0, 1.0);
+    float dh = abs(hsv.x - p.x);
+    dh = min(dh, 1.0 - dh);
+    float th = 0.025 + 0.11 * k;
+    float ts = 0.12 + 0.45 * k;
+    float tv = 0.18 + 0.55 * k;
+    float wh = 1.0 - smoothstep(th, th * 1.8 + 0.01, dh);
+    float ws = 1.0 - smoothstep(ts, ts + 0.15, abs(hsv.y - p.y));
+    float wv = 1.0 - smoothstep(tv, tv + 0.15, abs(hsv.z - p.z));
+    return wh * ws * wv * smoothstep(0.04, 0.12, hsv.y);
+}
+
+// Matches on the untouched source, so the color picked stays selected whatever else changes.
+vec3 applyPointColors(vec3 v, vec3 sourceHsv) {
+    vec3 acc = vec3(0.0);
+    for (int i = 0; i < 8; i++) {
+        if (i >= uPointCount) break;
+        acc += pointColorWeight(uPointSample[i], sourceHsv) * uPointShift[i];
+    }
+    if (acc == vec3(0.0)) return v;
+    vec3 hsv = rgbToHsv(v);
+    hsv.x = fract(hsv.x + acc.x + 1.0);
+    vec3 c = hsvToRgb(hsv);
+    // Saturation keeps luminance, so a color fading to gray does not light up.
+    float y = dot(c, LUMA);
+    c = mix(vec3(y), c, max(0.0, 1.0 + acc.y));
+    return clamp(c * exp2(acc.z * 0.8), 0.0, 1.0);
 }
 
 vec3 applyGrade(vec3 v) {
@@ -525,7 +563,34 @@ vec3 applyVignette(vec3 color, vec2 pos) {
     return mix(color, vec3(1.0), uVignette * weight * 0.8);
 }
 
+// Lateral chromatic aberration leaves purple and green fringes along high-contrast edges:
+// near such an edge, those hues lose their color and keep their luminance.
+vec3 defringe(vec3 s) {
+    vec2 r = uGeoTexel * max(1.0, 0.0008 * uLongEdgePx);
+    float l = dot(s, LUMA);
+    float lo = l;
+    float hi = l;
+    for (int i = 0; i < 8; i++) {
+        float a = float(i) * 0.7853982;
+        vec2 o = vec2(cos(a), sin(a)) * r;
+        float n1 = dot(texture(uGeo, vCoord + o).rgb, LUMA);
+        float n2 = dot(texture(uGeo, vCoord + 2.0 * o).rgb, LUMA);
+        lo = min(lo, min(n1, n2));
+        hi = max(hi, max(n1, n2));
+    }
+    float edge = smoothstep(0.12, 0.30, hi - lo);
+    if (edge <= 0.0) return s;
+    vec3 hsv = rgbToHsv(s);
+    float h = hsv.x * 360.0;
+    float purple = smoothstep(250.0, 275.0, h) * (1.0 - smoothstep(315.0, 340.0, h));
+    float green = smoothstep(85.0, 100.0, h) * (1.0 - smoothstep(150.0, 165.0, h));
+    float fringe = max(purple, green) * smoothstep(0.08, 0.25, hsv.y) * edge;
+    return mix(s, vec3(l), fringe);
+}
+
 vec3 process(vec3 s, vec2 pos) {
+    vec3 source = s;
+    if (uDefringe) s = defringe(s);
     vec4 la = vec4(0.0);
     vec4 lb = vec4(0.0);
     vec2 effects = vec2(0.0);
@@ -605,6 +670,9 @@ vec3 process(vec3 s, vec2 pos) {
         v = applyHsl(clamp(v, 0.0, 1.0));
     }
 
+    vec3 sourceHsv = uPointCount > 0 ? rgbToHsv(clamp(source, 0.0, 1.0)) : vec3(0.0);
+    if (uPointCount > 0) v = applyPointColors(clamp(v, 0.0, 1.0), sourceHsv);
+
     if (uGradeOn) v = applyGrade(clamp(v, 0.0, 1.0));
 
     if (uLutOn > 0.5) {
@@ -627,6 +695,11 @@ vec3 process(vec3 s, vec2 pos) {
         float visible = clamp(cellPx, 0.25, 1.0);
         float m = 1.0 - pow(abs(2.0 * dot(v, LUMA) - 1.0), 2.0);
         v += n * uGrain * 0.3 * m * visible;
+    }
+
+    if (uPointShow >= 0) {
+        float w = pointColorWeight(uPointSample[uPointShow], sourceHsv);
+        v = mix(vec3(dot(v, LUMA)), v, w);
     }
 
     return clamp(v, 0.0, 1.0);

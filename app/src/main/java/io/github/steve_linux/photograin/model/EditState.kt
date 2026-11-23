@@ -21,7 +21,17 @@ data class EditState(
     /** Lines, arrows and boxes, drawn under the texts. */
     val shapes: List<ShapeItem> = emptyList(),
     val correctLens: Boolean = false,
+    /** Manual distortion (-1..1): positive straightens barrel distortion, negative pincushion. */
+    val lensDistortion: Float = 0f,
+    /** Manual lens vignetting (-1..1): positive brightens the corners, negative darkens them. */
+    val lensVignetting: Float = 0f,
+    /** Removes purple and green fringes along high-contrast edges. */
+    val removeChromaticAberration: Boolean = false,
 ) {
+    /** Whether any optics correction is on: profile, manual distortion or vignetting, or fringes. */
+    val hasOptics: Boolean
+        get() = correctLens || lensDistortion != 0f || lensVignetting != 0f || removeChromaticAberration
+
     /** Duplicate independently editable immutable data; keep the original as the only cutout. */
     fun duplicateMask(index: Int): EditState {
         val original = masks.getOrNull(index) ?: return this

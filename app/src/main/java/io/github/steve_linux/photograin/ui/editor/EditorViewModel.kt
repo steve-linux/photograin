@@ -63,6 +63,7 @@ import io.github.steve_linux.photograin.model.Hsl
 import io.github.steve_linux.photograin.model.HslBand
 import io.github.steve_linux.photograin.model.Look
 import io.github.steve_linux.photograin.model.ParamSpec
+import io.github.steve_linux.photograin.model.PointColor
 import io.github.steve_linux.photograin.model.Preset
 import io.github.steve_linux.photograin.model.PxSize
 import io.github.steve_linux.photograin.model.Removal
@@ -71,6 +72,7 @@ import io.github.steve_linux.photograin.model.RetouchSpot
 import io.github.steve_linux.photograin.model.RetouchType
 import io.github.steve_linux.photograin.model.ToolGroup
 import io.github.steve_linux.photograin.model.flippedHorizontally
+import io.github.steve_linux.photograin.model.lensCorrection
 import io.github.steve_linux.photograin.model.flippedVertically
 import io.github.steve_linux.photograin.model.rotatedClockwise
 import io.github.steve_linux.photograin.model.Quad
@@ -162,6 +164,10 @@ data class EditorUiState(
     /** A tap on the photo picks a color for this, instead of its usual meaning. */
     val picker: Picker = Picker.NONE,
     val hslBand: HslBand = HslBand.RED,
+    /** The point color being edited, by index in [Adjustments.pointColors]. */
+    val selectedPointColor: Int? = null,
+    /** Shows what the selected point color reaches, with the rest of the photo in gray. */
+    val showPointRange: Boolean = false,
     /** The four perspective points being placed, shown on the uncorrected photo; null when not placing them. */
     val quadDraft: Quad? = null,
     /** The version of the photo being edited, by id; see [RecipeStore.versions]. */
@@ -183,6 +189,9 @@ data class EditorUiState(
         local.copy(mask = local.mask.selection(if (i == activeMask) activeMaskPart else 0))
     }
 
+    /** [selectedPointColor] if it still exists (undo can remove it). */
+    val activePointColor: Int? get() = selectedPointColor?.takeIf { it in edit.adjustments.pointColors.indices }
+
     /** [selectedMask] if it still exists (undo can remove it). */
     val activeMask: Int? get() = selectedMask?.takeIf { it in edit.masks.indices }
 }
@@ -200,7 +209,7 @@ data class BrushSettings(
 )
 
 /** What a tap on the photo picks a color for. */
-enum class Picker { NONE, MASK_COLOR, WHITE_BALANCE, HSL }
+enum class Picker { NONE, MASK_COLOR, WHITE_BALANCE, HSL, POINT_COLOR }
 
 /** An export waiting for the user to pick where it goes. */
 data class SaveRequest(val options: ExportOptions, val fileName: String)
@@ -356,7 +365,7 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun selectTool(tool: ToolGroup) = _state.update { it.copy(tool = tool, picker = Picker.NONE, quadDraft = null) }
+    fun selectTool(tool: ToolGroup) = _state.update { it.copy(tool = tool, picker = Picker.NONE, quadDraft = null, showPointRange = false) }
 
     // --- Eyedropper ----------------------------------------------------------------------------
 
@@ -400,6 +409,16 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
             Picker.WHITE_BALANCE -> {
                 val (temperature, tint) = WhiteBalance.neutralize(r, g, b) ?: return
                 updateLive { e -> e.copy(adjustments = e.adjustments.copy(temperature = temperature, tint = tint)) }
+            }
+            Picker.POINT_COLOR -> {
+                val point = PointColor.sample(r, g, b)
+                if (point == null) {
+                    _state.update { it.copy(message = Message.HSL_COLOR_NOT_FOUND) }
+                    return
+                }
+                if (s.edit.adjustments.pointColors.size >= PointColor.MAX) return
+                updateLive { e -> e.copy(adjustments = e.adjustments.copy(pointColors = e.adjustments.pointColors + point)) }
+                _state.update { it.copy(selectedPointColor = it.edit.adjustments.pointColors.lastIndex) }
             }
         }
         _state.update { it.copy(picker = Picker.NONE) }
@@ -471,7 +490,7 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
     private fun readCropPreview(image: LoadedImage, edit: EditState): CropSamples {
         val preview = image.preview
         val mapper = GeometryMapper(preview.width, preview.height, image.base, edit.geometry)
-        val lens = image.lens?.takeIf { edit.correctLens }?.mapping(preview.width, preview.height)
+        val lens = edit.lensCorrection(image.lens)?.mapping(preview.width, preview.height)
         val scale = minOf(1.0, 384.0 / maxOf(preview.width, preview.height))
         val width = (preview.width * scale).roundToInt().coerceAtLeast(1)
         val height = (preview.height * scale).roundToInt().coerceAtLeast(1)
@@ -495,6 +514,30 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Live update of the HSL bands; [commit] when the slider is released. */
     fun setHsl(hsl: Hsl) = updateLive { it.copy(adjustments = it.adjustments.copy(hsl = hsl)) }
+
+    fun selectPointColor(index: Int?) = _state.update { it.copy(selectedPointColor = index) }
+
+    fun setShowPointRange(show: Boolean) = _state.update { it.copy(showPointRange = show) }
+
+    /** Live update of the selected point color; [commit] when the slider is released. */
+    fun setPointColor(point: PointColor) {
+        val index = _state.value.activePointColor ?: return
+        updateLive { e ->
+            e.copy(adjustments = e.adjustments.copy(pointColors = e.adjustments.pointColors.mapIndexed { i, p -> if (i == index) point else p }))
+        }
+    }
+
+    fun deletePointColor() {
+        val index = _state.value.activePointColor ?: return
+        updateLive { e ->
+            e.copy(adjustments = e.adjustments.copy(pointColors = e.adjustments.pointColors.filterIndexed { i, _ -> i != index }))
+        }
+        _state.update { s ->
+            val size = s.edit.adjustments.pointColors.size
+            s.copy(selectedPointColor = if (size == 0) null else minOf(index, size - 1), showPointRange = s.showPointRange && size > 0)
+        }
+        commit()
+    }
 
     fun setColorGrade(grade: ColorGrade) =
         updateLive { it.copy(adjustments = it.adjustments.copy(colorGrade = grade)) }
@@ -1251,6 +1294,17 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
     fun setLensCorrection(enabled: Boolean) {
         if (_state.value.image?.lens == null) return
         updateLive { it.copy(correctLens = enabled) }
+        commit()
+    }
+
+    /** Live update of the manual distortion; [commit] when the slider is released. */
+    fun setLensDistortion(amount: Float) = updateLive { it.copy(lensDistortion = amount.coerceIn(-1f, 1f)) }
+
+    /** Live update of the manual vignetting; [commit] when the slider is released. */
+    fun setLensVignetting(amount: Float) = updateLive { it.copy(lensVignetting = amount.coerceIn(-1f, 1f)) }
+
+    fun setRemoveChromaticAberration(enabled: Boolean) {
+        updateLive { it.copy(removeChromaticAberration = enabled) }
         commit()
     }
 

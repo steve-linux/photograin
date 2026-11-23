@@ -8,6 +8,7 @@ import io.github.steve_linux.photograin.model.HslBand
 import io.github.steve_linux.photograin.model.LocalAdjustment
 import io.github.steve_linux.photograin.model.MaskRange
 import io.github.steve_linux.photograin.model.MaskType
+import io.github.steve_linux.photograin.model.PointColor
 import io.github.steve_linux.photograin.model.Mat3
 import io.github.steve_linux.photograin.model.RangeType
 import kotlin.math.ceil
@@ -66,6 +67,34 @@ object ShaderParams {
             out[i * 3 + 2] = a.hsl.luminance.getOrElse(i) { 0f }
         }
         return out
+    }
+
+    /**
+     * Point colors packed for the shader: per point, the sample (hue, saturation, value, range)
+     * in [samples] and the shifts (hue in turns, saturation, luminance) in [shifts]. Points that
+     * change nothing are left out, except the one whose range is [shown] (its packed index, or -1).
+     */
+    class PointColorUniforms(val count: Int, val samples: FloatArray, val shifts: FloatArray, val shown: Int)
+
+    fun pointColorUniforms(points: List<PointColor>, show: Int = -1): PointColorUniforms {
+        val samples = FloatArray(PointColor.MAX * 4)
+        val shifts = FloatArray(PointColor.MAX * 3)
+        var n = 0
+        var shown = -1
+        for ((index, p) in points.withIndex()) {
+            if (n == PointColor.MAX) break
+            if (p.isNeutral && index != show) continue
+            if (index == show) shown = n
+            samples[n * 4] = p.hue
+            samples[n * 4 + 1] = p.saturation
+            samples[n * 4 + 2] = p.value
+            samples[n * 4 + 3] = p.range.coerceIn(0f, 1f)
+            shifts[n * 3] = p.hueShift.coerceIn(-1f, 1f) * PointColor.HUE_DEGREES / 360f
+            shifts[n * 3 + 1] = p.saturationShift.coerceIn(-1f, 1f)
+            shifts[n * 3 + 2] = p.luminanceShift.coerceIn(-1f, 1f)
+            n++
+        }
+        return PointColorUniforms(n, samples, shifts, shown)
     }
 
     /** Geometry, ranges and per-mask adjustments packed for the color shader. */

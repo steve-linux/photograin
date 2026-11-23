@@ -45,6 +45,8 @@ data class Adjustments(
     val vignetteFeather: Float = 0.5f,
     val vignetteRoundness: Float = 1f,
     val vignetteHighlights: Float = 0f,
+    /** Colors picked on the photo and shifted on their own ("Point Color"), at most [PointColor.MAX]. */
+    val pointColors: List<PointColor> = emptyList(),
 )
 
 /** An imported .cube LUT applied after the other color adjustments, blended by [amount]. */
@@ -59,7 +61,7 @@ data class Look(
     val isActive get() = lutId != null && amount > 0f
 }
 
-enum class ToolGroup { LOOK, LIGHT, COLOR, DETAIL, EFFECTS, LOCAL, CROP }
+enum class ToolGroup { LOOK, LIGHT, COLOR, DETAIL, EFFECTS, LOCAL, CROP, OPTICS }
 
 /** Describes one slider: its range, default and how it reads/writes [Adjustments]. */
 class ParamSpec(

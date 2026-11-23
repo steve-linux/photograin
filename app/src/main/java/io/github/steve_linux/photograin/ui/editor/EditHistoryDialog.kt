@@ -89,6 +89,7 @@ internal fun EditHistoryDialog(
 private fun areaLabel(area: EditChanges.Area) = when (area) {
     EditChanges.Area.CURVES -> R.string.mode_curves
     EditChanges.Area.HSL -> R.string.mode_hsl
+    EditChanges.Area.POINT_COLOR -> R.string.panel_point_color
     EditChanges.Area.GRADING -> R.string.mode_grading
     EditChanges.Area.MONOCHROME -> R.string.mode_monochrome
     EditChanges.Area.LOOK -> R.string.tool_look

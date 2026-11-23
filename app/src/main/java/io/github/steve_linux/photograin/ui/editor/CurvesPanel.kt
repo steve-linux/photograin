@@ -4,7 +4,11 @@ package io.github.steve_linux.photograin.ui.editor
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
@@ -39,8 +43,10 @@ import io.github.steve_linux.photograin.R
 import io.github.steve_linux.photograin.model.CurveChannel
 import io.github.steve_linux.photograin.model.CurvePoint
 import io.github.steve_linux.photograin.model.Curves
+import io.github.steve_linux.photograin.model.ParametricCurve
 import io.github.steve_linux.photograin.model.ToneCurve
 import kotlin.math.hypot
+import kotlin.math.roundToInt
 
 /**
  * Tone curve editor. Drag a point to move it, drag elsewhere on the curve to add one,
@@ -49,6 +55,7 @@ import kotlin.math.hypot
 @Composable
 fun CurvesPanel(curves: Curves, onChange: (Curves) -> Unit, onChangeFinished: () -> Unit) {
     var channel by rememberSaveable { mutableStateOf(CurveChannel.MASTER) }
+    var parametric by rememberSaveable { mutableStateOf(false) }
     val curve = curves[channel]
     val currentCurves by rememberUpdatedState(curves)
     val currentChannel by rememberUpdatedState(channel)
@@ -63,93 +70,143 @@ fun CurvesPanel(curves: Curves, onChange: (Curves) -> Unit, onChangeFinished: ()
 
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
         Row(
-            Modifier.fillMaxWidth(),
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            FilterChip(
+                selected = parametric,
+                onClick = { parametric = true },
+                label = { Text(stringResource(R.string.curve_parametric)) },
+            )
             for (c in CurveChannel.entries) {
                 FilterChip(
-                    selected = channel == c,
-                    onClick = { channel = c },
+                    selected = !parametric && channel == c,
+                    onClick = { parametric = false; channel = c },
                     label = { Text(stringResource(channelLabel(c))) },
                 )
             }
             IconButton(onClick = {
-                onChange(curves.with(channel, ToneCurve()))
+                onChange(if (parametric) curves.copy(parametric = ParametricCurve()) else curves.with(channel, ToneCurve()))
                 onChangeFinished()
             }) {
                 Icon(Icons.Outlined.RestartAlt, stringResource(R.string.reset_curve))
             }
         }
+        if (parametric) {
+            ParametricEditor(curves, lineColor = MaterialTheme.colorScheme.onSurface, gridColor = gridColor, onChange = onChange, onChangeFinished = onChangeFinished)
+        } else {
+            Canvas(
+                Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .widthIn(max = 240.dp)
+                    .fillMaxWidth()
+                    .aspectRatio(1f)
+                    .padding(8.dp)
+                    .pointerInput(Unit) {
+                        detectTapGestures(onDoubleTap = { p ->
+                            val c = currentCurves[currentChannel]
+                            val i = nearestPoint(c, p, size.width.toFloat(), size.height.toFloat(), 28.dp.toPx())
+                            if (i >= 0) {
+                                onChange(currentCurves.with(currentChannel, c.removePoint(i)))
+                                onChangeFinished()
+                            }
+                        })
+                    }
+                    .pointerInput(Unit) {
+                        detectDragGestures(
+                            onDragStart = { p ->
+                                val w = size.width.toFloat()
+                                val h = size.height.toFloat()
+                                var c = currentCurves[currentChannel]
+                                var i = nearestPoint(c, p, w, h, 28.dp.toPx())
+                                if (i < 0) {
+                                    // Start a new point on the curve itself, so the shape does not jump.
+                                    val x = (p.x / w).coerceIn(0f, 1f)
+                                    val y = c.sample()[(x * 255).toInt()]
+                                    c = c.withPoint(CurvePoint(x, y))
+                                    onChange(currentCurves.with(currentChannel, c))
+                                    i = c.points.indexOfFirst { kotlin.math.abs(it.x - x) < 1e-6f }
+                                }
+                                dragCurves = currentCurves.with(currentChannel, c)
+                                dragIndex = i
+                                dragStart = c.points.getOrNull(i)?.let { Offset(it.x * w, (1 - it.y) * h) } ?: p
+                                dragTotal = Offset.Zero
+                            },
+                            onDrag = { change, amount ->
+                                if (dragIndex < 0) return@detectDragGestures
+                                change.consume()
+                                dragTotal += amount
+                                val w = size.width.toFloat()
+                                val h = size.height.toFloat()
+                                val pos = dragStart + dragTotal
+                                val moved = dragCurves[currentChannel].movePoint(dragIndex, CurvePoint(pos.x / w, 1f - pos.y / h))
+                                dragCurves = dragCurves.with(currentChannel, moved)
+                                onChange(dragCurves)
+                            },
+                            onDragEnd = {
+                                if (dragIndex >= 0) onChangeFinished()
+                                dragIndex = -1
+                            },
+                            onDragCancel = {
+                                if (dragIndex >= 0) onChangeFinished()
+                                dragIndex = -1
+                            },
+                        )
+                    },
+            ) {
+                val w = size.width
+                val h = size.height
+                for (i in 1..3) {
+                    drawLine(gridColor, Offset(w * i / 4, 0f), Offset(w * i / 4, h))
+                    drawLine(gridColor, Offset(0f, h * i / 4), Offset(w, h * i / 4))
+                }
+                drawRect(gridColor, style = Stroke(1.dp.toPx()))
+                drawLine(gridColor, Offset(0f, h), Offset(w, 0f))
+
+                val samples = curve.sample(128)
+                val path = Path()
+                samples.forEachIndexed { i, y ->
+                    val px = w * i / (samples.size - 1)
+                    val py = h * (1 - y)
+                    if (i == 0) path.moveTo(px, py) else path.lineTo(px, py)
+                }
+                drawPath(path, lineColor, style = Stroke(2.dp.toPx()))
+                curve.points.forEachIndexed { i, pt ->
+                    val center = Offset(pt.x * w, (1 - pt.y) * h)
+                    drawCircle(lineColor, radius = if (i == dragIndex) 8.dp.toPx() else 6.dp.toPx(), center = center)
+                }
+            }
+        }
+    }
+}
+
+/** The parametric curve, drawn for reference, and its four region sliders. */
+@Composable
+private fun ParametricEditor(
+    curves: Curves,
+    lineColor: Color,
+    gridColor: Color,
+    onChange: (Curves) -> Unit,
+    onChangeFinished: () -> Unit,
+) {
+    val parametric = curves.parametric
+    Column(Modifier.fillMaxWidth().heightIn(max = 320.dp).verticalScroll(rememberScrollState())) {
         Canvas(
             Modifier
                 .align(Alignment.CenterHorizontally)
-                .widthIn(max = 240.dp)
+                .widthIn(max = 140.dp)
                 .fillMaxWidth()
                 .aspectRatio(1f)
-                .padding(8.dp)
-                .pointerInput(Unit) {
-                    detectTapGestures(onDoubleTap = { p ->
-                        val c = currentCurves[currentChannel]
-                        val i = nearestPoint(c, p, size.width.toFloat(), size.height.toFloat(), 28.dp.toPx())
-                        if (i >= 0) {
-                            onChange(currentCurves.with(currentChannel, c.removePoint(i)))
-                            onChangeFinished()
-                        }
-                    })
-                }
-                .pointerInput(Unit) {
-                    detectDragGestures(
-                        onDragStart = { p ->
-                            val w = size.width.toFloat()
-                            val h = size.height.toFloat()
-                            var c = currentCurves[currentChannel]
-                            var i = nearestPoint(c, p, w, h, 28.dp.toPx())
-                            if (i < 0) {
-                                // Start a new point on the curve itself, so the shape does not jump.
-                                val x = (p.x / w).coerceIn(0f, 1f)
-                                val y = c.sample()[(x * 255).toInt()]
-                                c = c.withPoint(CurvePoint(x, y))
-                                onChange(currentCurves.with(currentChannel, c))
-                                i = c.points.indexOfFirst { kotlin.math.abs(it.x - x) < 1e-6f }
-                            }
-                            dragCurves = currentCurves.with(currentChannel, c)
-                            dragIndex = i
-                            dragStart = c.points.getOrNull(i)?.let { Offset(it.x * w, (1 - it.y) * h) } ?: p
-                            dragTotal = Offset.Zero
-                        },
-                        onDrag = { change, amount ->
-                            if (dragIndex < 0) return@detectDragGestures
-                            change.consume()
-                            dragTotal += amount
-                            val w = size.width.toFloat()
-                            val h = size.height.toFloat()
-                            val pos = dragStart + dragTotal
-                            val moved = dragCurves[currentChannel].movePoint(dragIndex, CurvePoint(pos.x / w, 1f - pos.y / h))
-                            dragCurves = dragCurves.with(currentChannel, moved)
-                            onChange(dragCurves)
-                        },
-                        onDragEnd = {
-                            if (dragIndex >= 0) onChangeFinished()
-                            dragIndex = -1
-                        },
-                        onDragCancel = {
-                            if (dragIndex >= 0) onChangeFinished()
-                            dragIndex = -1
-                        },
-                    )
-                },
+                .padding(8.dp),
         ) {
             val w = size.width
             val h = size.height
-            for (i in 1..3) {
-                drawLine(gridColor, Offset(w * i / 4, 0f), Offset(w * i / 4, h))
-                drawLine(gridColor, Offset(0f, h * i / 4), Offset(w, h * i / 4))
-            }
+            // The region boundaries.
+            for (i in 1..3) drawLine(gridColor, Offset(w * i / 4, 0f), Offset(w * i / 4, h))
             drawRect(gridColor, style = Stroke(1.dp.toPx()))
             drawLine(gridColor, Offset(0f, h), Offset(w, 0f))
-
-            val samples = curve.sample(128)
+            val samples = parametric.toCurve().sample(128)
             val path = Path()
             samples.forEachIndexed { i, y ->
                 val px = w * i / (samples.size - 1)
@@ -157,10 +214,24 @@ fun CurvesPanel(curves: Curves, onChange: (Curves) -> Unit, onChangeFinished: ()
                 if (i == 0) path.moveTo(px, py) else path.lineTo(px, py)
             }
             drawPath(path, lineColor, style = Stroke(2.dp.toPx()))
-            curve.points.forEachIndexed { i, pt ->
-                val center = Offset(pt.x * w, (1 - pt.y) * h)
-                drawCircle(lineColor, radius = if (i == dragIndex) 8.dp.toPx() else 6.dp.toPx(), center = center)
-            }
+        }
+        val regions = listOf(
+            Triple(R.string.curve_highlights, parametric.highlights) { v: Float -> parametric.copy(highlights = v) },
+            Triple(R.string.curve_lights, parametric.lights) { v: Float -> parametric.copy(lights = v) },
+            Triple(R.string.curve_darks, parametric.darks) { v: Float -> parametric.copy(darks = v) },
+            Triple(R.string.curve_shadows, parametric.shadows) { v: Float -> parametric.copy(shadows = v) },
+        )
+        for ((label, value, update) in regions) {
+            val shown = (value * 100).roundToInt()
+            ParamSlider(
+                label = stringResource(label),
+                value = value,
+                range = -1f..1f,
+                display = if (shown > 0) "+$shown" else "$shown",
+                onChange = { onChange(curves.copy(parametric = update(it))) },
+                onChangeFinished = onChangeFinished,
+                onReset = { onChange(curves.copy(parametric = update(0f))); onChangeFinished() },
+            )
         }
     }
 }

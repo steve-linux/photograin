@@ -37,6 +37,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import io.github.steve_linux.photograin.model.lensCorrection
 import io.github.steve_linux.photograin.model.CropRect
 import io.github.steve_linux.photograin.model.Frame
 import io.github.steve_linux.photograin.model.HslBand
@@ -89,8 +90,8 @@ internal fun PhotoView(
     val textMode = state.tool == ToolGroup.EFFECTS && state.effectsMode == 2
     val shapeMode = state.tool == ToolGroup.EFFECTS && state.effectsMode == 3
 
-    val lens = remember(image, state.edit.correctLens) {
-        image.lens?.takeIf { state.edit.correctLens }?.mapping(image.preview.width, image.preview.height)
+    val lens = remember(image, state.edit.correctLens, state.edit.lensDistortion, state.edit.lensVignetting) {
+        state.edit.lensCorrection(image.lens)?.mapping(image.preview.width, image.preview.height)
     }
     val renderer = remember { PreviewRenderer() }
     var zoom by remember { mutableFloatStateOf(1f) }
@@ -139,6 +140,12 @@ internal fun PhotoView(
             showClipping = showClipping,
             lens = lens,
             showMask = if (maskMode && (state.showMask || state.maskDragging)) state.activeMask ?: -1 else -1,
+            removeFringes = state.edit.removeChromaticAberration,
+            showPointColor = if (state.tool == ToolGroup.COLOR && state.showPointRange && !state.showOriginal) {
+                state.activePointColor ?: -1
+            } else {
+                -1
+            },
         )
 
         val lifecycle = LocalLifecycleOwner.current.lifecycle

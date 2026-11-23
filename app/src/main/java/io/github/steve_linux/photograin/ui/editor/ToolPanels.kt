@@ -483,6 +483,7 @@ fun toolLabel(t: ToolGroup): Int = when (t) {
     ToolGroup.EFFECTS -> R.string.tool_effects
     ToolGroup.LOCAL -> R.string.tool_local
     ToolGroup.CROP -> R.string.tool_crop
+    ToolGroup.OPTICS -> R.string.optics_title
 }
 
 /** The explanation shown on a long press of the slider named [label], if there is one. */

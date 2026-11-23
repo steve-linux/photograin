@@ -4,6 +4,7 @@ package io.github.steve_linux.photograin.data
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import io.github.steve_linux.photograin.model.PhotoLibraryQuery
 import io.github.steve_linux.photograin.model.CopiedAdjustments
 import kotlinx.serialization.json.Json
 
@@ -39,6 +40,19 @@ class Preferences(private val context: Context) {
     }
 
     private fun ratingKey(uri: Uri): String = "rating_" + RecipeStore.keyOf(uri.toString())
+
+    /** Picked or rejected, like the rating shared by all versions of the photo. */
+    fun flag(uri: Uri): PhotoLibraryQuery.Flag =
+        PhotoLibraryQuery.Flag.entries.getOrNull(prefs.getInt(flagKey(uri), 0)) ?: PhotoLibraryQuery.Flag.NONE
+
+    fun setFlag(uri: Uri, flag: PhotoLibraryQuery.Flag) {
+        val key = flagKey(uri)
+        prefs.edit().apply {
+            if (flag == PhotoLibraryQuery.Flag.NONE) remove(key) else putInt(key, flag.ordinal)
+        }.apply()
+    }
+
+    private fun flagKey(uri: Uri): String = "flag_" + RecipeStore.keyOf(uri.toString())
 
     var copiedAdjustments: CopiedAdjustments?
         get() = prefs.getString(KEY_COPIED, null)?.let {
