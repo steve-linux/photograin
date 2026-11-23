@@ -45,6 +45,8 @@ data class PreviewFrame(
     val onHistogram: ((RgbHistogram) -> Unit)? = null,
     val showClipping: Boolean = false,
     val lens: LensMapping? = null,
+    /** Index of the point color whose range is shown, the rest of the photo in gray; -1 for none. */
+    val showPointColor: Int = -1,
 )
 
 /** Renders [PreviewFrame]s into a [GLSurfaceView] on demand. */
@@ -146,6 +148,7 @@ class PreviewRenderer : GLSurfaceView.Renderer {
             lens = frame.lens,
             showMask = frame.showMask,
             showClipping = frame.showClipping,
+            showPointColor = frame.showPointColor,
         )
         try {
             sampleHistogram(p, frame, bitmap, mapper, out.width, out.height)

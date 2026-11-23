@@ -45,6 +45,8 @@ data class Adjustments(
     val vignetteFeather: Float = 0.5f,
     val vignetteRoundness: Float = 1f,
     val vignetteHighlights: Float = 0f,
+    /** Colors picked on the photo and shifted on their own ("Point Color"), at most [PointColor.MAX]. */
+    val pointColors: List<PointColor> = emptyList(),
 )
 
 /** An imported .cube LUT applied after the other color adjustments, blended by [amount]. */

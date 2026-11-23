@@ -488,9 +488,15 @@ private fun PhotoWorkspace(viewModel: EditorViewModel, onClose: () -> Unit, onGu
                             onSelect = { lightCurves = it },
                         )
                     } else if (state.tool == ToolGroup.COLOR) {
-                        val modes = listOf(R.string.panel_balance, R.string.panel_mix, R.string.mode_grading, R.string.mode_monochrome)
-                        WorkspaceModeTabs(modes, colorMode) { index ->
-                            if (colorMode != index) viewModel.setPicker(Picker.NONE)
+                        val modes = listOf(
+                            R.string.panel_balance, R.string.panel_mix, R.string.panel_point_color,
+                            R.string.mode_grading, R.string.mode_monochrome,
+                        )
+                        WorkspaceModeTabs(modes, colorMode, scrollable = true) { index ->
+                            if (colorMode != index) {
+                                viewModel.setPicker(Picker.NONE)
+                                viewModel.setShowPointRange(false)
+                            }
                             colorMode = index
                         }
                     }
@@ -514,12 +520,24 @@ private fun PhotoWorkspace(viewModel: EditorViewModel, onClose: () -> Unit, onGu
                             onChange = viewModel::setHsl,
                             onChangeFinished = viewModel::commit,
                         )
-                        state.tool == ToolGroup.COLOR && colorMode == 2 -> ColorGradePanel(
+                        state.tool == ToolGroup.COLOR && colorMode == 2 -> PointColorPanel(
+                            points = state.edit.adjustments.pointColors,
+                            selected = state.activePointColor,
+                            picking = state.picker == Picker.POINT_COLOR,
+                            onPicking = { viewModel.setPicker(if (it) Picker.POINT_COLOR else Picker.NONE) },
+                            onSelect = viewModel::selectPointColor,
+                            onChange = viewModel::setPointColor,
+                            onChangeFinished = viewModel::commit,
+                            onDelete = viewModel::deletePointColor,
+                            showRange = state.showPointRange,
+                            onShowRange = viewModel::setShowPointRange,
+                        )
+                        state.tool == ToolGroup.COLOR && colorMode == 3 -> ColorGradePanel(
                             grade = state.edit.adjustments.colorGrade,
                             onChange = viewModel::setColorGrade,
                             onCommit = viewModel::commit,
                         )
-                        state.tool == ToolGroup.COLOR && colorMode == 3 -> MonochromePanel(
+                        state.tool == ToolGroup.COLOR && colorMode == 4 -> MonochromePanel(
                             mix = state.edit.adjustments.monochrome,
                             onChange = viewModel::setMonochrome,
                             onCommit = viewModel::commit,

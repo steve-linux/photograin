@@ -176,6 +176,12 @@ uniform float uCurvesOn;
 // Per band: hue shift, saturation, luminance (-1..1).
 uniform vec3 uHsl[8];
 uniform float uHslOn;
+// Point colors: sample (hue, saturation, value, range) and shift (hue in turns, saturation, luminance).
+uniform int uPointCount;
+uniform vec4 uPointSample[8];
+uniform vec3 uPointShift[8];
+// Packed index of the point whose range is shown (the rest of the photo in gray), or -1.
+uniform int uPointShow;
 uniform bool uMonochrome;
 uniform vec4 uMonoLow;
 uniform vec4 uMonoHigh;
@@ -326,6 +332,35 @@ vec3 applyHsl(vec3 v) {
     hsv.x = fract(hsv.x + acc.x * 30.0 / 360.0 + 1.0);
     hsv.y = clamp(hsv.y * (1.0 + acc.y), 0.0, 1.0);
     // Luminance only moves colored pixels; grays have no hue to belong to.
+    hsv.z = clamp(hsv.z * exp2(acc.z * 0.8 * hsv.y), 0.0, 1.0);
+    return hsvToRgb(hsv);
+}
+
+// Same as PointColor.weight, on the source pixel's HSV.
+float pointColorWeight(vec4 p, vec3 hsv) {
+    float k = clamp(p.w, 0.0, 1.0);
+    float dh = abs(hsv.x - p.x);
+    dh = min(dh, 1.0 - dh);
+    float th = 0.025 + 0.11 * k;
+    float ts = 0.12 + 0.45 * k;
+    float tv = 0.18 + 0.55 * k;
+    float wh = 1.0 - smoothstep(th, th * 1.8 + 0.01, dh);
+    float ws = 1.0 - smoothstep(ts, ts + 0.15, abs(hsv.y - p.y));
+    float wv = 1.0 - smoothstep(tv, tv + 0.15, abs(hsv.z - p.z));
+    return wh * ws * wv * smoothstep(0.04, 0.12, hsv.y);
+}
+
+// Matches on the untouched source, so the color picked stays selected whatever else changes.
+vec3 applyPointColors(vec3 v, vec3 sourceHsv) {
+    vec3 acc = vec3(0.0);
+    for (int i = 0; i < 8; i++) {
+        if (i >= uPointCount) break;
+        acc += pointColorWeight(uPointSample[i], sourceHsv) * uPointShift[i];
+    }
+    if (acc == vec3(0.0)) return v;
+    vec3 hsv = rgbToHsv(v);
+    hsv.x = fract(hsv.x + acc.x + 1.0);
+    hsv.y = clamp(hsv.y * (1.0 + acc.y), 0.0, 1.0);
     hsv.z = clamp(hsv.z * exp2(acc.z * 0.8 * hsv.y), 0.0, 1.0);
     return hsvToRgb(hsv);
 }
@@ -526,6 +561,7 @@ vec3 applyVignette(vec3 color, vec2 pos) {
 }
 
 vec3 process(vec3 s, vec2 pos) {
+    vec3 source = s;
     vec4 la = vec4(0.0);
     vec4 lb = vec4(0.0);
     vec2 effects = vec2(0.0);
@@ -605,6 +641,9 @@ vec3 process(vec3 s, vec2 pos) {
         v = applyHsl(clamp(v, 0.0, 1.0));
     }
 
+    vec3 sourceHsv = uPointCount > 0 ? rgbToHsv(clamp(source, 0.0, 1.0)) : vec3(0.0);
+    if (uPointCount > 0) v = applyPointColors(clamp(v, 0.0, 1.0), sourceHsv);
+
     if (uGradeOn) v = applyGrade(clamp(v, 0.0, 1.0));
 
     if (uLutOn > 0.5) {
@@ -627,6 +666,11 @@ vec3 process(vec3 s, vec2 pos) {
         float visible = clamp(cellPx, 0.25, 1.0);
         float m = 1.0 - pow(abs(2.0 * dot(v, LUMA) - 1.0), 2.0);
         v += n * uGrain * 0.3 * m * visible;
+    }
+
+    if (uPointShow >= 0) {
+        float w = pointColorWeight(uPointSample[uPointShow], sourceHsv);
+        v = mix(vec3(dot(v, LUMA)), v, w);
     }
 
     return clamp(v, 0.0, 1.0);

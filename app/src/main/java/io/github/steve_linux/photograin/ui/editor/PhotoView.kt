@@ -139,6 +139,11 @@ internal fun PhotoView(
             showClipping = showClipping,
             lens = lens,
             showMask = if (maskMode && (state.showMask || state.maskDragging)) state.activeMask ?: -1 else -1,
+            showPointColor = if (state.tool == ToolGroup.COLOR && state.showPointRange && !state.showOriginal) {
+                state.activePointColor ?: -1
+            } else {
+                -1
+            },
         )
 
         val lifecycle = LocalLifecycleOwner.current.lifecycle

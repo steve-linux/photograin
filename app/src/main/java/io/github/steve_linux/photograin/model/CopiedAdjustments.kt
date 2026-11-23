@@ -19,7 +19,10 @@ enum class AdjustmentGroup(private val tool: ToolGroup) {
         }
         return when (this) {
             LIGHT -> sliders.copy(curves = source.curves)
-            COLOR -> sliders.copy(hsl = source.hsl, colorGrade = source.colorGrade, monochrome = source.monochrome)
+            COLOR -> sliders.copy(
+                hsl = source.hsl, colorGrade = source.colorGrade, monochrome = source.monochrome,
+                pointColors = source.pointColors,
+            )
             LOOK -> sliders.copy(look = source.look)
             DETAIL, EFFECTS -> sliders
         }

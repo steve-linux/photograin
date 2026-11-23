@@ -524,4 +524,14 @@
     <string name="preset_copy_name">Copia di %1$s</string>
     <string name="preset_delete_hint">Eliminare questo preset salvato? Le modifiche già applicate alle foto resteranno invariate.</string>
     <string name="msg_preset_failed">Impossibile salvare la raccolta dei preset. I preset esistenti sono stati conservati.</string>
+    <!-- Colore puntuale -->
+    <string name="panel_point_color">Colore puntuale</string>
+    <string name="point_color_pick">Scegli colore</string>
+    <string name="point_color_hint">Tocca un colore sulla foto per aggiungerlo, poi spostane tonalità, saturazione e luminanza.</string>
+    <string name="point_color_full">Puoi scegliere fino a 8 colori. Eliminane uno per sceglierne un altro.</string>
+    <string name="point_color_show_range">Mostra intervallo</string>
+    <string name="point_color_delete">Elimina questo colore</string>
+    <string name="point_color_range">Intervallo</string>
+    <string name="point_color_swatch">Colore scelto</string>
+    <string name="help_point_color_range">Quanti colori simili vengono cambiati insieme a quello scelto. Attiva Mostra intervallo per vedere cosa raggiunge: il resto della foto diventa grigio.</string>
 </resources>

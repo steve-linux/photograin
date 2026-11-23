@@ -538,4 +538,14 @@
     <string name="preset_copy_name">Copy of %1$s</string>
     <string name="preset_delete_hint">Delete this saved preset? Existing photo edits will stay unchanged.</string>
     <string name="msg_preset_failed">Could not save the preset library. Existing presets were kept.</string>
+    <!-- Point Color -->
+    <string name="panel_point_color">Point color</string>
+    <string name="point_color_pick">Pick color</string>
+    <string name="point_color_hint">Tap a color on the photo to add it, then shift its hue, saturation and luminance.</string>
+    <string name="point_color_full">You can pick up to 8 colors. Delete one to pick another.</string>
+    <string name="point_color_show_range">Show range</string>
+    <string name="point_color_delete">Delete this color</string>
+    <string name="point_color_range">Range</string>
+    <string name="point_color_swatch">Picked color</string>
+    <string name="help_point_color_range">How many similar colors are changed with the one picked. Turn on Show range to see what is reached: the rest of the photo turns gray.</string>
 </resources>
