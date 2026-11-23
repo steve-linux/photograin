@@ -65,6 +65,7 @@ import io.github.steve_linux.photograin.R
 import io.github.steve_linux.photograin.data.ExportOptions
 import io.github.steve_linux.photograin.data.ObjectRemover
 import io.github.steve_linux.photograin.data.SettingsStore
+import io.github.steve_linux.photograin.model.EditedTools
 import io.github.steve_linux.photograin.model.HslControl
 import io.github.steve_linux.photograin.model.Params
 import io.github.steve_linux.photograin.model.ToolGroup
@@ -97,9 +98,9 @@ private fun PhotoWorkspace(viewModel: EditorViewModel, onClose: () -> Unit, onGu
     var showCopy by rememberSaveable { mutableStateOf(false) }
     var showHistory by rememberSaveable { mutableStateOf(false) }
     var showVersions by rememberSaveable { mutableStateOf(false) }
-    var showOptics by rememberSaveable { mutableStateOf(false) }
     var showActions by rememberSaveable { mutableStateOf(false) }
     var editTool by rememberSaveable { mutableStateOf(ToolGroup.LIGHT) }
+    val edited = remember(state.edit) { EditedTools.of(state.edit) }
 
     fun selectTool(tool: ToolGroup) {
         showActions = false
@@ -301,6 +302,8 @@ private fun PhotoWorkspace(viewModel: EditorViewModel, onClose: () -> Unit, onGu
                         selectTool(ToolGroup.LOCAL)
                         viewModel.setRetouchMode(retouch)
                     },
+                    edited = edited,
+                    retouched = state.edit.retouch.isNotEmpty(),
                 )
             }
         },
@@ -333,7 +336,7 @@ private fun PhotoWorkspace(viewModel: EditorViewModel, onClose: () -> Unit, onGu
             if (state.image != null && !fullPhoto) {
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 if (!showActions && state.tool in colorAndToneTools) {
-                    EditCategoryBar(selected = state.tool, onSelect = ::selectTool)
+                    EditCategoryBar(selected = state.tool, onSelect = ::selectTool, edited = edited)
                 }
                 if (showActions) {
                     QuickActionsBar(onAction = ::quickAction)
@@ -439,43 +442,33 @@ private fun PhotoWorkspace(viewModel: EditorViewModel, onClose: () -> Unit, onGu
                         )
                     }
                 } else if (state.tool == ToolGroup.CROP) {
-                    if (state.quadDraft == null) {
-                        PanelModeSelector(
-                            firstLabel = R.string.tool_crop,
-                            secondLabel = R.string.optics_title,
-                            showSecond = showOptics,
-                            onSelect = { showOptics = it },
-                        )
-                    }
-                    if (showOptics && state.quadDraft == null) {
-                        OpticsPanel(
-                            profile = state.image?.lens,
-                            edit = state.edit,
-                            onLensCorrection = viewModel::setLensCorrection,
-                            onRemoveChromaticAberration = viewModel::setRemoveChromaticAberration,
-                            onDistortion = viewModel::setLensDistortion,
-                            onVignetting = viewModel::setLensVignetting,
-                            onChangeFinished = viewModel::commit,
-                        )
-                    } else {
-                        CropPanel(
-                            geometry = state.edit.geometry,
-                            onAspect = viewModel::setAspect,
-                            onStraighten = viewModel::setStraighten,
-                            onStraightenFinished = viewModel::commit,
-                            onPerspective = viewModel::setPerspective,
-                            onRotate = viewModel::rotate,
-                            onFlipH = viewModel::flipHorizontal,
-                            onFlipV = viewModel::flipVertical,
-                            onReset = viewModel::resetGeometry,
-                            quadDraft = state.quadDraft,
-                            onAutoStraighten = viewModel::autoStraighten,
-                            onStartQuad = viewModel::startQuad,
-                            onApplyQuad = viewModel::applyQuad,
-                            onCancelQuad = viewModel::cancelQuad,
-                            onRemoveQuad = viewModel::removeQuad,
-                        )
-                    }
+                    CropPanel(
+                        geometry = state.edit.geometry,
+                        onAspect = viewModel::setAspect,
+                        onStraighten = viewModel::setStraighten,
+                        onStraightenFinished = viewModel::commit,
+                        onPerspective = viewModel::setPerspective,
+                        onRotate = viewModel::rotate,
+                        onFlipH = viewModel::flipHorizontal,
+                        onFlipV = viewModel::flipVertical,
+                        onReset = viewModel::resetGeometry,
+                        quadDraft = state.quadDraft,
+                        onAutoStraighten = viewModel::autoStraighten,
+                        onStartQuad = viewModel::startQuad,
+                        onApplyQuad = viewModel::applyQuad,
+                        onCancelQuad = viewModel::cancelQuad,
+                        onRemoveQuad = viewModel::removeQuad,
+                    )
+                } else if (state.tool == ToolGroup.OPTICS) {
+                    OpticsPanel(
+                        profile = state.image?.lens,
+                        edit = state.edit,
+                        onLensCorrection = viewModel::setLensCorrection,
+                        onRemoveChromaticAberration = viewModel::setRemoveChromaticAberration,
+                        onDistortion = viewModel::setLensDistortion,
+                        onVignetting = viewModel::setLensVignetting,
+                        onChangeFinished = viewModel::commit,
+                    )
                 } else {
                     if (state.tool == ToolGroup.LIGHT) {
                         HistogramPanel(

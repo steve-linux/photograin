@@ -86,7 +86,7 @@ fun guideTopicFor(tool: ToolGroup, healing: Boolean): Int = when (tool) {
     ToolGroup.DETAIL -> R.string.guide_detail_title
     ToolGroup.EFFECTS -> R.string.guide_decor_title
     ToolGroup.LOCAL -> if (healing) R.string.guide_heal_title else R.string.guide_local_title
-    ToolGroup.CROP -> R.string.guide_crop_title
+    ToolGroup.CROP, ToolGroup.OPTICS -> R.string.guide_crop_title
 }
 
 /**

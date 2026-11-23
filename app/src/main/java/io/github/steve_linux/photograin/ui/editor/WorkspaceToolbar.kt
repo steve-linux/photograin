@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -19,11 +20,13 @@ import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.AutoFixHigh
+import androidx.compose.material.icons.outlined.Camera
 import androidx.compose.material.icons.outlined.Crop
 import androidx.compose.material.icons.outlined.Details
 import androidx.compose.material.icons.outlined.Filter
@@ -52,7 +55,7 @@ import androidx.compose.ui.unit.sp
 import io.github.steve_linux.photograin.R
 import io.github.steve_linux.photograin.model.ToolGroup
 
-internal val colorAndToneTools = listOf(ToolGroup.LIGHT, ToolGroup.COLOR, ToolGroup.EFFECTS, ToolGroup.DETAIL)
+internal val colorAndToneTools = listOf(ToolGroup.LIGHT, ToolGroup.COLOR, ToolGroup.EFFECTS, ToolGroup.DETAIL, ToolGroup.OPTICS)
 
 @Composable
 internal fun WorkspaceToolbar(
@@ -65,36 +68,45 @@ internal fun WorkspaceToolbar(
     onCrop: () -> Unit,
     onEdit: () -> Unit,
     onLocal: (Boolean) -> Unit,
+    /** Panels holding a change, marked with a dot as in Lightroom; see EditedTools. */
+    edited: Set<ToolGroup> = emptySet(),
+    retouched: Boolean = false,
 ) {
     Column(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface).navigationBarsPadding()) {
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         Row(Modifier.fillMaxWidth().selectableGroup()) {
             val item = Modifier.weight(1f)
             if (hasActions) WorkspaceItem(item, R.string.workspace_actions, Icons.Outlined.AutoFixHigh, actions, onActions)
-            WorkspaceItem(item, R.string.tool_look, Icons.Outlined.Filter, !actions && tool == ToolGroup.LOOK, onLooks)
-            WorkspaceItem(item, R.string.tool_crop, Icons.Outlined.Crop, !actions && tool == ToolGroup.CROP, onCrop)
-            WorkspaceItem(item, R.string.workspace_edit, Icons.Outlined.Tune, !actions && tool in colorAndToneTools, onEdit)
-            WorkspaceItem(item, R.string.mode_masks, Icons.Outlined.LensBlur, !actions && tool == ToolGroup.LOCAL && !retouch) {
-                onLocal(false)
-            }
-            WorkspaceItem(item, R.string.tool_local, Icons.Outlined.Healing, !actions && tool == ToolGroup.LOCAL && retouch) {
-                onLocal(true)
-            }
+            WorkspaceItem(item, R.string.tool_look, Icons.Outlined.Filter, !actions && tool == ToolGroup.LOOK, onLooks, ToolGroup.LOOK in edited)
+            WorkspaceItem(item, R.string.tool_crop, Icons.Outlined.Crop, !actions && tool == ToolGroup.CROP, onCrop, ToolGroup.CROP in edited)
+            WorkspaceItem(
+                item, R.string.workspace_edit, Icons.Outlined.Tune, !actions && tool in colorAndToneTools, onEdit,
+                colorAndToneTools.any { it in edited },
+            )
+            WorkspaceItem(
+                item, R.string.mode_masks, Icons.Outlined.LensBlur, !actions && tool == ToolGroup.LOCAL && !retouch,
+                { onLocal(false) }, ToolGroup.LOCAL in edited,
+            )
+            WorkspaceItem(
+                item, R.string.tool_local, Icons.Outlined.Healing, !actions && tool == ToolGroup.LOCAL && retouch,
+                { onLocal(true) }, retouched,
+            )
         }
     }
 }
 
 @Composable
-internal fun EditCategoryBar(selected: ToolGroup, onSelect: (ToolGroup) -> Unit) {
+internal fun EditCategoryBar(selected: ToolGroup, onSelect: (ToolGroup) -> Unit, edited: Set<ToolGroup> = emptySet()) {
     Row(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainer).selectableGroup()) {
         for (tool in colorAndToneTools) {
             val icon = when (tool) {
                 ToolGroup.LIGHT -> Icons.Outlined.WbSunny
                 ToolGroup.COLOR -> Icons.Outlined.Palette
                 ToolGroup.EFFECTS -> Icons.Outlined.AutoAwesome
+                ToolGroup.OPTICS -> Icons.Outlined.Camera
                 else -> Icons.Outlined.Details
             }
-            WorkspaceItem(Modifier.weight(1f), toolLabel(tool), icon, selected == tool) { onSelect(tool) }
+            WorkspaceItem(Modifier.weight(1f), toolLabel(tool), icon, selected == tool, { onSelect(tool) }, tool in edited)
         }
     }
 }
@@ -106,6 +118,7 @@ private fun WorkspaceItem(
     icon: ImageVector,
     selected: Boolean,
     onClick: () -> Unit,
+    edited: Boolean = false,
 ) {
     val colors = MaterialTheme.colorScheme
     val color = if (selected) colors.onSurface else colors.onSurfaceVariant
@@ -121,7 +134,15 @@ private fun WorkspaceItem(
             )
         }
         Column(Modifier.align(Alignment.Center).padding(horizontal = 2.dp, vertical = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(22.dp))
+            Box {
+                Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(22.dp))
+                if (edited) {
+                    Box(
+                        Modifier.align(Alignment.TopEnd).offset(x = 4.dp, y = (-1).dp).size(5.dp)
+                            .background(colors.primary, CircleShape),
+                    )
+                }
+            }
             BasicText(
                 stringResource(label),
                 style = MaterialTheme.typography.labelSmall.copy(color = color),
