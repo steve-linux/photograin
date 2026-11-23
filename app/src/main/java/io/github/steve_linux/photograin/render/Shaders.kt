@@ -361,9 +361,11 @@ vec3 applyPointColors(vec3 v, vec3 sourceHsv) {
     if (acc == vec3(0.0)) return v;
     vec3 hsv = rgbToHsv(v);
     hsv.x = fract(hsv.x + acc.x + 1.0);
-    hsv.y = clamp(hsv.y * (1.0 + acc.y), 0.0, 1.0);
-    hsv.z = clamp(hsv.z * exp2(acc.z * 0.8 * hsv.y), 0.0, 1.0);
-    return hsvToRgb(hsv);
+    vec3 c = hsvToRgb(hsv);
+    // Saturation keeps luminance, so a color fading to gray does not light up.
+    float y = dot(c, LUMA);
+    c = mix(vec3(y), c, max(0.0, 1.0 + acc.y));
+    return clamp(c * exp2(acc.z * 0.8), 0.0, 1.0);
 }
 
 vec3 applyGrade(vec3 v) {
