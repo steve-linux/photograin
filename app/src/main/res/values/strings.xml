@@ -560,4 +560,12 @@
     <string name="curve_lights">Lights</string>
     <string name="curve_darks">Darks</string>
     <string name="curve_shadows">Shadows</string>
+    <!-- Flags -->
+    <string name="photo_flag">Flag</string>
+    <string name="photo_flag_pick">Picked</string>
+    <string name="photo_flag_reject">Rejected</string>
+    <string name="library_flag_all">All flags</string>
+    <string name="library_flag_picked">Picked</string>
+    <string name="library_flag_unflagged">Unflagged</string>
+    <string name="library_flag_rejected">Rejected</string>
 </resources>

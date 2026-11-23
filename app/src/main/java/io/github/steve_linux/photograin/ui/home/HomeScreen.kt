@@ -29,7 +29,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.Block
+import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material.icons.outlined.AddPhotoAlternate
 import androidx.compose.material.icons.outlined.Compare
 import androidx.compose.material.icons.outlined.FilterList
@@ -136,6 +139,7 @@ private fun PhotoLibrary(
     var query by rememberSaveable { mutableStateOf("") }
     var sort by rememberSaveable { mutableStateOf(PhotoLibraryQuery.Sort.RECENT) }
     var status by rememberSaveable { mutableStateOf(PhotoLibraryQuery.Status.ALL) }
+    var flagFilter by rememberSaveable { mutableStateOf(PhotoLibraryQuery.FlagFilter.ALL) }
     val context = LocalContext.current
     // Each version of a photo gets its own tile, as Darktable shows duplicates.
     val loadedEntries by produceState<List<HomeEntry>?>(null, recents) {
@@ -156,14 +160,23 @@ private fun PhotoLibrary(
         val preferences = Preferences(context)
         recents.associateWith(preferences::rating)
     }
+    val flags = remember(context, recents) {
+        val preferences = Preferences(context)
+        recents.associateWith(preferences::flag)
+    }
     val entries = loadedEntries.orEmpty()
     val versionNames = entries.map { it.version.name ?: stringResource(R.string.version_number, it.version.id) }
-    val metadata = remember(entries, ratings, versionNames) {
-        entries.mapIndexed { i, entry -> PhotoLibraryQuery.Entry(entry.key, entry.name, versionNames[i], ratings[entry.uri] ?: 0, entry.edited) }
+    val metadata = remember(entries, ratings, flags, versionNames) {
+        entries.mapIndexed { i, entry ->
+            PhotoLibraryQuery.Entry(
+                entry.key, entry.name, versionNames[i], ratings[entry.uri] ?: 0, entry.edited,
+                flags[entry.uri] ?: PhotoLibraryQuery.Flag.NONE,
+            )
+        }
     }
-    val visible = remember(entries, metadata, query, minimumRating, status, sort) {
+    val visible = remember(entries, metadata, query, minimumRating, status, sort, flagFilter) {
         val byKey = entries.associateBy { it.key }
-        PhotoLibraryQuery.apply(metadata, query, minimumRating, status, sort).map { byKey.getValue(it.key) }
+        PhotoLibraryQuery.apply(metadata, query, minimumRating, status, sort, flagFilter).map { byKey.getValue(it.key) }
     }
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
@@ -262,9 +275,18 @@ private fun PhotoLibrary(
                         )
                         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             LibraryStatusFilter(status) { status = it }
+                            LibraryFlagFilter(flagFilter) { flagFilter = it }
                             LibrarySortFilter(sort) { sort = it }
-                            if (query.isNotBlank() || minimumRating > 0 || status != PhotoLibraryQuery.Status.ALL || sort != PhotoLibraryQuery.Sort.RECENT) {
-                                TextButton(onClick = { query = ""; status = PhotoLibraryQuery.Status.ALL; sort = PhotoLibraryQuery.Sort.RECENT; onMinimumRating(0) }) {
+                            if (query.isNotBlank() || minimumRating > 0 || status != PhotoLibraryQuery.Status.ALL ||
+                                sort != PhotoLibraryQuery.Sort.RECENT || flagFilter != PhotoLibraryQuery.FlagFilter.ALL
+                            ) {
+                                TextButton(onClick = {
+                                    query = ""
+                                    status = PhotoLibraryQuery.Status.ALL
+                                    sort = PhotoLibraryQuery.Sort.RECENT
+                                    flagFilter = PhotoLibraryQuery.FlagFilter.ALL
+                                    onMinimumRating(0)
+                                }) {
                                     Text(stringResource(R.string.library_reset_filters))
                                 }
                             }
@@ -291,11 +313,12 @@ private fun PhotoLibrary(
                 } else {
                     items(visible, key = { it.key }) { entry ->
                         val stars = ratings[entry.uri] ?: 0
+                        val flag = flags[entry.uri] ?: PhotoLibraryQuery.Flag.NONE
                         Column {
                             if (entry.count > 1) {
-                                VersionTile(entry, stars) { onOpen(entry.uri, entry.version.id) }
+                                VersionTile(entry, stars, flag) { onOpen(entry.uri, entry.version.id) }
                             } else {
-                                RecentThumbnail(entry.uri, onClick = { onOpen(entry.uri, 1) }, modifier = Modifier, rating = stars)
+                                RecentThumbnail(entry.uri, onClick = { onOpen(entry.uri, 1) }, modifier = Modifier, rating = stars, flag = flag)
                             }
                             Text(entry.name, maxLines = 1, overflow = TextOverflow.Ellipsis,
                                 style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(4.dp))
@@ -344,9 +367,15 @@ private fun RatingFilter(minimumRating: Int, onMinimumRating: (Int) -> Unit) {
 }
 
 @Composable
-private fun RatingBadge(rating: Int, modifier: Modifier = Modifier) {
-    if (rating == 0) return
-    val description = pluralStringResource(R.plurals.photo_rating_stars, rating, rating)
+private fun RatingBadge(rating: Int, modifier: Modifier = Modifier, flag: PhotoLibraryQuery.Flag = PhotoLibraryQuery.Flag.NONE) {
+    if (rating == 0 && flag == PhotoLibraryQuery.Flag.NONE) return
+    val stars = if (rating == 0) "" else pluralStringResource(R.plurals.photo_rating_stars, rating, rating)
+    val flagged = when (flag) {
+        PhotoLibraryQuery.Flag.NONE -> ""
+        PhotoLibraryQuery.Flag.PICK -> stringResource(R.string.photo_flag_pick)
+        PhotoLibraryQuery.Flag.REJECT -> stringResource(R.string.photo_flag_reject)
+    }
+    val description = listOf(flagged, stars).filter { it.isNotEmpty() }.joinToString(", ")
     Row(
         modifier.clip(RoundedCornerShape(4.dp))
             .background(MaterialTheme.colorScheme.surface)
@@ -355,8 +384,17 @@ private fun RatingBadge(rating: Int, modifier: Modifier = Modifier) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(3.dp),
     ) {
-        Icon(Icons.Filled.Star, contentDescription = null, modifier = Modifier.size(12.dp), tint = MaterialTheme.colorScheme.primary)
-        Text(stringResource(R.string.photo_rating_number, rating), style = MaterialTheme.typography.labelSmall)
+        when (flag) {
+            PhotoLibraryQuery.Flag.PICK ->
+                Icon(Icons.Filled.Flag, contentDescription = null, modifier = Modifier.size(12.dp), tint = MaterialTheme.colorScheme.primary)
+            PhotoLibraryQuery.Flag.REJECT ->
+                Icon(Icons.Outlined.Block, contentDescription = null, modifier = Modifier.size(12.dp), tint = MaterialTheme.colorScheme.error)
+            PhotoLibraryQuery.Flag.NONE -> Unit
+        }
+        if (rating > 0) {
+            Icon(Icons.Filled.Star, contentDescription = null, modifier = Modifier.size(12.dp), tint = MaterialTheme.colorScheme.primary)
+            Text(stringResource(R.string.photo_rating_number, rating), style = MaterialTheme.typography.labelSmall)
+        }
     }
 }
 
@@ -410,6 +448,7 @@ internal fun RecentThumbnail(
     onClick: () -> Unit,
     modifier: Modifier = Modifier.clip(RoundedCornerShape(8.dp)),
     rating: Int = 0,
+    flag: PhotoLibraryQuery.Flag = PhotoLibraryQuery.Flag.NONE,
 ) {
     val context = LocalContext.current
     val thumb: Bitmap? by produceState<Bitmap?>(null, uri) {
@@ -430,7 +469,7 @@ internal fun RecentThumbnail(
                 modifier = Modifier.fillMaxSize(),
             )
         }
-        RatingBadge(rating, Modifier.align(Alignment.TopEnd).padding(4.dp))
+        RatingBadge(rating, Modifier.align(Alignment.TopEnd).padding(4.dp), flag)
     }
 }
 
@@ -441,7 +480,7 @@ private data class HomeEntry(val uri: Uri, val version: RecipeVersion, val count
 
 /** A version of a photo with several: its own edit, and its name in a corner. */
 @Composable
-private fun VersionTile(entry: HomeEntry, rating: Int, onClick: () -> Unit) {
+private fun VersionTile(entry: HomeEntry, rating: Int, flag: PhotoLibraryQuery.Flag, onClick: () -> Unit) {
     val context = LocalContext.current
     val thumb: Bitmap? by produceState<Bitmap?>(null, entry.uri, entry.version.id) {
         value = EditedThumbnails.load(context, entry.uri, 384, entry.version.id)
@@ -463,7 +502,7 @@ private fun VersionTile(entry: HomeEntry, rating: Int, onClick: () -> Unit) {
             )
         }
         VersionBadge(entry.version, Modifier.align(Alignment.BottomStart).padding(4.dp))
-        RatingBadge(rating, Modifier.align(Alignment.TopEnd).padding(4.dp))
+        RatingBadge(rating, Modifier.align(Alignment.TopEnd).padding(4.dp), flag)
     }
 }
 
@@ -555,6 +594,29 @@ private fun LibrarySortFilter(value: PhotoLibraryQuery.Sort, onSelect: (PhotoLib
         DropdownMenu(open, { open = false }) {
             PhotoLibraryQuery.Sort.entries.forEach { sort ->
                 DropdownMenuItem(text = { Text(stringResource(label(sort))) }, onClick = { onSelect(sort); open = false })
+            }
+        }
+    }
+}
+
+@Composable
+private fun LibraryFlagFilter(value: PhotoLibraryQuery.FlagFilter, onSelect: (PhotoLibraryQuery.FlagFilter) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    fun label(filter: PhotoLibraryQuery.FlagFilter) = when (filter) {
+        PhotoLibraryQuery.FlagFilter.ALL -> R.string.library_flag_all
+        PhotoLibraryQuery.FlagFilter.PICKED -> R.string.library_flag_picked
+        PhotoLibraryQuery.FlagFilter.UNFLAGGED -> R.string.library_flag_unflagged
+        PhotoLibraryQuery.FlagFilter.REJECTED -> R.string.library_flag_rejected
+    }
+    Box {
+        FilterChip(
+            value != PhotoLibraryQuery.FlagFilter.ALL, { open = true },
+            label = { Text(stringResource(label(value))) },
+            leadingIcon = { Icon(Icons.Outlined.Flag, contentDescription = null, Modifier.size(18.dp)) },
+        )
+        DropdownMenu(open, { open = false }) {
+            PhotoLibraryQuery.FlagFilter.entries.forEach { filter ->
+                DropdownMenuItem(text = { Text(stringResource(label(filter))) }, onClick = { onSelect(filter); open = false })
             }
         }
     }

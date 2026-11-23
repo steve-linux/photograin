@@ -546,4 +546,12 @@
     <string name="curve_lights">Chiari</string>
     <string name="curve_darks">Scuri</string>
     <string name="curve_shadows">Ombre</string>
+    <!-- Contrassegni -->
+    <string name="photo_flag">Contrassegno</string>
+    <string name="photo_flag_pick">Scelta</string>
+    <string name="photo_flag_reject">Scartata</string>
+    <string name="library_flag_all">Tutti i contrassegni</string>
+    <string name="library_flag_picked">Scelte</string>
+    <string name="library_flag_unflagged">Senza contrassegno</string>
+    <string name="library_flag_rejected">Scartate</string>
 </resources>
