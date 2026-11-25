@@ -18,6 +18,9 @@ Editor fotografico non distruttivo per Android, libero (GPL-3.0-or-later) e pens
   ogni foto mantiene il suo ritaglio, e puoi esportarle tutte in una cartella.
 - **Ritaglio**: proporzioni predefinite, raddrizzamento ±45° anche automatico (dalle linee della foto),
   rotazione, specchio, prospettiva con cursori o a 4 punti (segni qualcosa di rettangolare e viene squadrato).
+- **Prospettiva automatica (Upright)**: "Verticali auto" rimette dritti i palazzi che pendono,
+  "Prospettiva auto" squadra anche la facciata; trova da solo le linee e i punti di fuga e piazza
+  i 4 punti della prospettiva, che puoi poi rifinire. Dettagli in [docs/UPRIGHT.md](docs/UPRIGHT.md).
 - **Ritocco**: correttivo e clona per togliere macchie, polvere e piccoli oggetti; occhi rossi con un
   tocco per pupilla (il cerchio si adatta da solo al rosso).
 - **Confronto prima/dopo**: tieni premuto sulla foto, oppure vista divisa con cursore.

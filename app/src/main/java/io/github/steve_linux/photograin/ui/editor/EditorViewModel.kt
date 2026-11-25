@@ -75,6 +75,10 @@ import io.github.steve_linux.photograin.model.flippedVertically
 import io.github.steve_linux.photograin.model.rotatedClockwise
 import io.github.steve_linux.photograin.model.Quad
 import io.github.steve_linux.photograin.math.Horizon
+import io.github.steve_linux.photograin.math.LineSegment
+import io.github.steve_linux.photograin.math.LineSegments
+import io.github.steve_linux.photograin.model.Upright
+import io.github.steve_linux.photograin.model.UprightMode
 import io.github.steve_linux.photograin.render.Exporter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -94,6 +98,7 @@ enum class Message {
     EXPORTED, EXPORTED_TO_PICTURES, EXPORTED_TO_DOWNLOADS, EXPORT_FAILED, LOAD_FAILED, ADJUSTMENTS_COPIED, ADJUSTMENTS_PASTED, OUT_OF_MEMORY,
     LUT_IMPORTED, LUT_INVALID, LUT_MISSING, PRESET_SAVED, PRESET_FAILED, HORIZON_NOT_FOUND, SUBJECT_FAILED, SKY_NOT_FOUND, SKY_FAILED,
     REMOVE_FAILED, AUTO_LIGHT_UNAVAILABLE, HSL_COLOR_NOT_FOUND, AUTO_WB_UNAVAILABLE,
+    UPRIGHT_NOT_FOUND, UPRIGHT_TOO_STRONG, UPRIGHT_ALREADY_STRAIGHT,
 }
 
 data class EditorUiState(
@@ -1355,6 +1360,45 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
             val mirrored = image.base.mirror xor g.flipH xor g.flipV
             setStraighten(if (mirrored) -angle else angle)
             commit()
+        }
+    }
+
+    private var uprightJob: Job? = null
+
+    /**
+     * Automatic perspective correction: finds the lines that should be vertical (and, for
+     * [UprightMode.FULL], horizontal) and sets the four perspective points along them, so the
+     * result can still be refined by dragging the points. Replaces straightening and the
+     * keystone sliders, which the points take over.
+     */
+    fun autoUpright(mode: UprightMode) {
+        val image = _state.value.image ?: return
+        if (uprightJob?.isActive == true) return
+        _state.update { it.copy(quadDraft = null) }
+        uprightJob = viewModelScope.launch {
+            val g = _state.value.edit.geometry
+            val result = withContext(Dispatchers.Default) {
+                val (lum, w, h) = luminance(image.preview, 1024)
+                // Lines are found on the preview as stored and carried into the turned and
+                // mirrored frame that the points are given in.
+                val plain = g.copy(straighten = 0f, vertical = 0f, horizontal = 0f, quad = null, crop = CropRect.FULL)
+                val mapper = GeometryMapper(w, h, image.base, plain)
+                val toFrame = mapper.sourceToFrame
+                val segments = LineSegments.detect(lum, w, h).map {
+                    val a = toFrame.apply(it.x1, it.y1)
+                    val b = toFrame.apply(it.x2, it.y2)
+                    LineSegment(a.x, a.y, b.x, b.y)
+                }
+                Upright.correct(segments, mapper.frameWidth, mapper.frameHeight, mode)
+            }
+            when (result) {
+                is Upright.Result.Corrected -> commitGeometry { current ->
+                    refit(current.copy(quad = result.quad, straighten = 0f, vertical = 0f, horizontal = 0f))
+                }
+                Upright.Result.AlreadyStraight -> _state.update { it.copy(message = Message.UPRIGHT_ALREADY_STRAIGHT) }
+                Upright.Result.NotFound -> _state.update { it.copy(message = Message.UPRIGHT_NOT_FOUND) }
+                Upright.Result.TooStrong -> _state.update { it.copy(message = Message.UPRIGHT_TOO_STRONG) }
+            }
         }
     }
 
