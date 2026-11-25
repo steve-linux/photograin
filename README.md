@@ -52,6 +52,10 @@ Editor fotografico non distruttivo per Android, libero (GPL-3.0-or-later) e pens
   scritte dipingendoci sopra; [MI-GAN](https://github.com/Picsart-AI-Research/MI-GAN), eseguito
   da ncnn sul telefono, ricostruisce lo sfondo. Le pennellate restano nella ricetta e si ricalcolano
   all'esportazione. Nessuna connessione.
+- **Unione HDR**: dalla schermata iniziale scegli 2-9 scatti della stessa scena fatti a esposizioni
+  diverse (bracketing, anche RAW); vengono allineati se fatti a mano libera, uniti con la fusione
+  di esposizioni di Mertens e ripuliti dai "fantasmi" di ciò che si è mosso. Il risultato si
+  apre nell'editor. Algoritmo classico, nessuna IA. Dettagli in [docs/HDR_MERGE.md](docs/HDR_MERGE.md).
 - **Impostazioni**: le foto si salvano in `Immagini/Photograin` (o in una cartella a scelta, o chiedendo
   ogni volta), con nome originale o data e ora; formato, qualità, dimensione, profilo colore e dati
   EXIF/GPS predefiniti; tema chiaro, scuro o di sistema; lingua.

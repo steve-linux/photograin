@@ -26,6 +26,8 @@ import io.github.steve_linux.photograin.ui.editor.EditorScreen
 import io.github.steve_linux.photograin.ui.editor.EditorViewModel
 import io.github.steve_linux.photograin.ui.editor.QuickAction
 import io.github.steve_linux.photograin.ui.guide.GuideScreen
+import io.github.steve_linux.photograin.ui.hdr.HdrScreen
+import io.github.steve_linux.photograin.ui.hdr.HdrViewModel
 import io.github.steve_linux.photograin.ui.home.HomeScreen
 import io.github.steve_linux.photograin.ui.settings.SettingsScreen
 import io.github.steve_linux.photograin.ui.theme.PhotograinTheme
@@ -33,6 +35,7 @@ import io.github.steve_linux.photograin.ui.theme.PhotograinTheme
 class MainActivity : ComponentActivity() {
     private val editor: EditorViewModel by viewModels()
     private val batch: BatchViewModel by viewModels()
+    private val hdr: HdrViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -47,6 +50,7 @@ class MainActivity : ComponentActivity() {
             PhotograinTheme(appSettings.theme) {
                 val state by editor.state.collectAsStateWithLifecycle()
                 val batchState by batch.state.collectAsStateWithLifecycle()
+                val hdrState by hdr.state.collectAsStateWithLifecycle()
                 var recents by remember { mutableStateOf(prefs.recents()) }
                 var minimumRating by rememberSaveable { mutableStateOf(0) }
                 var showTip by remember { mutableStateOf(!prefs.presetTipDismissed) }
@@ -62,6 +66,9 @@ class MainActivity : ComponentActivity() {
                 val multiPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
                     if (uris.isNotEmpty()) batch.start(uris)
                 }
+                val hdrPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+                    if (uris.isNotEmpty()) hdr.start(uris)
+                }
                 if (showGuide) {
                     GuideScreen(onClose = { showGuide = false }, focus = guideFocus)
                 } else if (showSettings) {
@@ -70,6 +77,19 @@ class MainActivity : ComponentActivity() {
                         onShowTips = {
                             prefs.presetTipDismissed = false
                             showTip = true
+                        },
+                    )
+                } else if (hdrState.uris.isNotEmpty()) {
+                    HdrScreen(
+                        hdr,
+                        onClose = {
+                            hdr.clear()
+                            recents = prefs.recents()
+                        },
+                        onMerged = { uri ->
+                            hdr.clear()
+                            recents = prefs.recents()
+                            editor.open(uri)
                         },
                     )
                 } else if (batchState.items.isNotEmpty()) {
@@ -101,6 +121,7 @@ class MainActivity : ComponentActivity() {
                             picker.launch(OPEN_TYPES)
                         },
                         onBatch = { multiPicker.launch(OPEN_TYPES) },
+                        onHdr = { hdrPicker.launch(OPEN_TYPES) },
                         showTip = showTip,
                         onDismissTip = {
                             prefs.presetTipDismissed = true

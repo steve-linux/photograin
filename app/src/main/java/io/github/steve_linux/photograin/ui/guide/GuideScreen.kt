@@ -26,6 +26,7 @@ import androidx.compose.material.icons.outlined.Compare
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Crop
 import androidx.compose.material.icons.outlined.Gradient
+import androidx.compose.material.icons.outlined.HdrStrong
 import androidx.compose.material.icons.outlined.Healing
 import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material.icons.outlined.Palette
@@ -74,6 +75,7 @@ private val TOPICS = listOf(
     Topic(Icons.Outlined.ContentCopy, R.string.guide_copy_title, R.string.guide_copy_body),
     Topic(Icons.Outlined.Share, R.string.guide_export_title, R.string.guide_export_body, Icons.Outlined.Share),
     Topic(Icons.Outlined.Settings, R.string.guide_settings_title, R.string.guide_settings_body, Icons.Outlined.Settings),
+    Topic(Icons.Outlined.HdrStrong, R.string.guide_hdr_title, R.string.guide_hdr_body, Icons.Outlined.HdrStrong),
 )
 
 private const val INLINE_ICON = "icon"

@@ -35,6 +35,17 @@ if(ANDROID)
     target_link_options(photograin_raw PRIVATE "-Wl,-z,max-page-size=16384")
 endif()
 
+# HDR merge of bracketed exposures: own code only, so it builds in seconds.
+add_library(hdr_core STATIC hdr_merge.cpp)
+target_compile_options(hdr_core PRIVATE -Wall -O3)
+
+if(ANDROID)
+    add_library(photograin_hdr SHARED hdr_jni.cpp)
+    target_link_libraries(photograin_hdr PRIVATE hdr_core jnigraphics log)
+    target_compile_options(photograin_hdr PRIVATE -Wall)
+    target_link_options(photograin_hdr PRIVATE "-Wl,-z,max-page-size=16384")
+endif()
+
 # --- JPEG XL and AVIF ----------------------------------------------------------------------
 # libjxl (BSD-3-Clause) with its highway, brotli and skcms submodules; libavif (BSD-2-Clause)
 # with libaom (BSD-2-Clause) as the AV1 encoder. All are git submodules built from source,
