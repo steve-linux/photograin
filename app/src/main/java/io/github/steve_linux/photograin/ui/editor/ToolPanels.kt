@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Apartment
 import androidx.compose.material.icons.outlined.AutoFixHigh
 import androidx.compose.material.icons.outlined.Colorize
 import androidx.compose.material.icons.outlined.CropFree
@@ -75,6 +76,7 @@ import io.github.steve_linux.photograin.model.ParamSpec
 import io.github.steve_linux.photograin.model.Params
 import io.github.steve_linux.photograin.model.Quad
 import io.github.steve_linux.photograin.model.ToolGroup
+import io.github.steve_linux.photograin.model.UprightMode
 import java.util.Locale
 import kotlin.math.abs
 
@@ -288,6 +290,7 @@ fun CropPanel(
     onReset: () -> Unit,
     quadDraft: Quad?,
     onAutoStraighten: () -> Unit,
+    onUpright: (UprightMode) -> Unit,
     onStartQuad: () -> Unit,
     onApplyQuad: () -> Unit,
     onCancelQuad: () -> Unit,
@@ -344,6 +347,17 @@ fun CropPanel(
                 onClick = onAutoStraighten,
                 label = { Text(stringResource(R.string.straighten_auto)) },
                 leadingIcon = { Icon(Icons.Outlined.AutoFixHigh, null, Modifier.size(18.dp)) },
+            )
+            // Upright: straightens leaning buildings from their lines, as editable four points.
+            AssistChip(
+                onClick = { onUpright(UprightMode.VERTICAL) },
+                label = { Text(stringResource(R.string.upright_vertical)) },
+                leadingIcon = { Icon(Icons.Outlined.Apartment, null, Modifier.size(18.dp)) },
+            )
+            AssistChip(
+                onClick = { onUpright(UprightMode.FULL) },
+                label = { Text(stringResource(R.string.upright_full)) },
+                leadingIcon = { Icon(Icons.Outlined.Apartment, null, Modifier.size(18.dp)) },
             )
             AssistChip(
                 onClick = onStartQuad,

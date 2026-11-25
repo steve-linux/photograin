@@ -462,6 +462,7 @@ private fun PhotoWorkspace(viewModel: EditorViewModel, onClose: () -> Unit, onGu
                             onReset = viewModel::resetGeometry,
                             quadDraft = state.quadDraft,
                             onAutoStraighten = viewModel::autoStraighten,
+                            onUpright = viewModel::autoUpright,
                             onStartQuad = viewModel::startQuad,
                             onApplyQuad = viewModel::applyQuad,
                             onCancelQuad = viewModel::cancelQuad,
@@ -636,6 +637,9 @@ private fun messageText(m: Message): Int = when (m) {
     Message.SKY_NOT_FOUND -> R.string.msg_sky_not_found
     Message.SKY_FAILED -> R.string.msg_sky_failed
     Message.REMOVE_FAILED -> R.string.msg_remove_failed
+    Message.UPRIGHT_NOT_FOUND -> R.string.msg_upright_not_found
+    Message.UPRIGHT_TOO_STRONG -> R.string.msg_upright_too_strong
+    Message.UPRIGHT_ALREADY_STRAIGHT -> R.string.msg_upright_already_straight
 }
 
 /** ACTION_CREATE_DOCUMENT with the MIME type chosen at launch time: input is (mimeType, fileName). */

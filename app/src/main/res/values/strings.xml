@@ -160,6 +160,9 @@
     <string name="msg_preset_saved">Preset saved</string>
     <string name="msg_auto_light_unavailable">Could not estimate light adjustments from this photo</string>
     <string name="msg_horizon_not_found">No clear lines to straighten by</string>
+    <string name="msg_upright_not_found">Not enough straight lines: try 4-point perspective</string>
+    <string name="msg_upright_too_strong">The lines converge too much to straighten: try 4-point perspective</string>
+    <string name="msg_upright_already_straight">The lines are already straight</string>
     <string name="home_batch">Batch</string>
     <string name="batch_title">Batch edit (%1$d)</string>
     <string name="batch_apply_what">Apply to every photo</string>
@@ -279,7 +282,7 @@
     <string name="guide_detail_title">Detail and Effects</string>
     <string name="guide_detail_body">In Detail you set sharpness, texture, clarity and haze, and reduce the noise of shots taken in low light. Effects adds a vignette and film grain.</string>
     <string name="guide_crop_title">Crop</string>
-    <string name="guide_crop_body">Choose a ratio (1:1, 4:3, 16:9…), drag the corners, straighten the horizon, rotate or flip the photo. The perspective sliders straighten buildings and lines that lean. Auto straighten levels the photo from its lines; for something shot at an angle, use 4-point perspective: mark something rectangular and it is squared up.</string>
+    <string name="guide_crop_body">Choose a ratio (1:1, 4:3, 16:9…), drag the corners, straighten the horizon, rotate or flip the photo. The perspective sliders straighten buildings and lines that lean. Auto straighten levels the photo from its lines; Auto verticals makes leaning buildings stand straight, and Auto perspective also squares up the main facade, as if shot from the front. Both place the four perspective points for you, so you can drag them to refine; for something shot at an angle, use 4-point perspective: mark something rectangular and it is squared up.</string>
     <string name="guide_copy_title">Same edits on many photos</string>
     <string name="guide_copy_body">From the editor menu, choose which adjustment groups to copy, then paste them onto another photo. For many photos at once, tap “Batch” on the home screen: apply the copied adjustments or a preset and, if you like, export them all in one go.</string>
     <string name="guide_export_title">Save the photo</string>
@@ -327,6 +330,8 @@
     <string name="perspective_vertical">Vertical perspective</string>
     <string name="perspective_horizontal">Horizontal perspective</string>
     <string name="straighten_auto">Auto straighten</string>
+    <string name="upright_vertical">Auto verticals</string>
+    <string name="upright_full">Auto perspective</string>
     <string name="quad_start">4-point perspective</string>
     <string name="quad_edit">Edit 4 points</string>
     <string name="quad_remove">Remove 4 points</string>
