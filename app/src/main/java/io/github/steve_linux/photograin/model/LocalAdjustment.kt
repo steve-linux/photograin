@@ -242,8 +242,30 @@ data class LocalAdjustment(
     val dehaze: Float = 0f,
     val name: String = "",
     val enabled: Boolean = true,
+    /**
+     * Lens blur, 0..1: the masked area is defocused with a round, bokeh-like blur whose radius
+     * grows with the mask's strength (see ShaderParams.lensBlurRadiusPx). In-focus pixels do not
+     * spread onto blurred ones, so a sharp subject leaves no halo on its blurred background.
+     */
+    val blur: Float = 0f,
 ) {
+    /** A mask that only defocuses what lies outside the subject, as [backgroundBlur] makes it. */
+    val isBackgroundBlur: Boolean
+        get() = blur > 0f && mask.type == MaskType.SUBJECT && mask.invert
+
+    /** Whether lens blur is the only thing this mask changes, so its panel opens on it. */
+    val onlyBlurs: Boolean
+        get() = blur > 0f && copy(blur = 0f, name = "", enabled = true).hasNoAdjustment()
+
+    private fun hasNoAdjustment() = this == LocalAdjustment(mask = mask)
+
     companion object {
+        /** Starting strength of the background blur: clearly visible, still believable. */
+        const val BACKGROUND_BLUR = 0.5f
+
+        /** Everything but the main subject, defocused: a portrait look in one step. */
+        fun backgroundBlur() = LocalAdjustment(mask = Mask(MaskType.SUBJECT, invert = true), blur = BACKGROUND_BLUR)
+
         const val WHITE = 0xFFFFFFFF.toInt()
 
         /** Index of the mask that cuts the photo out (see [background]), or -1. */
@@ -327,5 +349,6 @@ object LocalParams {
         LocalParamSpec("texture", -1f, 1f, { it.texture }, { a, v -> a.copy(texture = v) }),
         LocalParamSpec("clarity", -1f, 1f, { it.clarity }, { a, v -> a.copy(clarity = v) }),
         LocalParamSpec("dehaze", -1f, 1f, { it.dehaze }, { a, v -> a.copy(dehaze = v) }),
+        LocalParamSpec("blur", 0f, 1f, { it.blur }, { a, v -> a.copy(blur = v) }),
     )
 }

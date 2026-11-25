@@ -52,6 +52,31 @@ object ShaderParams {
     fun tileMarginPx(longEdgePx: Int): Int = ceil(3.5 * localSigmaPx(longEdgePx)).toInt() + 4
 
     /**
+     * Extra pixels around a tile when [masks] defocus the photo: the lens blur gathers from as
+     * far as its largest radius, plus the mipmap filter's reach at that radius. Without lens
+     * blur, the plain [tileMarginPx].
+     */
+    fun tileMarginPx(longEdgePx: Int, masks: List<LocalAdjustment>): Int {
+        val radius = lensBlurRadiusPx(maxLensBlur(masks), longEdgePx)
+        if (radius <= 0.0) return tileMarginPx(longEdgePx)
+        return tileMarginPx(longEdgePx) + ceil(radius * 1.25).toInt() + 2
+    }
+
+    /** Largest lens blur radius, as a fraction of the output long edge (see [LocalAdjustment.blur]). */
+    const val LENS_BLUR_FRACTION = 0.035
+
+    /** Taps the lens blur gathers per pixel; must match LENS_TAPS in the color shader. */
+    const val LENS_BLUR_TAPS = 48
+
+    /** Lens blur radius in pixels for a blur [amount] (0..1) on an output of [longEdgePx]. */
+    fun lensBlurRadiusPx(amount: Float, longEdgePx: Int): Double =
+        amount.coerceIn(0f, 1f) * LENS_BLUR_FRACTION * longEdgePx
+
+    /** Strongest lens blur among the masks the shader receives, 0 when none blurs. */
+    fun maxLensBlur(masks: List<LocalAdjustment>): Float =
+        masks.take(LocalAdjustment.MAX).filter { it.enabled }.maxOfOrNull { it.blur.coerceIn(0f, 1f) } ?: 0f
+
+    /**
      * Grain cell size as a fraction of the output long edge. Expressing grain relative
      * to the image keeps the preview and the full-size export looking the same.
      */
@@ -77,7 +102,12 @@ object ShaderParams {
         val locA: FloatArray,
         val locB: FloatArray,
         val effects: FloatArray,
-    )
+        /** Lens blur of each mask, 0..1. */
+        val blur: FloatArray,
+    ) {
+        /** Whether any mask defocuses the photo, so the shader runs the lens blur. */
+        val lensBlur: Boolean get() = blur.any { it > 0f }
+    }
 
     fun maskUniforms(masks: List<LocalAdjustment>): MaskUniforms {
         val n = minOf(masks.size, LocalAdjustment.MAX)
@@ -87,6 +117,7 @@ object ShaderParams {
         val locA = FloatArray(LocalAdjustment.MAX * 4)
         val locB = FloatArray(LocalAdjustment.MAX * 4)
         val effects = FloatArray(LocalAdjustment.MAX * 2)
+        val blur = FloatArray(LocalAdjustment.MAX)
         for (i in 0 until n) {
             val l = masks[i]
             val m = l.mask
@@ -124,8 +155,9 @@ object ShaderParams {
             locB[k] = l.temperature; locB[k + 1] = l.tint; locB[k + 2] = l.saturation; locB[k + 3] = l.clarity
             effects[i * 2] = l.texture
             effects[i * 2 + 1] = l.dehaze
+            blur[i] = l.blur.coerceIn(0f, 1f)
         }
-        return MaskUniforms(n, geo, opt, range, locA, locB, effects)
+        return MaskUniforms(n, geo, opt, range, locA, locB, effects, blur)
     }
 
     /**

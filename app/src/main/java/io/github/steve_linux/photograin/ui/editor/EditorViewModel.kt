@@ -346,6 +346,11 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
                 if (existing < 0) removeBackground()
                 else _state.update { it.copy(selectedMask = existing, tool = ToolGroup.LOCAL, retouchMode = false, picker = Picker.NONE) }
             }
+            QuickAction.BLUR_BACKGROUND -> {
+                val existing = _state.value.edit.masks.indexOfFirst { it.isBackgroundBlur }
+                if (existing < 0) blurBackground()
+                else _state.update { it.copy(selectedMask = existing, tool = ToolGroup.LOCAL, retouchMode = false, picker = Picker.NONE) }
+            }
             QuickAction.REMOVE_OBJECT -> {
                 _state.update {
                     it.copy(tool = ToolGroup.LOCAL, retouchMode = true, picker = Picker.NONE, quadDraft = null)
@@ -733,6 +738,18 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         if (s.image == null || s.edit.masks.size >= LocalAdjustment.MAX) return
         val local = LocalAdjustment(mask = Mask(MaskType.SUBJECT), background = Background.TRANSPARENT)
         updateLive { e -> e.copy(masks = e.masks.map { it.copy(background = Background.KEEP) } + local) }
+        _state.update { it.copy(selectedMaskPart = 0, selectedMask = it.edit.masks.lastIndex, tool = ToolGroup.LOCAL, retouchMode = false) }
+        commit()
+    }
+
+    /**
+     * Adds a mask that defocuses everything but the subject, like a wide-open portrait lens,
+     * and selects it. The subject is found by the model; the brush refines it.
+     */
+    fun blurBackground() {
+        val s = _state.value
+        if (s.image == null || s.edit.masks.size >= LocalAdjustment.MAX) return
+        updateLive { e -> e.copy(masks = e.masks + LocalAdjustment.backgroundBlur()) }
         _state.update { it.copy(selectedMaskPart = 0, selectedMask = it.edit.masks.lastIndex, tool = ToolGroup.LOCAL, retouchMode = false) }
         commit()
     }

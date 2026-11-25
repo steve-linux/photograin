@@ -221,6 +221,9 @@ uniform vec4 uLocA[8];
 uniform vec4 uLocB[8];
 // Texture and dehaze.
 uniform vec2 uLocEffects[8];
+// Lens blur, 0..1, of each mask; uLensBlurOn when any is above 0.
+uniform float uLocBlur[8];
+uniform bool uLensBlurOn;
 // Index of the mask to tint red on screen, or -1.
 uniform int uShowMask;
 // Index of the mask that cuts the photo out, or -1. Outside it the photo becomes uCutoutFill.rgb
@@ -454,6 +457,60 @@ float maskWeight(int i, vec2 pos, vec3 s) {
     return w * rangeWeight(uMaskRange[i], s);
 }
 
+// Largest lens blur radius as a fraction of the long edge, and taps per pixel: the same as
+// ShaderParams.LENS_BLUR_FRACTION and LENS_BLUR_TAPS.
+const float LENS_BLUR_FRACTION = 0.035;
+const int LENS_TAPS = 48;
+// How much of the lens blur replaced the pixel: 0 sharp, 1 fully defocused. Detail filters that
+// read the unblurred neighbors (denoise, sharpening, texture) fade out as it grows.
+float gDefocus = 0.0;
+
+// Lens blur radius in output pixels at [pos], for the pixel [s] before any adjustment.
+float lensRadius(vec2 pos, vec3 s) {
+    float amount = 0.0;
+    for (int i = 0; i < 8; i++) {
+        if (i >= uMaskCount) break;
+        if (uLocBlur[i] <= 0.0) continue;
+        amount += maskWeight(i, pos, s) * uLocBlur[i];
+    }
+    return min(amount, 1.0) * LENS_BLUR_FRACTION * uLongEdgePx;
+}
+
+// Round defocus blur of [radius] output pixels around the current pixel [s]. Taps cover the disc
+// on a golden-angle spiral, turned differently for each pixel so no tap pattern shows, and are
+// read from the mipmaps, so the cost does not grow with the radius. A tap only counts where its
+// own blur reaches this pixel (a gather that behaves like scattering), so sharp pixels never
+// smear onto the blurred ones around them: no halo around an in-focus subject. Taps are averaged in linear light with bright ones weighted up, which
+// turns small highlights into bokeh discs.
+vec3 lensBlur(vec3 s, float radius) {
+    vec2 lo = -uImgMap.xy / uImgMap.zw;
+    vec2 hi = (vec2(1.0) - uImgMap.xy) / uImgMap.zw;
+    // Spacing between neighboring taps; the mip level that fills it avoids gaps between them.
+    float spacing = radius * 1.77 / sqrt(float(LENS_TAPS));
+    float lod = max(0.0, log2(spacing));
+    float turn = hash(gl_FragCoord.xy) * 6.2831853;
+    vec3 acc = toLinear(s);
+    float total = 1.0;
+    for (int k = 0; k < LENS_TAPS; k++) {
+        float d = sqrt((float(k) + 0.5) / float(LENS_TAPS)) * radius;
+        float a = float(k) * 2.39996323 + turn;
+        vec2 uv = vCoord + vec2(cos(a), sin(a)) * d * uGeoTexel;
+        // Past the photo's edge there is nothing to gather.
+        if (any(lessThan(uv, lo)) || any(greaterThan(uv, hi))) continue;
+        vec4 t = textureLod(uGeo, uv, lod);
+        // Near the edges the mip levels mix in the transparent surroundings: weigh them by coverage.
+        if (t.a <= 0.001) continue;
+        vec3 c = t.rgb;
+        float reach = lensRadius(uImgMap.xy + uv * uImgMap.zw, c);
+        float w = clamp(reach - d + 1.0, 0.0, 1.0) * t.a;
+        vec3 lin = toLinear(c);
+        w *= 1.0 + 3.0 * smoothstep(0.6, 1.0, max(lin.r, max(lin.g, lin.b)));
+        acc += lin * w;
+        total += w;
+    }
+    return toSrgb(acc / total);
+}
+
 // Unsharp mask on encoded RGB. The masking slider rejects weak luminance gradients.
 vec3 sharpen(vec3 source) {
     vec2 radius = uGeoTexel * uSharpnessRadius;
@@ -542,11 +599,13 @@ vec3 process(vec3 s, vec2 pos) {
     float textureDelta = textureAmount != 0.0 ? textureDetail(s) * textureAmount : 0.0;
     float clarity = uClarity + lb.w;
 
-    if (uLumaNr > 0.0 || uChromaNr > 0.0) {
-        s = denoise(s);
+    // Defocused areas have no detail left to clean up or bring out.
+    textureDelta *= 1.0 - gDefocus;
+    if ((uLumaNr > 0.0 || uChromaNr > 0.0) && gDefocus < 1.0) {
+        s = mix(denoise(s), s, gDefocus);
     }
 
-    if (uSharpness > 0.0) s = sharpen(s);
+    if (uSharpness > 0.0 && gDefocus < 1.0) s = mix(sharpen(s), s, gDefocus);
 
     vec3 c = toLinear(s);
     vec3 bl = toLinear(texture(uBlur, vCoord).rgb);
@@ -641,7 +700,13 @@ void main() {
     vec4 src = texture(uGeo, vCoord);
     vec2 pos = uImgMap.xy + vCoord * uImgMap.zw;
     bool original = pos.x < uCompare;
-    vec3 rgb = original ? src.rgb : process(src.rgb, pos);
+    vec3 base = src.rgb;
+    if (uLensBlurOn && !original && src.a > 0.0) {
+        float radius = lensRadius(pos, src.rgb);
+        gDefocus = clamp(radius - 0.5, 0.0, 1.0);
+        if (radius > 0.5) base = lensBlur(src.rgb, radius);
+    }
+    vec3 rgb = original ? src.rgb : process(base, pos);
     // How much of the photo the cutout keeps; the original side of the comparison keeps it all.
     float keep = uCutout >= 0 && !original ? maskWeight(uCutout, pos, src.rgb) : 1.0;
     if (uCutoutFill.a > 0.5) {

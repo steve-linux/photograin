@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AutoFixHigh
+import androidx.compose.material.icons.outlined.BlurOn
 import androidx.compose.material.icons.outlined.ContentCut
 import androidx.compose.material.icons.outlined.HighQuality
 import androidx.compose.material3.Card
@@ -40,13 +41,14 @@ import io.github.steve_linux.photograin.data.SubjectSegmenter
  */
 enum class QuickAction(val label: Int, val icon: ImageVector) {
     REMOVE_BACKGROUND(R.string.quick_remove_background, Icons.Outlined.ContentCut),
+    BLUR_BACKGROUND(R.string.quick_blur_background, Icons.Outlined.BlurOn),
     REMOVE_OBJECT(R.string.quick_remove_object, Icons.Outlined.AutoFixHigh),
     ENHANCE(R.string.quick_enhance, Icons.Outlined.HighQuality),
     ;
 
     val available: Boolean
         get() = when (this) {
-            REMOVE_BACKGROUND -> SubjectSegmenter.available
+            REMOVE_BACKGROUND, BLUR_BACKGROUND -> SubjectSegmenter.available
             REMOVE_OBJECT -> ObjectRemover.available
             ENHANCE -> AiUpscaler.available
         }

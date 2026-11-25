@@ -50,6 +50,7 @@
     <string name="param_texture">Texture</string>
     <string name="param_clarity">Clarity</string>
     <string name="param_dehaze">Dehaze</string>
+    <string name="param_lens_blur">Lens blur</string>
     <string name="param_vignette">Vignette</string>
     <string name="param_vignette_midpoint">Midpoint</string>
     <string name="param_vignette_feather">Feather</string>
@@ -264,6 +265,7 @@
     <string name="quick_body">Choose what to do, then pick a photo.</string>
     <string name="quick_remove_background">Remove background</string>
     <string name="quick_remove_object">Erase object</string>
+    <string name="quick_blur_background">Blur background</string>
     <string name="quick_enhance">Improve quality</string>
     <string name="guide_title">Guide</string>
     <string name="guide_open_title">Open a photo</string>
@@ -376,6 +378,7 @@
     <string name="local_add_subject">Subject</string>
     <string name="local_subject_n">Subject %1$d</string>
     <string name="local_remove_background">Remove background</string>
+    <string name="local_blur_background">Blur background</string>
     <string name="local_finding_subject">Finding the subject…</string>
     <string name="local_hint_subject">The subject is found by an AI model on the phone. Tap an object to select it instead, and with Erase tap a part to leave out. Paint to add to it, erase to take away; use two fingers to zoom.</string>
     <string name="local_selecting_object">Selecting the object…</string>
@@ -436,6 +439,7 @@
     <string name="help_param_texture">Move right to accentuate textures like fabric or stone, or left to soften them.</string>
     <string name="help_param_clarity">Adds contrast to mid-sized details and textures (stone, wood, faces). Left softens them.</string>
     <string name="help_param_dehaze">Removes haze and fog from landscapes and brings back depth; left adds a dreamy mist.</string>
+    <string name="help_param_lens_blur">Defocuses the masked area like a wide-open lens: bright spots turn into round bokeh and sharp areas leave no halo. Use it on the inverted subject for a portrait look, or on a linear mask for a tilt-shift miniature.</string>
     <string name="help_param_noise_reduction">Smooths the grainy speckles of photos taken in low light. Too much makes surfaces look plastic.</string>
     <string name="help_param_color_noise_reduction">Removes the colored blotches that appear in dark areas, without blurring detail.</string>
     <string name="help_param_vignette">Darkens the corners to draw the eye to the center; right lightens them instead.</string>

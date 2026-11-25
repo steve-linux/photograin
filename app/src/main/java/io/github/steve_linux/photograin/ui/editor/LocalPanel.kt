@@ -26,6 +26,7 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.AutoFixOff
+import androidx.compose.material.icons.outlined.BlurOn
 import androidx.compose.material.icons.outlined.Brush
 import androidx.compose.material.icons.outlined.Colorize
 import androidx.compose.material.icons.outlined.ContentCopy
@@ -111,11 +112,15 @@ fun LocalPanel(
     selectingObject: Boolean,
     onClearObject: () -> Unit,
     onRemoveBackground: () -> Unit,
+    onBlurBackground: () -> Unit,
     onBackground: (Background, Int?) -> Unit,
 ) {
     var renaming by rememberSaveable(selected) { mutableStateOf(false) }
     var showNewMask by rememberSaveable(selected) { mutableStateOf(false) }
-    var section by rememberSaveable(selected) { mutableStateOf(0) }
+    // A mask made only to defocus opens on its blur slider, in the effects.
+    var section by rememberSaveable(selected) {
+        mutableStateOf(if (masks.getOrNull(selected ?: -1)?.onlyBlurs == true) 3 else 0)
+    }
     val activeSection = if (selected == null) 0 else section
     Column(Modifier.fillMaxWidth().heightIn(max = 300.dp)) {
         if (selected != null) {
@@ -165,6 +170,13 @@ fun LocalPanel(
                             onClick = onRemoveBackground,
                             label = { Text(stringResource(R.string.local_remove_background)) },
                             leadingIcon = { Icon(Icons.Outlined.AutoAwesome, contentDescription = null, Modifier.size(18.dp)) },
+                        )
+                        // A portrait look in one step: everything but the subject, defocused.
+                        AssistChip(
+                            enabled = canAdd,
+                            onClick = onBlurBackground,
+                            label = { Text(stringResource(R.string.local_blur_background)) },
+                            leadingIcon = { Icon(Icons.Outlined.BlurOn, contentDescription = null, Modifier.size(18.dp)) },
                         )
                     }
                 }
@@ -316,7 +328,7 @@ fun LocalPanel(
                 val ids = when (activeSection) {
                     1 -> setOf("exposure", "contrast", "highlights", "shadows")
                     2 -> setOf("temperature", "tint", "saturation")
-                    3 -> setOf("texture", "clarity", "dehaze")
+                    3 -> setOf("texture", "clarity", "dehaze", "blur")
                     else -> emptySet()
                 }
                 for (spec in LocalParams.all.filter { it.id in ids }) {
@@ -341,7 +353,7 @@ private fun formatLocal(spec: LocalParamSpec, value: Float): String {
     val shown = value * spec.displayScale
     return if (spec.decimals == 0) {
         val n = Math.round(shown)
-        if (n > 0) "+$n" else "$n"
+        if (n > 0 && spec.min < 0f) "+$n" else "$n"
     } else {
         String.format(Locale.getDefault(), if (shown > 0) "+%.${spec.decimals}f" else "%.${spec.decimals}f", shown)
     }

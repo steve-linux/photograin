@@ -451,6 +451,7 @@ internal fun paramLabel(id: String): Int = when (id) {
     "texture" -> R.string.param_texture
     "clarity" -> R.string.param_clarity
     "dehaze" -> R.string.param_dehaze
+    "blur" -> R.string.param_lens_blur
     "noiseReduction" -> R.string.param_noise_reduction
     "colorNoiseReduction" -> R.string.param_color_noise_reduction
     "vignette" -> R.string.param_vignette
@@ -504,6 +505,7 @@ internal fun helpFor(@StringRes label: Int): Int? = when (label) {
     R.string.param_texture -> R.string.help_param_texture
     R.string.param_clarity -> R.string.help_param_clarity
     R.string.param_dehaze -> R.string.help_param_dehaze
+    R.string.param_lens_blur -> R.string.help_param_lens_blur
     R.string.param_noise_reduction -> R.string.help_param_noise_reduction
     R.string.param_color_noise_reduction -> R.string.help_param_color_noise_reduction
     R.string.param_vignette -> R.string.help_param_vignette

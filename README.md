@@ -48,6 +48,10 @@ Editor fotografico non distruttivo per Android, libero (GPL-3.0-or-later) e pens
   in serie, dove ogni foto trova il proprio soggetto. Nessuna connessione. Per bordi più fini si
   può importare dalle Impostazioni il pacchetto [IS-Net](https://github.com/xuebinqin/DIS) (88 MB),
   scaricato col browser dalle [release](https://github.com/steve-linux/photograin/releases/tag/models-1).
+- **Sfocatura obiettivo (effetto ritratto)**: ogni maschera ha il cursore *Sfocatura obiettivo*, che sfoca
+  la zona come un obiettivo molto aperto, con i punti luminosi che diventano bokeh rotondi e senza aloni
+  attorno alle parti nitide. "Sfoca sfondo" (tra le azioni rapide e nelle maschere) sfoca in un tocco
+  tutto tranne il soggetto trovato dall'IA; su una maschera lineare dà l'effetto miniatura (tilt-shift).
 - **Rimozione oggetti con l'IA**: nel Ritocco, il pennello "Rimuovi" cancella persone, cavi o
   scritte dipingendoci sopra; [MI-GAN](https://github.com/Picsart-AI-Research/MI-GAN), eseguito
   da ncnn sul telefono, ricostruisce lo sfondo. Le pennellate restano nella ricetta e si ricalcolano
