@@ -155,7 +155,7 @@ object Exporter {
                 canvas.drawColor(Color.WHITE)
             }
             try {
-                val margin = ShaderParams.tileMarginPx(out.longEdge)
+                val margin = ShaderParams.tileMarginPx(out.longEdge, edit.masks)
                 val maxTex = pipeline.maxTextureSize
                 // Decoding at a lower sample size is enough when the export itself is downscaled.
                 var sample = 1

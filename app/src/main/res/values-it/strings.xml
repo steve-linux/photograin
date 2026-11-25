@@ -49,6 +49,7 @@
     <string name="param_texture">Texture</string>
     <string name="param_clarity">Chiarezza</string>
     <string name="param_dehaze">Rimozione foschia</string>
+    <string name="param_lens_blur">Sfocatura obiettivo</string>
     <string name="param_vignette">Vignettatura</string>
     <string name="param_vignette_midpoint">Punto medio</string>
     <string name="param_vignette_feather">Sfumatura</string>
@@ -250,6 +251,7 @@
     <string name="quick_body">Scegli cosa fare, poi la foto.</string>
     <string name="quick_remove_background">Rimuovi sfondo</string>
     <string name="quick_remove_object">Cancella oggetto</string>
+    <string name="quick_blur_background">Sfoca sfondo</string>
     <string name="quick_enhance">Migliora qualità</string>
     <string name="guide_title">Guida</string>
     <string name="guide_open_title">Apri una foto</string>
@@ -362,6 +364,7 @@
     <string name="local_add_subject">Soggetto</string>
     <string name="local_subject_n">Soggetto %1$d</string>
     <string name="local_remove_background">Rimuovi sfondo</string>
+    <string name="local_blur_background">Sfoca sfondo</string>
     <string name="local_finding_subject">Cerco il soggetto…</string>
     <string name="local_hint_subject">Il soggetto lo trova un modello di IA sul telefono. Tocca un oggetto per selezionare quello, e con Cancella tocca una parte da escludere. Dipingi per aggiungere, cancella per togliere; con due dita ingrandisci.</string>
     <string name="local_selecting_object">Seleziono l\'oggetto…</string>
@@ -422,6 +425,7 @@
     <string name="help_param_texture">Sposta a destra per mettere in risalto trame come tessuti e pietra, o a sinistra per ammorbidirle.</string>
     <string name="help_param_clarity">Aggiunge contrasto ai dettagli medi e alle texture (pietra, legno, volti). A sinistra li ammorbidisce.</string>
     <string name="help_param_dehaze">Toglie foschia e nebbia dai paesaggi e restituisce profondità; a sinistra aggiunge un velo sognante.</string>
+    <string name="help_param_lens_blur">Sfoca la zona della maschera come un obiettivo molto aperto: i punti luminosi diventano bokeh rotondi e le parti nitide non lasciano aloni. Sul soggetto invertito dà l\'effetto ritratto, su una maschera lineare l\'effetto miniatura (tilt-shift).</string>
     <string name="help_param_noise_reduction">Leviga i puntini granulosi delle foto scattate con poca luce. Se esageri le superfici sembrano di plastica.</string>
     <string name="help_param_color_noise_reduction">Elimina le macchioline colorate che compaiono nelle zone scure, senza sfocare i dettagli.</string>
     <string name="help_param_vignette">Scurisce gli angoli per portare lo sguardo al centro; a destra invece li schiarisce.</string>

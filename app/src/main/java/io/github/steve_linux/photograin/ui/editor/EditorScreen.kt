@@ -435,6 +435,7 @@ private fun PhotoWorkspace(viewModel: EditorViewModel, onClose: () -> Unit, onGu
                             selectingObject = state.selectingObject,
                             onClearObject = viewModel::clearObject,
                             onRemoveBackground = viewModel::removeBackground,
+                            onBlurBackground = viewModel::blurBackground,
                             onBackground = viewModel::setMaskBackground,
                         )
                     }
