@@ -46,7 +46,9 @@ class LensBlurTest {
     fun recipesKeepTheBlurAndOldOnesOpenSharp() {
         val edit = EditState(masks = listOf(LocalAdjustment.backgroundBlur().copy(blur = 0.8f)))
         assertEquals(edit, EditState.fromJson(edit.toJson()))
-        val old = edit.toJson().replace(Regex(",?\"blur\":[0-9.]+"), "")
+        // Recipes are pretty-printed: drop the key with its comma and spacing.
+        val old = edit.toJson().replace(Regex(",?\\s*\"blur\":\\s*[0-9.]+"), "")
+        assertFalse(old.contains("\"blur\""))
         assertEquals(0f, EditState.fromJson(old)!!.masks.single().blur, 0f)
     }
 
