@@ -18,6 +18,10 @@ jobs:
       # ncnn needs glslang to compile its Vulkan shaders, not its Python bindings.
       - name: ncnn dependencies
         run: git -C app/src/main/cpp/ncnn submodule update --init --depth 1 glslang
+      - name: HDR merge host test
+        run: |
+          g++ -O2 -Wall -std=c++17 -pthread -Iapp/src/main/cpp tools/hdr/hdr_test.cpp app/src/main/cpp/hdr_merge.cpp -o hdr_test
+          ./hdr_test
       - uses: actions/setup-java@v4
         with:
           distribution: temurin

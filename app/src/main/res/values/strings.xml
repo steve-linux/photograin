@@ -538,4 +538,26 @@
     <string name="preset_copy_name">Copy of %1$s</string>
     <string name="preset_delete_hint">Delete this saved preset? Existing photo edits will stay unchanged.</string>
     <string name="msg_preset_failed">Could not save the preset library. Existing presets were kept.</string>
+    <!-- HDR merge -->
+    <string name="home_hdr">Merge HDR</string>
+    <string name="hdr_title">HDR merge (%1$d)</string>
+    <string name="hdr_hint">Shots of the same scene taken darker and brighter (exposure bracketing) become one photo with detail in both shadows and highlights. A tripod gives the cleanest result.</string>
+    <string name="hdr_align">Align handheld shots</string>
+    <string name="hdr_align_body">Lines the shots up if the camera moved between them. The edges they do not share are cropped.</string>
+    <string name="hdr_deghost">Remove ghosts</string>
+    <string name="hdr_deghost_body">Where something moved (people, branches, water) it is taken from the middle exposure only.</string>
+    <string name="hdr_merge">Merge</string>
+    <string name="hdr_size">Result: %1$.1f MP, saved as JPEG and opened in the editor</string>
+    <string name="hdr_size_reduced">Result: %1$.1f MP, smaller than the originals because memory is short. Closing other apps allows full size.</string>
+    <string name="hdr_stage_decode">Reading the photos…</string>
+    <string name="hdr_stage_align">Aligning…</string>
+    <string name="hdr_stage_fuse">Merging…</string>
+    <string name="hdr_too_few">Pick at least %1$d shots of the same scene.</string>
+    <string name="hdr_too_many">Pick at most %1$d shots.</string>
+    <string name="hdr_different_shapes">These photos have different shapes (portrait and landscape, or cropped): pick shots taken one after another.</string>
+    <string name="hdr_unreadable">Could not read one of the photos</string>
+    <string name="hdr_out_of_memory">Not enough memory for these photos. Try fewer shots or close other apps.</string>
+    <string name="hdr_failed">Could not merge the photos</string>
+    <string name="guide_hdr_title">Merge HDR</string>
+    <string name="guide_hdr_body">For scenes too contrasty for one shot, such as a window from inside or a sunset, take the same photo darker and brighter (exposure bracketing, often called AEB or HDR in the camera), then tap {icon} on the home screen and pick the shots. Photograin lines them up, keeps the best exposed part of each and opens the result in the editor. JPEG and RAW shots both work.</string>
 </resources>

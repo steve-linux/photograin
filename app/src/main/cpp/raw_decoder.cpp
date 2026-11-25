@@ -71,7 +71,7 @@ int RawDecoder::probe(RawInfo* info) {
     return LIBRAW_SUCCESS;
 }
 
-int RawDecoder::develop(bool halfSize) {
+int RawDecoder::develop(bool halfSize, bool autoBright) {
     releaseImage();
     libraw_output_params_t& p = raw_->imgdata.params;
     p.user_flip = 0;        // orientation is applied later, on the GPU
@@ -85,6 +85,7 @@ int RawDecoder::develop(bool halfSize) {
     p.highlight = 2;        // blend clipped channels instead of tinting them magenta
     // Auto brightness clips the brightest 0.2% instead of 1%, keeping more highlight detail.
     p.auto_bright_thr = 0.002f;
+    p.no_auto_bright = autoBright ? 0 : 1;
 
     int ret = raw_->unpack();
     if (ret != LIBRAW_SUCCESS) return ret;

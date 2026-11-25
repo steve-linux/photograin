@@ -42,8 +42,11 @@ public:
     /** Reads the output size without decoding pixels. Call right after open. */
     int probe(RawInfo* info);
 
-    /** Decodes and demosaics. halfSize skips demosaicing and halves each side, for previews. */
-    int develop(bool halfSize);
+    /**
+     * Decodes and demosaics. halfSize skips demosaicing and halves each side, for previews.
+     * Without autoBright every file keeps its exposure, as an HDR merge of brackets needs.
+     */
+    int develop(bool halfSize, bool autoBright = true);
     int developedWidth() const;
     int developedHeight() const;
     /**

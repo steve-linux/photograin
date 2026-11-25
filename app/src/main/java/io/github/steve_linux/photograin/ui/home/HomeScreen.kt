@@ -34,6 +34,7 @@ import androidx.compose.material.icons.outlined.AddPhotoAlternate
 import androidx.compose.material.icons.outlined.Compare
 import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material.icons.outlined.GridView
+import androidx.compose.material.icons.outlined.HdrStrong
 import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.outlined.Settings
@@ -82,6 +83,7 @@ import androidx.compose.ui.unit.em
 import io.github.steve_linux.photograin.R
 import io.github.steve_linux.photograin.model.PhotoLibraryQuery
 import io.github.steve_linux.photograin.model.EditState
+import io.github.steve_linux.photograin.data.HdrMerger
 import io.github.steve_linux.photograin.data.ImageLoader
 import io.github.steve_linux.photograin.data.Preferences
 import io.github.steve_linux.photograin.data.RecipeStore
@@ -104,6 +106,7 @@ fun HomeScreen(
     onOpen: (uri: Uri, version: Int) -> Unit,
     onQuickAction: (QuickAction) -> Unit,
     onBatch: () -> Unit,
+    onHdr: () -> Unit,
     showTip: Boolean,
     onDismissTip: () -> Unit,
     onSettings: () -> Unit,
@@ -112,7 +115,7 @@ fun HomeScreen(
     PhotoWorkspaceTheme {
         PhotoLibrary(
             recents, minimumRating, onMinimumRating, onOpenPicker, onOpen,
-            onQuickAction, onBatch, showTip, onDismissTip, onSettings, onGuide,
+            onQuickAction, onBatch, onHdr, showTip, onDismissTip, onSettings, onGuide,
         )
     }
 }
@@ -127,6 +130,7 @@ private fun PhotoLibrary(
     onOpen: (uri: Uri, version: Int) -> Unit,
     onQuickAction: (QuickAction) -> Unit,
     onBatch: () -> Unit,
+    onHdr: () -> Unit,
     showTip: Boolean,
     onDismissTip: () -> Unit,
     onSettings: () -> Unit,
@@ -180,6 +184,11 @@ private fun PhotoLibrary(
                                     if (comparing) R.string.home_show_grid else R.string.home_show_compare,
                                 ),
                             )
+                        }
+                    }
+                    if (HdrMerger.available) {
+                        IconButton(onClick = onHdr) {
+                            Icon(Icons.Outlined.HdrStrong, contentDescription = stringResource(R.string.home_hdr))
                         }
                     }
                     TextButton(onClick = onBatch) {

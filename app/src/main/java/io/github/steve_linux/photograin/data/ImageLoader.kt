@@ -117,7 +117,7 @@ object ImageLoader {
         oriented(image.preview, image.base)
     }.getOrNull()
 
-    private fun oriented(bitmap: Bitmap, base: BaseOrientation): Bitmap {
+    internal fun oriented(bitmap: Bitmap, base: BaseOrientation): Bitmap {
         val m = android.graphics.Matrix().apply {
             if (base.mirror) postScale(-1f, 1f)
             postRotate(90f * base.quarterTurns)
@@ -149,7 +149,7 @@ object ImageLoader {
         }
     }.getOrNull()
 
-    private fun sampleSizeFor(longEdge: Int, target: Int): Int {
+    internal fun sampleSizeFor(longEdge: Int, target: Int): Int {
         var sample = 1
         while (longEdge / (sample * 2) >= target) sample *= 2
         return sample

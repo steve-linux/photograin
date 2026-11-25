@@ -524,4 +524,26 @@
     <string name="preset_copy_name">Copia di %1$s</string>
     <string name="preset_delete_hint">Eliminare questo preset salvato? Le modifiche già applicate alle foto resteranno invariate.</string>
     <string name="msg_preset_failed">Impossibile salvare la raccolta dei preset. I preset esistenti sono stati conservati.</string>
+    <!-- Unione HDR -->
+    <string name="home_hdr">Unisci HDR</string>
+    <string name="hdr_title">Unione HDR (%1$d)</string>
+    <string name="hdr_hint">Scatti della stessa scena fatti più scuri e più chiari (bracketing dell\'esposizione) diventano una sola foto con dettagli sia nelle ombre sia nelle luci. Con il treppiede il risultato è più pulito.</string>
+    <string name="hdr_align">Allinea gli scatti a mano libera</string>
+    <string name="hdr_align_body">Rimette in linea gli scatti se la fotocamera si è mossa tra l\'uno e l\'altro. I bordi non comuni vengono ritagliati.</string>
+    <string name="hdr_deghost">Rimuovi i fantasmi</string>
+    <string name="hdr_deghost_body">Dove qualcosa si è mosso (persone, rami, acqua) viene preso solo dall\'esposizione intermedia.</string>
+    <string name="hdr_merge">Unisci</string>
+    <string name="hdr_size">Risultato: %1$.1f MP, salvato in JPEG e aperto nell\'editor</string>
+    <string name="hdr_size_reduced">Risultato: %1$.1f MP, più piccolo degli originali perché la memoria è poca. Chiudendo altre app si ottiene la dimensione piena.</string>
+    <string name="hdr_stage_decode">Lettura delle foto…</string>
+    <string name="hdr_stage_align">Allineamento…</string>
+    <string name="hdr_stage_fuse">Unione…</string>
+    <string name="hdr_too_few">Scegli almeno %1$d scatti della stessa scena.</string>
+    <string name="hdr_too_many">Scegli al massimo %1$d scatti.</string>
+    <string name="hdr_different_shapes">Queste foto hanno forme diverse (verticale e orizzontale, o ritagliate): scegli scatti fatti uno dopo l\'altro.</string>
+    <string name="hdr_unreadable">Impossibile leggere una delle foto</string>
+    <string name="hdr_out_of_memory">Memoria insufficiente per queste foto. Prova con meno scatti o chiudi altre app.</string>
+    <string name="hdr_failed">Impossibile unire le foto</string>
+    <string name="guide_hdr_title">Unione HDR</string>
+    <string name="guide_hdr_body">Per scene troppo contrastate per un solo scatto, come una finestra vista da dentro o un tramonto, fai la stessa foto più scura e più chiara (bracketing dell\'esposizione, spesso AEB o HDR nella fotocamera), poi tocca {icon} nella schermata iniziale e scegli gli scatti. Photograin li allinea, tiene la parte meglio esposta di ciascuno e apre il risultato nell\'editor. Vanno bene sia JPEG sia RAW.</string>
 </resources>
